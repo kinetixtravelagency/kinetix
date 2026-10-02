@@ -203,7 +203,7 @@ function Why() {
 
 function Pricing() {
   const all = countries.flatMap((c) => c.programs.map((p) => ({ ...p, country: c.name })));
-  const [slug, setSlug] = useState(all[all.length - 1].slug);
+  const [slug, setSlug] = useState(all[all.length - 1]!.slug);
   const p = all.find((x) => x.slug === slug)!;
   const [months, setMonths] = useState(p.installments);
   const m = Math.min(months, p.installments);
