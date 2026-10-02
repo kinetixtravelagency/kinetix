@@ -1,7 +1,8 @@
 # Kinetix roadmap
 - [x] Phase 1: Public site — homepage, country pages, pricing calculator, design system
-- [ ] Phase 2: Database + auth (countries/programs/pricing from DB, roles) — awaiting user go-ahead
-- [ ] Phase 3: Application flow + secure document upload + customer dashboard
-- [ ] Phase 4: Promo/referral codes, Sales Partner portal, levels, commissions
-- [ ] Phase 5: Admin dashboard (countries, programs, pricing, applications, partners, analytics)
-- [ ] Phase 6: Payments, multilingual, AI assistant
+- [ ] Phase 2: Database (countries, programs, profiles, roles, partners, applications, promo codes) + auth
+- [ ] Arabic/English language switcher (RTL for Arabic)
+- [ ] Customer application flow + secure document upload + customer dashboard
+- [ ] Sales Partner portal: profile (name, photo, phone, promo code/link, level, commissions, payout details), clients
+- [ ] Admin dashboard: countries, programs, pricing, applications, partners, analytics
+- [ ] Payments, multilingual content in DB, AI assistant
