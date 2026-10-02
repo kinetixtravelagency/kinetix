@@ -14,16 +14,340 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      applications: {
+        Row: {
+          created_at: string
+          id: string
+          notes: string | null
+          partner_id: string | null
+          program_id: string
+          promo_code: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          notes?: string | null
+          partner_id?: string | null
+          program_id: string
+          promo_code?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          notes?: string | null
+          partner_id?: string | null
+          program_id?: string
+          promo_code?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "applications_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "applications_program_id_fkey"
+            columns: ["program_id"]
+            isOneToOne: false
+            referencedRelation: "programs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "applications_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      commissions: {
+        Row: {
+          amount: number
+          application_id: string | null
+          created_at: string
+          id: string
+          partner_id: string
+          status: string
+        }
+        Insert: {
+          amount?: number
+          application_id?: string | null
+          created_at?: string
+          id?: string
+          partner_id: string
+          status?: string
+        }
+        Update: {
+          amount?: number
+          application_id?: string | null
+          created_at?: string
+          id?: string
+          partner_id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "commissions_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "applications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "commissions_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      countries: {
+        Row: {
+          created_at: string
+          description_ar: string
+          description_en: string
+          documents_en: string[]
+          eligibility_en: string[]
+          flag: string
+          id: string
+          image_key: string
+          name_ar: string
+          name_en: string
+          published: boolean
+          slug: string
+          sort_order: number
+          tagline_ar: string
+          tagline_en: string
+          timeline_en: Json
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description_ar?: string
+          description_en?: string
+          documents_en?: string[]
+          eligibility_en?: string[]
+          flag?: string
+          id?: string
+          image_key?: string
+          name_ar?: string
+          name_en: string
+          published?: boolean
+          slug: string
+          sort_order?: number
+          tagline_ar?: string
+          tagline_en?: string
+          timeline_en?: Json
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description_ar?: string
+          description_en?: string
+          documents_en?: string[]
+          eligibility_en?: string[]
+          flag?: string
+          id?: string
+          image_key?: string
+          name_ar?: string
+          name_en?: string
+          published?: boolean
+          slug?: string
+          sort_order?: number
+          tagline_ar?: string
+          tagline_en?: string
+          timeline_en?: Json
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      partners: {
+        Row: {
+          active: boolean
+          commission_rate: number
+          created_at: string
+          id: string
+          level: string
+          payout_details: string | null
+          payout_method: string | null
+          promo_code: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          active?: boolean
+          commission_rate?: number
+          created_at?: string
+          id?: string
+          level?: string
+          payout_details?: string | null
+          payout_method?: string | null
+          promo_code: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          active?: boolean
+          commission_rate?: number
+          created_at?: string
+          id?: string
+          level?: string
+          payout_details?: string | null
+          payout_method?: string | null
+          promo_code?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "partners_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          full_name: string | null
+          id: string
+          phone: string | null
+          updated_at: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          full_name?: string | null
+          id: string
+          phone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          full_name?: string | null
+          id?: string
+          phone?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      programs: {
+        Row: {
+          category_ar: string
+          category_en: string
+          country_id: string
+          created_at: string
+          deposit: number
+          duration: string
+          id: string
+          max_installments: number
+          price: number
+          published: boolean
+          slug: string
+          title_ar: string
+          title_en: string
+          updated_at: string
+        }
+        Insert: {
+          category_ar?: string
+          category_en?: string
+          country_id: string
+          created_at?: string
+          deposit?: number
+          duration?: string
+          id?: string
+          max_installments?: number
+          price?: number
+          published?: boolean
+          slug: string
+          title_ar?: string
+          title_en: string
+          updated_at?: string
+        }
+        Update: {
+          category_ar?: string
+          category_en?: string
+          country_id?: string
+          created_at?: string
+          deposit?: number
+          duration?: string
+          id?: string
+          max_installments?: number
+          price?: number
+          published?: boolean
+          slug?: string
+          title_ar?: string
+          title_en?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "programs_country_id_fkey"
+            columns: ["country_id"]
+            isOneToOne: false
+            referencedRelation: "countries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_roles: {
+        Row: {
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_roles_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "partner" | "customer"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +474,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "partner", "customer"],
+    },
   },
 } as const
