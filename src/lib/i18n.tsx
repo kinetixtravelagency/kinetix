@@ -55,6 +55,7 @@ const dict = {
     payoutMethod: "Payout method", payoutDetails: "Payout details", save: "Save", saved: "Saved",
     phone: "Phone", overview: "Overview", applications: "Applications", programsAdmin: "Programs", partnersAdmin: "Partners",
     status: "Status", date: "Date", program: "Program", price: "Price", country: "Country",
+    notPrepared: "This destination is being prepared", backCountries: "Back to all countries", upTo: "Up to", monthly: "monthly",
   },
   ar: {
     countries: "الدول", how: "كيف نعمل", pricing: "الأسعار", partners: "الشركاء", faq: "الأسئلة الشائعة",
@@ -106,6 +107,7 @@ const dict = {
     payoutMethod: "طريقة السحب", payoutDetails: "تفاصيل السحب", save: "حفظ", saved: "تم الحفظ",
     phone: "الهاتف", overview: "نظرة عامة", applications: "الطلبات", programsAdmin: "البرامج", partnersAdmin: "الشركاء",
     status: "الحالة", date: "التاريخ", program: "البرنامج", price: "السعر", country: "الدولة",
+    notPrepared: "هذه الوجهة قيد التحضير", backCountries: "العودة إلى كل الدول", upTo: "حتى", monthly: "شهرياً",
   },
 } as const;
 
