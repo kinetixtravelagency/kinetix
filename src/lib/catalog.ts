@@ -1,9 +1,15 @@
 // Temporary catalog, mirrored in the database (seeded). Bilingual EN/AR.
-import bulgaria from "@/assets/bulgaria.jpg";
-import luxembourg from "@/assets/luxembourg.jpg";
-import armenia from "@/assets/armenia.jpg";
-import russia from "@/assets/russia.jpg";
-import italy from "@/assets/italy.jpg";
+import bulgariaAsset from "@/assets/bulgaria.jpg.asset.json";
+import luxembourgAsset from "@/assets/luxembourg.jpg.asset.json";
+import armeniaAsset from "@/assets/armenia.jpg.asset.json";
+import russiaAsset from "@/assets/russia.jpg.asset.json";
+import italyAsset from "@/assets/italy.jpg.asset.json";
+
+const bulgaria = bulgariaAsset.url;
+const luxembourg = luxembourgAsset.url;
+const armenia = armeniaAsset.url;
+const russia = russiaAsset.url;
+const italy = italyAsset.url;
 
 export type Program = {
   slug: string; title: string; titleAr: string; category: string; categoryAr: string;

@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import {
   ArrowRight, ArrowUpRight, Compass, FileCheck2, PlaneTakeoff, Wallet, ShieldCheck, Eye,
-  CalendarClock, Users, Plus, Minus, Gift, MapPin,
+  CalendarClock, Users, Plus, Minus, Gift, MapPin, Sparkles, Globe,
 } from "lucide-react";
 import hero from "@/assets/hero.jpg";
 import { Nav, Footer } from "@/components/site/SiteChrome";
@@ -104,7 +104,7 @@ function Countries() {
               <div className="absolute inset-0 bg-gradient-to-t from-navy via-navy/40 to-transparent" />
               <div className="relative flex h-full min-h-[420px] flex-col justify-between p-6">
                 <div className="flex items-center justify-between">
-                  <span className="rounded-full border border-ivory/25 bg-navy/40 px-3 py-1 text-xs backdrop-blur">{c.flag} {c.programs.length} {t("programsWord")}</span>
+                  <span className="flex items-center gap-1.5 rounded-full border border-beige/40 bg-navy/40 px-3 py-1.5 text-xs font-medium text-beige backdrop-blur"><Sparkles className="h-3.5 w-3.5" strokeWidth={1.5} />{c.programs.length} {t("programsWord")}</span>
                   <ArrowUpRight className="h-5 w-5 transition-transform group-hover:-translate-y-1 group-hover:translate-x-1 rtl:rotate-180" strokeWidth={1.25} />
                 </div>
                 <div>
@@ -135,7 +135,7 @@ function Featured() {
           {all.map((p, i) => (
             <Reveal key={p.slug} delay={i * 40}>
               <Link to="/countries/$slug" params={{ slug: p.country.slug }} className="group grid grid-cols-[1fr_auto] items-center gap-4 py-6 md:grid-cols-[2fr_1fr_1fr_1fr_auto]">
-                <div><p className="text-xs text-muted-foreground">{p.country.flag} {lang === "ar" ? p.country.nameAr : p.country.name}</p><p className="mt-1 font-display text-xl font-medium">{lang === "ar" ? p.titleAr : p.title}</p></div>
+                <div><p className="flex items-center gap-1.5 text-xs text-muted-foreground"><MapPin className="h-3.5 w-3.5 text-beige" strokeWidth={1.5} />{lang === "ar" ? p.country.nameAr : p.country.name}</p><p className="mt-1 font-display text-xl font-medium">{lang === "ar" ? p.titleAr : p.title}</p></div>
                 <p className="hidden text-sm text-muted-foreground md:block">{lang === "ar" ? p.categoryAr : p.category}</p>
                 <p className="hidden text-sm text-muted-foreground md:block">{p.duration}</p>
                 <p className="hidden font-display text-lg md:block">{eur(p.price)}</p>

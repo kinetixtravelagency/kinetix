@@ -1,5 +1,5 @@
 import { createFileRoute, notFound, Link } from "@tanstack/react-router";
-import { ArrowLeft, ArrowRight, Check, Clock, FileText } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, Clock, FileText, Globe } from "lucide-react";
 import { Nav, Footer } from "@/components/site/SiteChrome";
 import { Reveal } from "@/components/site/Reveal";
 import { getCountry, eur } from "@/lib/catalog";
@@ -47,7 +47,7 @@ function CountryPage() {
         <div className="absolute inset-0 -z-10 bg-gradient-to-t from-navy via-navy/60 to-navy/30" />
         <div className="mx-auto flex min-h-[70vh] max-w-7xl flex-col justify-end px-5 pb-16 pt-32 md:px-8">
           <Link to="/" hash="countries" className="mb-8 inline-flex items-center gap-2 text-sm text-ivory/70 hover:text-beige"><ArrowLeft className="h-4 w-4 rtl:rotate-180" strokeWidth={1.5} /> {t("backCountries")}</Link>
-          <p className="eyebrow text-beige">{c.flag} {t("countriesEyebrow")}</p>
+          <p className="eyebrow flex items-center gap-2 text-beige"><Globe className="h-4 w-4" strokeWidth={1.5} />{t("countriesEyebrow")}</p>
           <h1 className="mt-4 text-5xl font-semibold md:text-7xl">{ar ? c.nameAr : c.name}</h1>
           <p className="mt-5 max-w-xl text-lg text-ivory/75">{ar ? c.descriptionAr : c.description}</p>
         </div>
