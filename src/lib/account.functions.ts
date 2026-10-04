@@ -11,8 +11,8 @@ export const getMyAccount = createServerFn({ method: "GET" })
       supabase.from("partners").select("*").eq("user_id", userId).maybeSingle(),
       supabase.from("applications").select("*, programs(title_en, title_ar, price)").eq("user_id", userId).order("created_at", { ascending: false }),
     ]);
-    let commissions: unknown[] = [];
-    let referred: unknown[] = [];
+    let commissions: any[] = [];
+    let referred: any[] = [];
     if (partner.data) {
       const [c, r] = await Promise.all([
         supabase.from("commissions").select("*").eq("partner_id", partner.data.id).order("created_at", { ascending: false }),
