@@ -62,8 +62,8 @@ function Dashboard() {
         <section className="rounded-3xl border border-border bg-card p-6">
           <h2 className="font-display text-xl font-semibold">{t("myProfile")}</h2>
           <div className="mt-5 space-y-3">
-            <input className={input} placeholder={t("fullName")} value={name ?? data.profile?.full_name ?? ""} onChange={(e) => setName(e.target.value)} />
-            <input className={input} placeholder={t("phone")} value={phone ?? data.profile?.phone ?? ""} onChange={(e) => setPhone(e.target.value)} />
+            <input className={input} placeholder={t("fullName")} value={name ?? account.profile?.full_name ?? ""} onChange={(e) => setName(e.target.value)} />
+            <input className={input} placeholder={t("phone")} value={phone ?? account.profile?.phone ?? ""} onChange={(e) => setPhone(e.target.value)} />
             <button onClick={async () => { await saveProfile({ data: { full_name: name ?? undefined, phone: phone ?? undefined } }); setSavedMsg(true); setTimeout(() => setSavedMsg(false), 2000); }}
               className="rounded-full bg-navy px-5 py-2.5 text-sm text-ivory">{savedMsg ? t("saved") : t("save")}</button>
           </div>
@@ -72,11 +72,11 @@ function Dashboard() {
         {/* Applications */}
         <section className="rounded-3xl border border-border bg-card p-6 lg:col-span-2">
           <h2 className="font-display text-xl font-semibold">{t("myApplications")}</h2>
-          {data.applications.length === 0 ? (
+          {account.applications.length === 0 ? (
             <p className="mt-5 text-sm text-muted-foreground">{t("noApplications")} <Link to="/" hash="countries" className="underline">{t("exploreCta")}</Link></p>
           ) : (
             <div className="mt-5 divide-y divide-border">
-              {(data.applications as any[]).map((a) => (
+              {(account.applications as any[]).map((a) => (
                 <div key={a.id} className="flex items-center justify-between py-3 text-sm">
                   <div><p className="font-medium">{lang === "ar" ? a.programs?.title_ar || a.programs?.title_en : a.programs?.title_en}</p>
                     <p className="text-xs text-muted-foreground">{new Date(a.created_at).toLocaleDateString()}</p></div>
@@ -88,16 +88,16 @@ function Dashboard() {
         </section>
 
         {/* Partner portal */}
-        {data.partner && (
+        {partner && (
           <section className="rounded-3xl bg-navy p-6 text-ivory lg:col-span-3">
             <div className="flex flex-wrap items-center justify-between gap-4">
               <h2 className="font-display text-2xl font-semibold">{t("partnerPortal")}</h2>
-              <span className="inline-flex items-center gap-2 rounded-full border border-beige/50 px-4 py-1.5 text-sm text-beige"><Award className="h-4 w-4" strokeWidth={1.5} />{t("level")}: {data.partner.level}</span>
+              <span className="inline-flex items-center gap-2 rounded-full border border-beige/50 px-4 py-1.5 text-sm text-beige"><Award className="h-4 w-4" strokeWidth={1.5} />{t("level")}: {partner.level}</span>
             </div>
             <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <div className="rounded-2xl bg-navy-soft p-5"><p className="text-xs text-ivory/60">{t("promoCode")}</p>
-                <button onClick={() => navigator.clipboard.writeText(data.partner.promo_code)} className="mt-1 flex items-center gap-2 font-display text-2xl text-beige">{data.partner.promo_code}<Copy className="h-4 w-4" strokeWidth={1.5} /></button></div>
-              <div className="rounded-2xl bg-navy-soft p-5"><p className="text-xs text-ivory/60">{t("commissionRate")}</p><p className="mt-1 font-display text-2xl text-beige">{data.partner.commission_rate}%</p></div>
+                <button onClick={() => navigator.clipboard.writeText(partner.promo_code)} className="mt-1 flex items-center gap-2 font-display text-2xl text-beige">{partner.promo_code}<Copy className="h-4 w-4" strokeWidth={1.5} /></button></div>
+              <div className="rounded-2xl bg-navy-soft p-5"><p className="text-xs text-ivory/60">{t("commissionRate")}</p><p className="mt-1 font-display text-2xl text-beige">{partner.commission_rate}%</p></div>
               <div className="rounded-2xl bg-navy-soft p-5"><p className="text-xs text-ivory/60">{t("totalEarned")}</p><p className="mt-1 font-display text-2xl text-beige">{eur(earned)}</p></div>
               <div className="rounded-2xl bg-navy-soft p-5"><p className="text-xs text-ivory/60">{t("pending")}</p><p className="mt-1 font-display text-2xl text-beige">{eur(pendingAmt)}</p></div>
             </div>
@@ -105,18 +105,18 @@ function Dashboard() {
               <div>
                 <h3 className="flex items-center gap-2 text-sm font-medium text-ivory/80"><Wallet className="h-4 w-4" strokeWidth={1.5} />{t("payoutMethod")}</h3>
                 <div className="mt-3 space-y-3">
-                  <input className={`${input} bg-navy-soft text-ivory placeholder:text-ivory/40`} placeholder={t("payoutMethod")} value={payoutMethod ?? data.partner.payout_method ?? ""} onChange={(e) => setPayoutMethod(e.target.value)} />
-                  <input className={`${input} bg-navy-soft text-ivory placeholder:text-ivory/40`} placeholder={t("payoutDetails")} value={payoutDetails ?? data.partner.payout_details ?? ""} onChange={(e) => setPayoutDetails(e.target.value)} />
+                  <input className={`${input} bg-navy-soft text-ivory placeholder:text-ivory/40`} placeholder={t("payoutMethod")} value={payoutMethod ?? partner.payout_method ?? ""} onChange={(e) => setPayoutMethod(e.target.value)} />
+                  <input className={`${input} bg-navy-soft text-ivory placeholder:text-ivory/40`} placeholder={t("payoutDetails")} value={payoutDetails ?? partner.payout_details ?? ""} onChange={(e) => setPayoutDetails(e.target.value)} />
                   <button onClick={() => savePayout({ data: { payout_method: payoutMethod ?? undefined, payout_details: payoutDetails ?? undefined } })} className="rounded-full bg-beige px-5 py-2.5 text-sm font-medium text-navy">{t("save")}</button>
                 </div>
               </div>
               <div>
-                <h3 className="text-sm font-medium text-ivory/80">{t("clients")} ({data.referred.length})</h3>
+                <h3 className="text-sm font-medium text-ivory/80">{t("clients")} ({account.referred.length})</h3>
                 <div className="mt-3 divide-y divide-ivory/10 text-sm">
-                  {(data.referred as any[]).slice(0, 6).map((r) => (
+                  {(account.referred as any[]).slice(0, 6).map((r) => (
                     <div key={r.id} className="flex justify-between py-2.5"><span>{lang === "ar" ? r.programs?.title_ar || r.programs?.title_en : r.programs?.title_en}</span><span className="text-ivory/60">{r.status}</span></div>
                   ))}
-                  {data.referred.length === 0 && <p className="py-2 text-ivory/50">—</p>}
+                  {account.referred.length === 0 && <p className="py-2 text-ivory/50">—</p>}
                 </div>
               </div>
             </div>
