@@ -33,7 +33,7 @@ export const getMyAccount = createServerFn({ method: "GET" })
 
 export const updateMyProfile = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: { full_name?: string; phone?: string }) => data)
+  .inputValidator((data: { full_name?: string | undefined; phone?: string | undefined }) => data)
   .handler(async ({ data, context }) => {
     const { error } = await context.supabase
       .from("profiles")
@@ -45,7 +45,7 @@ export const updateMyProfile = createServerFn({ method: "POST" })
 
 export const updateMyPayout = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: { payout_method?: string; payout_details?: string }) => data)
+  .inputValidator((data: { payout_method?: string | undefined; payout_details?: string | undefined }) => data)
   .handler(async ({ data, context }) => {
     const { error } = await context.supabase
       .from("partners")

@@ -87,7 +87,7 @@ function Dashboard() {
         </section>
 
         {/* Partner portal */}
-        {isPartner && (
+        {data.partner && (
           <section className="rounded-3xl bg-navy p-6 text-ivory lg:col-span-3">
             <div className="flex flex-wrap items-center justify-between gap-4">
               <h2 className="font-display text-2xl font-semibold">{t("partnerPortal")}</h2>
