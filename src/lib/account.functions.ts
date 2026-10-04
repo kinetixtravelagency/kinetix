@@ -37,7 +37,7 @@ export const updateMyProfile = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { error } = await context.supabase
       .from("profiles")
-      .update({ full_name: data.full_name, phone: data.phone })
+      .update({ full_name: data.full_name ?? null, phone: data.phone ?? null })
       .eq("id", context.userId);
     if (error) throw new Error(error.message);
     return { ok: true };
@@ -49,7 +49,7 @@ export const updateMyPayout = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { error } = await context.supabase
       .from("partners")
-      .update({ payout_method: data.payout_method, payout_details: data.payout_details })
+      .update({ payout_method: data.payout_method ?? null, payout_details: data.payout_details ?? null })
       .eq("user_id", context.userId);
     if (error) throw new Error(error.message);
     return { ok: true };

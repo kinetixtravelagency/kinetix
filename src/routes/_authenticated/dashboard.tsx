@@ -33,10 +33,11 @@ function Dashboard() {
 
   if (isLoading || !data) return <div className="flex min-h-screen items-center justify-center text-muted-foreground">…</div>;
 
-  const isPartner = !!data.partner;
-  const isAdmin = data.roles.includes("admin");
-  const earned = (data.commissions as any[]).filter((c) => c.status === "paid").reduce((s, c) => s + c.amount, 0);
-  const pendingAmt = (data.commissions as any[]).filter((c) => c.status === "pending").reduce((s, c) => s + c.amount, 0);
+  const account = data as any;
+  const partner = account.partner;
+  const isAdmin = account.roles.includes("admin");
+  const earned = (account.commissions as any[]).filter((c) => c.status === "paid").reduce((s, c) => s + c.amount, 0);
+  const pendingAmt = (account.commissions as any[]).filter((c) => c.status === "pending").reduce((s, c) => s + c.amount, 0);
 
   const signOut = async () => {
     await queryClient.cancelQueries(); queryClient.clear();
