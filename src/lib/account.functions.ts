@@ -11,8 +11,8 @@ export const getMyAccount = createServerFn({ method: "GET" })
       supabase.from("partners").select("*").eq("user_id", userId).maybeSingle(),
       supabase.from("applications").select("*, programs(title_en, title_ar, price)").eq("user_id", userId).order("created_at", { ascending: false }),
     ]);
-    let commissions: unknown[] = [];
-    let referred: unknown[] = [];
+    let commissions: any[] = [];
+    let referred: any[] = [];
     if (partner.data) {
       const [c, r] = await Promise.all([
         supabase.from("commissions").select("*").eq("partner_id", partner.data.id).order("created_at", { ascending: false }),
@@ -33,11 +33,11 @@ export const getMyAccount = createServerFn({ method: "GET" })
 
 export const updateMyProfile = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: { full_name?: string; phone?: string }) => data)
+  .inputValidator((data: { full_name?: string | undefined; phone?: string | undefined }) => data)
   .handler(async ({ data, context }) => {
     const { error } = await context.supabase
       .from("profiles")
-      .update({ full_name: data.full_name, phone: data.phone })
+      .update({ full_name: data.full_name ?? null, phone: data.phone ?? null })
       .eq("id", context.userId);
     if (error) throw new Error(error.message);
     return { ok: true };
@@ -45,11 +45,11 @@ export const updateMyProfile = createServerFn({ method: "POST" })
 
 export const updateMyPayout = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: { payout_method?: string; payout_details?: string }) => data)
+  .inputValidator((data: { payout_method?: string | undefined; payout_details?: string | undefined }) => data)
   .handler(async ({ data, context }) => {
     const { error } = await context.supabase
       .from("partners")
-      .update({ payout_method: data.payout_method, payout_details: data.payout_details })
+      .update({ payout_method: data.payout_method ?? null, payout_details: data.payout_details ?? null })
       .eq("user_id", context.userId);
     if (error) throw new Error(error.message);
     return { ok: true };

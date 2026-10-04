@@ -12,7 +12,7 @@ export const Route = createFileRoute("/_authenticated/admin")({
   component: Admin,
   errorComponent: ({ error }) => (
     <div className="flex min-h-screen flex-col items-center justify-center gap-3">
-      <p className="font-display text-2xl">{error.message === "Forbidden" ? "Admins only" : "Something went wrong"}</p>
+      <p className="font-display text-2xl">{(error as Error).message === "Forbidden" ? "Admins only" : "Something went wrong"}</p>
       <Link to="/dashboard" className="underline">Back to dashboard</Link>
     </div>
   ),
