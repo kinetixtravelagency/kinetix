@@ -6,3 +6,4 @@
 - [x] Sales Partner portal: profile (name, photo, phone, promo code/link, level, commissions, payout details), clients
 - [x] Admin dashboard: countries, programs, pricing, applications, partners, analytics
 - [ ] Payments, multilingual content in DB, AI assistant
+- [ ] Add Ireland + Slovenia countries with uploaded images (catalog + DB seed)
