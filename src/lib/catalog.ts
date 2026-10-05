@@ -4,12 +4,16 @@ import luxembourgAsset from "@/assets/luxembourg.jpg.asset.json";
 import armeniaAsset from "@/assets/armenia.jpg.asset.json";
 import russiaAsset from "@/assets/russia.jpg.asset.json";
 import italyAsset from "@/assets/italy.jpg.asset.json";
+import sloveniaAsset from "@/assets/slovenia.jpg.asset.json";
+import irelandAsset from "@/assets/ireland.jpg.asset.json";
 
 const bulgaria = bulgariaAsset.url;
 const luxembourg = luxembourgAsset.url;
 const armenia = armeniaAsset.url;
 const russia = russiaAsset.url;
 const italy = italyAsset.url;
+const slovenia = sloveniaAsset.url;
+const ireland = irelandAsset.url;
 
 export type Program = {
   slug: string; title: string; titleAr: string; category: string; categoryAr: string;
@@ -76,6 +80,24 @@ export const countries: Country[] = [
     programs: [{ slug: "italy-hospitality", title: "Hospitality & Culinary", titleAr: "الضيافة وفنون الطهي", category: "Hospitality", categoryAr: "ضيافة", duration: "9 months", price: 2850, deposit: 600, installments: 6 }],
     documents: [...docs, "Experience letters"], eligibility: ["Age 20–45", "Hospitality experience preferred"],
     timeline: [{ step: "Profile assessment", time: "1 week" }, { step: "Employer matching", time: "2–6 weeks" }, { step: "Nulla osta", time: "6–12 weeks" }, { step: "Visa & travel", time: "3–4 weeks" }],
+  },
+  {
+    slug: "slovenia", name: "Slovenia", nameAr: "سلوفينيا", flag: "🇸🇮", image: slovenia,
+    tagline: "EU work permits in tourism and industry", taglineAr: "تصاريح عمل أوروبية في السياحة والصناعة",
+    description: "An EU member with growing demand for workers in tourism, logistics and manufacturing, and straightforward single-permit procedures.",
+    descriptionAr: "دولة عضو في الاتحاد الأوروبي بطلب متزايد على العمالة في السياحة واللوجستيات والتصنيع، بإجراءات تصريح موحدة وواضحة.",
+    programs: [{ slug: "slovenia-work", title: "Work & Residence", titleAr: "عمل وإقامة", category: "Industry", categoryAr: "صناعة", duration: "12 months", price: 1750, deposit: 400, installments: 4 }],
+    documents: docs, eligibility: ["Age 18–45", "Basic English", "Clean criminal record"],
+    timeline: [{ step: "Application review", time: "3–5 days" }, { step: "Employer matching", time: "2–4 weeks" }, { step: "Single permit", time: "4–8 weeks" }, { step: "Visa & travel", time: "2–3 weeks" }],
+  },
+  {
+    slug: "ireland", name: "Ireland", nameAr: "أيرلندا", flag: "🇮🇪", image: ireland,
+    tagline: "English-speaking careers in Europe's tech hub", taglineAr: "مسارات مهنية بالإنجليزية في مركز التقنية الأوروبي",
+    description: "Critical skills and general employment permits in one of Europe's strongest job markets, with English as the working language.",
+    descriptionAr: "تصاريح عمل للمهارات المطلوبة والوظائف العامة في واحدة من أقوى أسواق العمل في أوروبا، والإنجليزية هي لغة العمل.",
+    programs: [{ slug: "ireland-employment", title: "Employment Permit", titleAr: "تصريح عمل", category: "Professional", categoryAr: "مهني", duration: "24 months", price: 3400, deposit: 800, installments: 6 }],
+    documents: [...docs, "Diplomas & certificates"], eligibility: ["Age 21–50", "Good English (IELTS 5+ preferred)", "Relevant work experience"],
+    timeline: [{ step: "Profile assessment", time: "1 week" }, { step: "Job offer", time: "3–6 weeks" }, { step: "Permit processing", time: "6–10 weeks" }, { step: "Visa & travel", time: "3–4 weeks" }],
   },
 ];
 
