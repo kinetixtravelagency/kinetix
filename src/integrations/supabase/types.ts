@@ -14,36 +14,110 @@ export type Database = {
   }
   public: {
     Tables: {
+      application_documents: {
+        Row: {
+          application_id: string
+          created_at: string
+          doc_type: string
+          file_name: string
+          file_path: string
+          id: string
+          note: string | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          application_id: string
+          created_at?: string
+          doc_type: string
+          file_name: string
+          file_path: string
+          id?: string
+          note?: string | null
+          status?: string
+          user_id: string
+        }
+        Update: {
+          application_id?: string
+          created_at?: string
+          doc_type?: string
+          file_name?: string
+          file_path?: string
+          id?: string
+          note?: string | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "application_documents_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "applications"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       applications: {
         Row: {
+          birth_date: string | null
           created_at: string
+          deposit_paid: boolean
+          deposit_paid_at: string | null
+          education: string | null
+          full_name: string | null
           id: string
+          installments: number
           notes: string | null
           partner_id: string | null
+          passport_number: string | null
+          payment_plan: string
+          phone: string | null
           program_id: string
           promo_code: string | null
+          stage: number
           status: string
           updated_at: string
           user_id: string
         }
         Insert: {
+          birth_date?: string | null
           created_at?: string
+          deposit_paid?: boolean
+          deposit_paid_at?: string | null
+          education?: string | null
+          full_name?: string | null
           id?: string
+          installments?: number
           notes?: string | null
           partner_id?: string | null
+          passport_number?: string | null
+          payment_plan?: string
+          phone?: string | null
           program_id: string
           promo_code?: string | null
+          stage?: number
           status?: string
           updated_at?: string
           user_id: string
         }
         Update: {
+          birth_date?: string | null
           created_at?: string
+          deposit_paid?: boolean
+          deposit_paid_at?: string | null
+          education?: string | null
+          full_name?: string | null
           id?: string
+          installments?: number
           notes?: string | null
           partner_id?: string | null
+          passport_number?: string | null
+          payment_plan?: string
+          phone?: string | null
           program_id?: string
           promo_code?: string | null
+          stage?: number
           status?: string
           updated_at?: string
           user_id?: string
@@ -263,6 +337,7 @@ export type Database = {
           slug: string
           title_ar: string
           title_en: string
+          track: string
           updated_at: string
         }
         Insert: {
@@ -279,6 +354,7 @@ export type Database = {
           slug: string
           title_ar?: string
           title_en: string
+          track?: string
           updated_at?: string
         }
         Update: {
@@ -295,6 +371,7 @@ export type Database = {
           slug?: string
           title_ar?: string
           title_en?: string
+          track?: string
           updated_at?: string
         }
         Relationships: [
