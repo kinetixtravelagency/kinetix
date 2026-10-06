@@ -211,6 +211,7 @@ function Pricing() {
   const [slug, setSlug] = useState(all[all.length - 1]!.slug);
   const p = all.find((x) => x.slug === slug)!;
   const [months, setMonths] = useState(p.installments);
+  const [full, setFull] = useState(false);
   const m = Math.min(months, p.installments);
   const monthly = Math.ceil((p.price - p.deposit) / m);
   return (
@@ -223,17 +224,23 @@ function Pricing() {
             {all.map((x) => <option key={x.slug} value={x.slug}>{x.country} — {lang === "ar" ? x.titleAr : x.title}</option>)}
           </select>
           <div className="mt-6 flex items-baseline justify-between"><span className="text-muted-foreground">{t("totalCost")}</span><span className="font-display text-4xl font-semibold">{eur(p.price)}</span></div>
-          <p className="eyebrow mt-8 text-muted-foreground">{t("installmentsLabel")}</p>
-          <div className="mt-3 flex flex-wrap gap-2">
-            {Array.from({ length: p.installments }, (_, k) => k + 1).map((n) => (
-              <button key={n} onClick={() => setMonths(n)} className={`h-11 w-11 rounded-full border text-sm transition-colors ${n === m ? "border-navy bg-navy text-ivory" : "border-border hover:border-beige"}`}>{n}</button>
+          <p className="eyebrow mt-8 text-muted-foreground">{t("paymentPlan")}</p>
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            {([[true, t("payFull")], [false, t("payInst")]] as const).map(([v, l]) => (
+              <button key={l} onClick={() => setFull(v)} className={`rounded-full border py-2.5 text-sm ${full === v ? "border-navy bg-navy text-ivory" : "border-border hover:border-beige"}`}>{l}</button>
             ))}
           </div>
+          {!full && <div className="mt-3 flex flex-wrap gap-2">
+            {Array.from({ length: p.installments - 1 }, (_, k) => k + 2).map((n) => (
+              <button key={n} onClick={() => setMonths(n)} className={`h-11 w-11 rounded-full border text-sm transition-colors ${n === Math.max(m, 2) ? "border-navy bg-navy text-ivory" : "border-border hover:border-beige"}`}>{n}</button>
+            ))}
+          </div>}
           <div className="mt-8 grid grid-cols-2 gap-4 rounded-2xl bg-secondary p-5">
-            <div><p className="text-xs text-muted-foreground">{t("dueToday")}</p><p className="font-display text-2xl">{eur(p.deposit)}</p></div>
-            <div><p className="text-xs text-muted-foreground">{m}× {t("thenMonthly")}</p><p className="font-display text-2xl">{eur(monthly)}</p></div>
+            <div><p className="text-xs text-muted-foreground">{t("dueToday")}</p><p className="font-display text-2xl">{eur(full ? p.price : p.deposit)}</p></div>
+            {full ? <div><p className="text-xs text-muted-foreground">{t("remaining")}</p><p className="font-display text-2xl">{eur(0)}</p></div>
+              : <div><p className="text-xs text-muted-foreground">{Math.max(m, 2)}× {t("thenMonthly")}</p><p className="font-display text-2xl">{eur(Math.ceil((p.price - p.deposit) / Math.max(m, 2)))}</p></div>}
           </div>
-          <Link to="/auth" className="mt-6 flex items-center justify-center gap-2 rounded-full bg-navy py-4 font-medium text-ivory transition-transform hover:-translate-y-0.5">
+          <Link to="/apply" search={{ program: p.slug }} className="mt-6 flex items-center justify-center gap-2 rounded-full bg-navy py-4 font-medium text-ivory transition-transform hover:-translate-y-0.5">
             {t("applyProgram")} <ArrowRight className="h-4 w-4 rtl:rotate-180" strokeWidth={1.5} />
           </Link>
         </Reveal>

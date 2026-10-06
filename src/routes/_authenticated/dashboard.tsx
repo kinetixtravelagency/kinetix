@@ -7,7 +7,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { getMyAccount, updateMyProfile, updateMyPayout } from "@/lib/account.functions";
 import { useLang } from "@/lib/i18n";
 import { Logo } from "@/components/site/SiteChrome";
-import { eur } from "@/lib/catalog";
+import { eur, getCountry } from "@/lib/catalog";
+import { DocUploader, StageTracker } from "@/components/site/DocUploader";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({ meta: [{ title: "Dashboard — Kinetix" }] }),
@@ -71,18 +72,36 @@ function Dashboard() {
 
         {/* Applications */}
         <section className="rounded-3xl border border-border bg-card p-6 lg:col-span-2">
-          <h2 className="font-display text-xl font-semibold">{t("myApplications")}</h2>
+          <div className="flex items-center justify-between"><h2 className="font-display text-xl font-semibold">{t("myApplications")}</h2><Link to="/apply" className="rounded-full bg-navy px-4 py-2 text-xs text-ivory">+ {t("applyNow")}</Link></div>
           {account.applications.length === 0 ? (
-            <p className="mt-5 text-sm text-muted-foreground">{t("noApplications")} <Link to="/" hash="countries" className="underline">{t("exploreCta")}</Link></p>
+            <p className="mt-5 text-sm text-muted-foreground">{t("noApplications")} <Link to="/apply" className="underline">{t("applyNow")}</Link></p>
           ) : (
-            <div className="mt-5 divide-y divide-border">
-              {(account.applications as any[]).map((a) => (
-                <div key={a.id} className="flex items-center justify-between py-3 text-sm">
-                  <div><p className="font-medium">{lang === "ar" ? a.programs?.title_ar || a.programs?.title_en : a.programs?.title_en}</p>
-                    <p className="text-xs text-muted-foreground">{new Date(a.created_at).toLocaleDateString()}</p></div>
-                  <span className="rounded-full bg-secondary px-3 py-1 text-xs">{a.status}</span>
-                </div>
-              ))}
+            <div className="mt-5 space-y-5">
+              {(account.applications as any[]).map((a) => {
+                const pr = a.programs;
+                const c = getCountry(pr?.countries?.slug ?? "");
+                const due = a.payment_plan === "full" ? pr?.price : pr?.deposit;
+                return (
+                  <div key={a.id} className="rounded-2xl border border-border p-5">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div>
+                        <p className="font-display text-lg font-semibold">{lang === "ar" ? pr?.countries?.name_ar : pr?.countries?.name_en} · {pr?.track === "student" ? t("trackStudent") : t("trackGraduate")}</p>
+                        <p className="text-xs text-muted-foreground">{new Date(a.created_at).toLocaleDateString()} · {a.payment_plan === "full" ? t("payFull") : `${t("payInst")} ${a.installments} ${t("months")}`}</p>
+                      </div>
+                      {a.deposit_paid && <span className="rounded-full bg-navy px-3 py-1 text-xs text-ivory">{t("depositPaid")}</span>}
+                    </div>
+                    <div className="mt-5"><StageTracker stage={a.stage} depositPaid={a.deposit_paid} /></div>
+                    {!a.deposit_paid && (
+                      <div className="mt-5 rounded-2xl bg-beige-soft p-4 text-sm">
+                        <p className="font-medium">{t("depositAwait")} — {eur(due ?? 0)}</p>
+                        <p className="text-muted-foreground">{t("depositAwaitSub")}</p>
+                      </div>
+                    )}
+                    <h3 className="mb-3 mt-5 text-sm font-medium">{t("documentsWord")}</h3>
+                    <DocUploader appId={a.id} docTypes={c?.documents ?? []} existing={a.application_documents ?? []} onChange={() => queryClient.invalidateQueries({ queryKey: ["account"] })} />
+                  </div>
+                );
+              })}
             </div>
           )}
         </section>

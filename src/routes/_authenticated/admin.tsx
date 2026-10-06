@@ -2,7 +2,9 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { getAdminOverview, adminUpdateApplicationStatus, adminUpdateProgramPrice } from "@/lib/account.functions";
+import { getAdminOverview, adminUpdateApplicationStatus, adminUpdateProgramPrice, adminUpdateApplication, adminSetDocumentStatus } from "@/lib/account.functions";
+import { supabase } from "@/integrations/supabase/client";
+import type { ReactNode } from "react";
 import { useLang } from "@/lib/i18n";
 import { Logo } from "@/components/site/SiteChrome";
 import { eur } from "@/lib/catalog";
@@ -58,27 +60,15 @@ function Admin() {
         )}
 
         {tab === "applications" && (
-          <div className="overflow-x-auto rounded-3xl border border-border bg-card">
-            <table className="w-full text-sm">
-              <thead><tr className="border-b border-border text-start text-xs text-muted-foreground">
-                <th className="p-4 text-start font-medium">{t("program")}</th><th className="p-4 text-start font-medium">{t("date")}</th><th className="p-4 text-start font-medium">{t("status")}</th>
-              </tr></thead>
-              <tbody>
-                {(data.applications as any[]).map((a) => (
-                  <tr key={a.id} className="border-b border-border last:border-0">
-                    <td className="p-4">{a.programs?.title_en}<span className="block text-xs text-muted-foreground">{a.profiles?.full_name ?? "—"}</span></td>
-                    <td className="p-4 text-muted-foreground">{new Date(a.created_at).toLocaleDateString()}</td>
-                    <td className="p-4">
-                      <select value={a.status} onChange={async (e) => { await setStatus({ data: { id: a.id, status: e.target.value } }); queryClient.invalidateQueries({ queryKey: ["admin"] }); }}
-                        className="rounded-full border border-input bg-background px-3 py-1.5 text-xs">
-                        {statuses.map((s) => <option key={s} value={s}>{s}</option>)}
-                      </select>
-                    </td>
-                  </tr>
-                ))}
-                {data.applications.length === 0 && <tr><td colSpan={3} className="p-8 text-center text-muted-foreground">—</td></tr>}
-              </tbody>
-            </table>
+          <div className="space-y-4">
+            {(data.applications as any[]).map((a) => (
+              <AppCard key={a.id} a={a} onChange={() => queryClient.invalidateQueries({ queryKey: ["admin"] })} statusSel={
+                <select value={a.status} onChange={async (e) => { await setStatus({ data: { id: a.id, status: e.target.value } }); queryClient.invalidateQueries({ queryKey: ["admin"] }); }}
+                  className="rounded-full border border-input bg-background px-3 py-1.5 text-xs">
+                  {statuses.map((s) => <option key={s} value={s}>{s}</option>)}
+                </select>} />
+            ))}
+            {data.applications.length === 0 && <p className="p-8 text-center text-muted-foreground">—</p>}
           </div>
         )}
 
@@ -136,5 +126,54 @@ function ProgramRow({ p, onSave }: { p: any; onSave: (v: { price: number; deposi
       <td className="p-4"><input type="number" className={cell} value={inst} onChange={(e) => setInst(+e.target.value)} /></td>
       <td className="p-4">{dirty && <button onClick={() => onSave({ price, deposit, max_installments: inst })} className="rounded-full bg-navy px-4 py-1.5 text-xs text-ivory">{t("save")}</button>}</td>
     </tr>
+  );
+}
+
+function AppCard({ a, onChange, statusSel }: { a: any; onChange: () => void; statusSel: ReactNode }) {
+  const { t } = useLang();
+  const upd = useServerFn(adminUpdateApplication);
+  const setDoc = useServerFn(adminSetDocumentStatus);
+  const stages = [t("stage0"), t("stage1"), t("stage2"), t("stage3"), t("stage4"), t("stage5")];
+  const open = async (path: string) => {
+    const { data } = await supabase.storage.from("documents").createSignedUrl(path, 300);
+    if (data?.signedUrl) window.open(data.signedUrl, "_blank", "noopener");
+  };
+  const due = a.payment_plan === "full" ? a.programs?.price : a.programs?.deposit;
+  return (
+    <div className="rounded-3xl border border-border bg-card p-5 text-sm">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <p className="font-display text-lg font-semibold">{a.full_name ?? a.profiles?.full_name ?? "—"}</p>
+          <p className="text-xs text-muted-foreground">{a.phone ?? a.profiles?.phone ?? ""} · {a.passport_number ?? ""} · {a.education ?? ""}</p>
+          <p className="mt-1 text-xs text-muted-foreground">{a.programs?.countries?.name_en} · {a.programs?.track} · {a.payment_plan === "full" ? t("payFull") : `${a.installments}× ${t("months")}`} · {eur(a.programs?.price ?? 0)}{a.promo_code ? ` · ${a.promo_code}` : ""}</p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          {statusSel}
+          <select value={a.stage} onChange={async (e) => { await upd({ data: { id: a.id, stage: +e.target.value } }); onChange(); }} className="rounded-full border border-input bg-background px-3 py-1.5 text-xs">
+            {stages.map((s, i) => <option key={i} value={i}>{s}</option>)}
+          </select>
+          <button onClick={async () => { await upd({ data: { id: a.id, deposit_paid: !a.deposit_paid } }); onChange(); }}
+            className={`rounded-full px-3 py-1.5 text-xs ${a.deposit_paid ? "bg-navy text-ivory" : "border border-beige text-foreground"}`}>
+            {a.deposit_paid ? `✓ ${t("depositPaid")}` : `${t("depositPaid")}? (${eur(due ?? 0)})`}
+          </button>
+        </div>
+      </div>
+      <div className="mt-4 divide-y divide-border rounded-2xl border border-border">
+        {(a.application_documents ?? []).map((d: any) => (
+          <div key={d.id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5">
+            <button onClick={() => open(d.file_path)} className="text-start underline-offset-2 hover:underline">{d.doc_type} <span className="text-xs text-muted-foreground">({d.file_name})</span></button>
+            <div className="flex gap-1">
+              {(["approved", "rejected"] as const).map((s) => (
+                <button key={s} onClick={async () => { await setDoc({ data: { id: d.id, status: s } }); onChange(); }}
+                  className={`rounded-full px-3 py-1 text-xs ${d.status === s ? (s === "approved" ? "bg-navy text-ivory" : "bg-destructive text-destructive-foreground") : "border border-border"}`}>
+                  {s === "approved" ? t("docApproved") : t("docRejected")}
+                </button>
+              ))}
+            </div>
+          </div>
+        ))}
+        {(a.application_documents ?? []).length === 0 && <p className="px-4 py-3 text-xs text-muted-foreground">—</p>}
+      </div>
+    </div>
   );
 }
