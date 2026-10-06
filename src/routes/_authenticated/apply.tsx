@@ -11,7 +11,7 @@ import { Logo } from "@/components/site/SiteChrome";
 import { DocUploader } from "@/components/site/DocUploader";
 
 export const Route = createFileRoute("/_authenticated/apply")({
-  validateSearch: (s: Record<string, unknown>): { program?: string | undefined } => ({ program: typeof s.program === "string" ? s.program : undefined }),
+  validateSearch: (s: Record<string, unknown>): { program?: string | undefined } => ({ program: typeof s["program"] === "string" ? s["program"] : undefined }),
   head: () => ({ meta: [{ title: "Apply — Kinetix" }, { name: "description", content: "Apply to a Kinetix program and upload your documents." }] }),
   component: Apply,
 });

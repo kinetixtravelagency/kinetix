@@ -139,7 +139,7 @@ export const adminUpdateApplication = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { data: isAdmin } = await context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" });
     if (!isAdmin) throw new Error("Forbidden");
-    const patch: Record<string, unknown> = {};
+    const patch: { stage?: number; deposit_paid?: boolean; deposit_paid_at?: string | null } = {};
     if (data.stage !== undefined) patch.stage = Math.max(0, Math.min(5, data.stage));
     if (data.deposit_paid !== undefined) {
       patch.deposit_paid = data.deposit_paid;
