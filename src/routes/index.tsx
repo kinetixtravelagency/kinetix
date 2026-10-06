@@ -213,7 +213,6 @@ function Pricing() {
   const [months, setMonths] = useState(p.installments);
   const [full, setFull] = useState(false);
   const m = Math.min(months, p.installments);
-  const monthly = Math.ceil((p.price - p.deposit) / m);
   return (
     <section id="pricing" className="mx-auto max-w-7xl px-5 py-24 md:px-8 md:py-32">
       <div className="grid gap-12 lg:grid-cols-2">
