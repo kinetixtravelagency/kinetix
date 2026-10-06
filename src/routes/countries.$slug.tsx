@@ -59,14 +59,14 @@ function CountryPage() {
           {c.programs.map((p, i) => (
             <Reveal key={p.slug} delay={i * 80} className="rounded-3xl border border-border bg-card p-7">
               <div className="flex items-start justify-between">
-                <div><p className="text-xs text-muted-foreground">{ar ? p.categoryAr : p.category} · {p.duration}</p><h2 className="mt-2 text-3xl font-semibold">{ar ? p.titleAr : p.title}</h2></div>
+                <div><p className="text-xs text-muted-foreground">{p.duration}</p><h2 className="mt-2 text-3xl font-semibold">{ar ? p.titleAr : p.title}</h2></div>
                 <p className="font-display text-3xl">{eur(p.price)}</p>
               </div>
               <div className="mt-6 grid grid-cols-2 gap-4 rounded-2xl bg-secondary p-5 text-sm">
-                <div><p className="text-muted-foreground">{t("deposit")}</p><p className="font-display text-xl">{eur(p.deposit)}</p></div>
-                <div><p className="text-muted-foreground">{t("upTo")} {p.installments}× {t("monthly")}</p><p className="font-display text-xl">{eur(Math.ceil((p.price - p.deposit) / p.installments))}</p></div>
+                <div><p className="text-muted-foreground">{t("payFull")}</p><p className="font-display text-xl">{eur(p.price)}</p></div>
+                <div><p className="text-muted-foreground">{t("deposit")} + {t("upTo")} {p.installments}× </p><p className="font-display text-xl">{eur(p.deposit)} + {eur(Math.ceil((p.price - p.deposit) / p.installments))}</p></div>
               </div>
-              <Link to="/auth" className="mt-6 inline-flex items-center gap-2 font-medium">{t("apply")} <ArrowRight className="h-4 w-4 rtl:rotate-180" strokeWidth={1.5} /></Link>
+              <Link to="/apply" search={{ program: p.slug }} className="mt-6 inline-flex items-center gap-2 font-medium">{t("apply")} <ArrowRight className="h-4 w-4 rtl:rotate-180" strokeWidth={1.5} /></Link>
             </Reveal>
           ))}
         </div>

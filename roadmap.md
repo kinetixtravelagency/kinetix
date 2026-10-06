@@ -7,3 +7,12 @@
 - [x] Admin dashboard: countries, programs, pricing, applications, partners, analytics
 - [ ] Payments, multilingual content in DB, AI assistant
 - [x] Add Ireland + Slovenia countries with uploaded images (catalog + DB seed)
+
+## Applications & tracks
+- [x] Two tracks per country (Students / Graduates)
+- [x] Payment plan: pay in full or deposit + 2–6 monthly installments
+- [x] Application form + secure document upload
+- [x] Customer progress tracker (unlocks after deposit) + document statuses
+- [x] Admin: mark deposit paid, set stage, approve/reject documents
+- [ ] Online payment of deposit/installments (waiting on payment provider choice)
+- [ ] Real prices per track (waiting on user)
