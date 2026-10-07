@@ -64,6 +64,7 @@ export type Database = {
           created_at: string
           deposit_paid: boolean
           deposit_paid_at: string | null
+          discount_percent: number
           education: string | null
           full_name: string | null
           id: string
@@ -85,6 +86,7 @@ export type Database = {
           created_at?: string
           deposit_paid?: boolean
           deposit_paid_at?: string | null
+          discount_percent?: number
           education?: string | null
           full_name?: string | null
           id?: string
@@ -106,6 +108,7 @@ export type Database = {
           created_at?: string
           deposit_paid?: boolean
           deposit_paid_at?: string | null
+          discount_percent?: number
           education?: string | null
           full_name?: string | null
           id?: string
@@ -151,7 +154,9 @@ export type Database = {
           amount: number
           application_id: string | null
           created_at: string
+          currency: string
           id: string
+          note: string | null
           partner_id: string
           status: string
         }
@@ -159,7 +164,9 @@ export type Database = {
           amount?: number
           application_id?: string | null
           created_at?: string
+          currency?: string
           id?: string
+          note?: string | null
           partner_id: string
           status?: string
         }
@@ -167,7 +174,9 @@ export type Database = {
           amount?: number
           application_id?: string | null
           created_at?: string
+          currency?: string
           id?: string
+          note?: string | null
           partner_id?: string
           status?: string
         }
@@ -248,40 +257,132 @@ export type Database = {
         }
         Relationships: []
       }
+      leads: {
+        Row: {
+          country_interest: string | null
+          created_at: string
+          email: string | null
+          full_name: string
+          id: string
+          notes: string | null
+          partner_id: string
+          phone: string | null
+          status: string
+          track: string | null
+          updated_at: string
+        }
+        Insert: {
+          country_interest?: string | null
+          created_at?: string
+          email?: string | null
+          full_name: string
+          id?: string
+          notes?: string | null
+          partner_id: string
+          phone?: string | null
+          status?: string
+          track?: string | null
+          updated_at?: string
+        }
+        Update: {
+          country_interest?: string | null
+          created_at?: string
+          email?: string | null
+          full_name?: string
+          id?: string
+          notes?: string | null
+          partner_id?: string
+          phone?: string | null
+          status?: string
+          track?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leads_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      partner_levels: {
+        Row: {
+          client_discount: number
+          commission_rate: number
+          created_at: string
+          id: string
+          min_leads: number
+          name: string
+          name_ar: string
+          sort_order: number
+        }
+        Insert: {
+          client_discount?: number
+          commission_rate?: number
+          created_at?: string
+          id?: string
+          min_leads?: number
+          name: string
+          name_ar?: string
+          sort_order?: number
+        }
+        Update: {
+          client_discount?: number
+          commission_rate?: number
+          created_at?: string
+          id?: string
+          min_leads?: number
+          name?: string
+          name_ar?: string
+          sort_order?: number
+        }
+        Relationships: []
+      }
       partners: {
         Row: {
           active: boolean
+          city: string | null
           commission_rate: number
           created_at: string
+          experience: string | null
           id: string
           level: string
           payout_details: string | null
           payout_method: string | null
           promo_code: string
+          status: string
           updated_at: string
           user_id: string
         }
         Insert: {
           active?: boolean
+          city?: string | null
           commission_rate?: number
           created_at?: string
+          experience?: string | null
           id?: string
           level?: string
           payout_details?: string | null
           payout_method?: string | null
           promo_code: string
+          status?: string
           updated_at?: string
           user_id: string
         }
         Update: {
           active?: boolean
+          city?: string | null
           commission_rate?: number
           created_at?: string
+          experience?: string | null
           id?: string
           level?: string
           payout_details?: string | null
           payout_method?: string | null
           promo_code?: string
+          status?: string
           updated_at?: string
           user_id?: string
         }
