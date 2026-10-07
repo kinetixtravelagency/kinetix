@@ -117,20 +117,30 @@ export const createApplication = createServerFn({ method: "POST" })
     const { data: prog, error: pe } = await supabase.from("programs").select("id").eq("slug", data.program).maybeSingle();
     if (pe || !prog) throw new Error("Program not found");
     let partner_id: string | null = null;
+    let discount = 0;
     if (data.promo_code) {
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-      const { data: p } = await supabaseAdmin.from("partners").select("id").eq("promo_code", data.promo_code).eq("active", true).maybeSingle();
+      const { data: p } = await supabaseAdmin.from("partners").select("id").eq("promo_code", data.promo_code).eq("status", "active").maybeSingle();
       partner_id = p?.id ?? null;
+      if (p) {
+        const [{ count: lc }, { count: ac }, { data: lv }] = await Promise.all([
+          supabaseAdmin.from("leads").select("id", { count: "exact", head: true }).eq("partner_id", p.id),
+          supabaseAdmin.from("applications").select("id", { count: "exact", head: true }).eq("partner_id", p.id),
+          supabaseAdmin.from("partner_levels").select("*"),
+        ]);
+        const { levelFor } = await import("./levels");
+        discount = Number(levelFor((lv ?? []) as any, (lc ?? 0) + (ac ?? 0)).current?.client_discount ?? 0);
+      }
     }
     const { data: app, error } = await supabase.from("applications").insert({
       user_id: userId, program_id: prog.id, partner_id, promo_code: data.promo_code || null,
-      payment_plan: data.payment_plan, installments: data.installments,
+      payment_plan: data.payment_plan, installments: data.installments, discount_percent: discount,
       full_name: data.full_name, phone: data.phone, passport_number: data.passport_number || null,
       birth_date: data.birth_date ?? null, education: data.education || null,
     }).select("id").single();
     if (error) throw new Error(error.message);
     await supabase.from("profiles").update({ full_name: data.full_name, phone: data.phone }).eq("id", userId);
-    return { id: app.id };
+    return { id: app.id, discount };
   });
 
 export const adminUpdateApplication = createServerFn({ method: "POST" })
