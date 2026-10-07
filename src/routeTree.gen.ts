@@ -15,7 +15,9 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as AuthenticatedApplyRouteImport } from './routes/_authenticated/apply'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
+import { Route as AuthenticatedPartnerRouteImport } from './routes/_authenticated/partner'
 import { Route as CountriesSlugRouteImport } from './routes/countries.$slug'
+import { Route as PartnersJoinRouteImport } from './routes/partners.join'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -46,9 +48,19 @@ const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedPartnerRoute = AuthenticatedPartnerRouteImport.update({
+  id: '/partner',
+  path: '/partner',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const CountriesSlugRoute = CountriesSlugRouteImport.update({
   id: '/countries/$slug',
   path: '/countries/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PartnersJoinRoute = PartnersJoinRouteImport.update({
+  id: '/partners/join',
+  path: '/partners/join',
   getParentRoute: () => rootRouteImport,
 } as any)
 
@@ -58,7 +70,9 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AuthenticatedAdminRoute
   '/apply': typeof AuthenticatedApplyRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/partner': typeof AuthenticatedPartnerRoute
   '/countries/$slug': typeof CountriesSlugRoute
+  '/partners/join': typeof PartnersJoinRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -66,7 +80,9 @@ export interface FileRoutesByTo {
   '/admin': typeof AuthenticatedAdminRoute
   '/apply': typeof AuthenticatedApplyRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/partner': typeof AuthenticatedPartnerRoute
   '/countries/$slug': typeof CountriesSlugRoute
+  '/partners/join': typeof PartnersJoinRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -76,14 +92,31 @@ export interface FileRoutesById {
   '/_authenticated/admin': typeof AuthenticatedAdminRoute
   '/_authenticated/apply': typeof AuthenticatedApplyRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
+  '/_authenticated/partner': typeof AuthenticatedPartnerRoute
   '/countries/$slug': typeof CountriesSlugRoute
+  '/partners/join': typeof PartnersJoinRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    '/' | '/auth' | '/admin' | '/apply' | '/dashboard' | '/countries/$slug'
+    | '/'
+    | '/auth'
+    | '/admin'
+    | '/apply'
+    | '/dashboard'
+    | '/partner'
+    | '/countries/$slug'
+    | '/partners/join'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/auth' | '/admin' | '/apply' | '/dashboard' | '/countries/$slug'
+  to:
+    | '/'
+    | '/auth'
+    | '/admin'
+    | '/apply'
+    | '/dashboard'
+    | '/partner'
+    | '/countries/$slug'
+    | '/partners/join'
   id:
     | '__root__'
     | '/'
@@ -92,7 +125,9 @@ export interface FileRouteTypes {
     | '/_authenticated/admin'
     | '/_authenticated/apply'
     | '/_authenticated/dashboard'
+    | '/_authenticated/partner'
     | '/countries/$slug'
+    | '/partners/join'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -100,6 +135,7 @@ export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
   CountriesSlugRoute: typeof CountriesSlugRoute
+  PartnersJoinRoute: typeof PartnersJoinRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -146,11 +182,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDashboardRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/partner': {
+      id: '/_authenticated/partner'
+      path: '/partner'
+      fullPath: '/partner'
+      preLoaderRoute: typeof AuthenticatedPartnerRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/countries/$slug': {
       id: '/countries/$slug'
       path: '/countries/$slug'
       fullPath: '/countries/$slug'
       preLoaderRoute: typeof CountriesSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/partners/join': {
+      id: '/partners/join'
+      path: '/partners/join'
+      fullPath: '/partners/join'
+      preLoaderRoute: typeof PartnersJoinRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -160,12 +210,14 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdminRoute: typeof AuthenticatedAdminRoute
   AuthenticatedApplyRoute: typeof AuthenticatedApplyRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
+  AuthenticatedPartnerRoute: typeof AuthenticatedPartnerRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAdminRoute: AuthenticatedAdminRoute,
   AuthenticatedApplyRoute: AuthenticatedApplyRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
+  AuthenticatedPartnerRoute: AuthenticatedPartnerRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
@@ -176,6 +228,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
   CountriesSlugRoute: CountriesSlugRoute,
+  PartnersJoinRoute: PartnersJoinRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
