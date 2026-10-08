@@ -1,0 +1,112 @@
+{
+  "conversations": {
+    "conv_yv8dco035_1791404158848": {
+      "id": "conv_yv8dco035_1791404158848",
+      "userId": "7bd0aed2-0e04-46ad-bf08-09daf9396685",
+      "visitorId": null,
+      "clientName": "admin",
+      "clientEmail": "kinetix.travel.agency@gmail.com",
+      "clientPhone": null,
+      "status": "active",
+      "lastMessage": "fgfdfgdf",
+      "lastMessageAt": "2026-10-07T20:29:08.125Z",
+      "unreadCount": 0,
+      "unreadClientCount": 0,
+      "createdAt": "2026-10-07T20:15:58.848Z",
+      "updatedAt": "2026-10-07T20:29:08.125Z"
+    },
+    "conv_21m4awet0_1791441897429": {
+      "id": "conv_21m4awet0_1791441897429",
+      "userId": "8488dd40-5db8-492b-bda0-099a99006555",
+      "visitorId": null,
+      "clientName": "youssef",
+      "clientEmail": null,
+      "clientPhone": "01032944753",
+      "status": "active",
+      "lastMessage": "💳 طلب سداد جديد (المقدم):\n• البرنامج: Program\n• المبلغ المطلوب: €٥٠٠ (~٢٧٬٠٠٠ ج.م)\n• وسيلة الدفع المفضلة: Etisalat Cash\n• الاسم: youssef\n• الهاتف: 01032944753\n• كود الطلب: #36b1124b\n\nأرغب في استكمال الدفع، برجاء تزويدي ببيانات التحويل عبر هذه الوسيلة وتأكيد الحجز.",
+      "lastMessageAt": "2026-10-08T07:05:32.283Z",
+      "unreadCount": 2,
+      "unreadClientCount": 0,
+      "createdAt": "2026-10-08T06:44:57.429Z",
+      "updatedAt": "2026-10-08T07:05:32.283Z"
+    }
+  },
+  "messages": {
+    "conv_yv8dco035_1791404158848": [
+      {
+        "id": "msg_5mbnu87bf_1791404158848",
+        "conversationId": "conv_yv8dco035_1791404158848",
+        "sender": "client",
+        "senderName": "admin",
+        "text": "Inquire about European work programs",
+        "isRead": true,
+        "createdAt": "2026-10-07T20:15:58.848Z"
+      },
+      {
+        "id": "msg_are4i1ddx_1791404232923",
+        "conversationId": "conv_yv8dco035_1791404158848",
+        "sender": "client",
+        "senderName": "admin",
+        "text": "hi",
+        "isRead": true,
+        "createdAt": "2026-10-07T20:17:12.923Z"
+      },
+      {
+        "id": "msg_pzykpk7h8_1791404906110",
+        "conversationId": "conv_yv8dco035_1791404158848",
+        "sender": "admin",
+        "senderName": "Kinetix Admin",
+        "text": "أهلاً بك! معك فريق كينتيكس للاستشارات، كيف يمكننا مساعدتك اليوم؟",
+        "isRead": true,
+        "createdAt": "2026-10-07T20:28:26.110Z"
+      },
+      {
+        "id": "msg_r53o1russ_1791404917136",
+        "conversationId": "conv_yv8dco035_1791404158848",
+        "sender": "client",
+        "senderName": "admin",
+        "text": "hphhhhhhhhhhhhhhhhhh",
+        "isRead": true,
+        "createdAt": "2026-10-07T20:28:37.135Z"
+      },
+      {
+        "id": "msg_g25x8yc1k_1791404927183",
+        "conversationId": "conv_yv8dco035_1791404158848",
+        "sender": "admin",
+        "senderName": "Kinetix Admin",
+        "text": "يمكنك سداد الدفعة الأولى الآن وتقسيط الباقي حتى 6 أشهر بكل سهولة.",
+        "isRead": true,
+        "createdAt": "2026-10-07T20:28:47.183Z"
+      },
+      {
+        "id": "msg_x5wswi50h_1791404948125",
+        "conversationId": "conv_yv8dco035_1791404158848",
+        "sender": "admin",
+        "senderName": "Kinetix Admin",
+        "text": "fgfdfgdf",
+        "isRead": true,
+        "createdAt": "2026-10-07T20:29:08.125Z"
+      }
+    ],
+    "conv_21m4awet0_1791441897429": [
+      {
+        "id": "msg_n33c5545r_1791441897429",
+        "conversationId": "conv_21m4awet0_1791441897429",
+        "sender": "client",
+        "senderName": "youssef",
+        "text": "💳 طلب سداد جديد (المقدم):\n• البرنامج: Program\n• المبلغ المطلوب: €٥٠٠ (~٢٧٬٠٠٠ ج.م)\n• وسيلة الدفع المفضلة: InstaPay\n• الاسم: youssef\n• الهاتف: 01032944753\n• كود الطلب: #36b1124b\n\nأرغب في استكمال الدفع، برجاء تزويدي ببيانات التحويل عبر هذه الوسيلة وتأكيد الحجز.",
+        "isRead": false,
+        "createdAt": "2026-10-08T06:44:57.429Z"
+      },
+      {
+        "id": "msg_klozelczy_1791443132283",
+        "conversationId": "conv_21m4awet0_1791441897429",
+        "sender": "client",
+        "senderName": "youssef",
+        "text": "💳 طلب سداد جديد (المقدم):\n• البرنامج: Program\n• المبلغ المطلوب: €٥٠٠ (~٢٧٬٠٠٠ ج.م)\n• وسيلة الدفع المفضلة: Etisalat Cash\n• الاسم: youssef\n• الهاتف: 01032944753\n• كود الطلب: #36b1124b\n\nأرغب في استكمال الدفع، برجاء تزويدي ببيانات التحويل عبر هذه الوسيلة وتأكيد الحجز.",
+        "isRead": false,
+        "createdAt": "2026-10-08T07:05:32.283Z"
+      }
+    ]
+  }
+}

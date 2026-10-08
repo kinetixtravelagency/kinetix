@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { levelFor, type Level } from "./levels";
+import { enrichLevelsWithServerConfig, saveServerLevelCommission } from "./levels.server";
 
 const clip = (v: unknown, n: number) => (typeof v === "string" ? v.trim().slice(0, n) : "");
 
@@ -11,8 +12,30 @@ async function assertAdmin(ctx: { supabase: any; userId: string }) {
 
 export const registerPartner = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { full_name?: string | undefined; phone?: string | undefined; city?: string | undefined; experience?: string | undefined }) => ({
-    full_name: clip(d.full_name, 120), phone: clip(d.phone, 40), city: clip(d.city, 80), experience: clip(d.experience, 500),
+  .inputValidator((d: {
+    full_name?: string | undefined;
+    phone?: string | undefined;
+    city?: string | undefined;
+    governorate?: string | undefined;
+    university?: string | undefined;
+    faculty?: string | undefined;
+    gender?: string | undefined;
+    birth_date?: string | undefined;
+    academic_status?: string | undefined;
+    experience_field?: string | undefined;
+    experience?: string | undefined;
+  }) => ({
+    full_name: clip(d.full_name, 120),
+    phone: clip(d.phone, 40),
+    city: clip(d.city, 80),
+    governorate: clip(d.governorate, 60),
+    university: clip(d.university, 100),
+    faculty: clip(d.faculty, 100),
+    gender: clip(d.gender, 10),
+    birth_date: clip(d.birth_date, 20),
+    academic_status: clip(d.academic_status, 60),
+    experience_field: clip(d.experience_field, 80),
+    experience: clip(d.experience, 800),
   }))
   .handler(async ({ data, context }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -31,9 +54,21 @@ export const registerPartner = createServerFn({ method: "POST" })
     if (data.full_name || data.phone) {
       await supabaseAdmin.from("profiles").update({ ...(data.full_name ? { full_name: data.full_name } : {}), ...(data.phone ? { phone: data.phone } : {}) }).eq("id", context.userId);
     }
+
+    const structuredLocation = [data.governorate, data.city].filter(Boolean).join(" - ") || null;
+    const structuredExp = [
+      data.gender ? `الجنس: ${data.gender === "female" ? "أنثى" : "ذكر"}` : null,
+      data.birth_date ? `الميلاد: ${data.birth_date}` : null,
+      data.university ? `الجامعة: ${data.university}` : null,
+      data.faculty ? `الكلية: ${data.faculty}` : null,
+      data.academic_status ? `المرحلة: ${data.academic_status}` : null,
+      data.experience_field ? `مجال الخبرة: ${data.experience_field}` : null,
+      data.experience ? `نبذة: ${data.experience}` : null,
+    ].filter(Boolean).join(" | ") || null;
+
     const { error } = await supabaseAdmin.from("partners").insert({
       user_id: context.userId, promo_code: code, level: "Starter", status: "pending", active: false,
-      city: data.city || null, experience: data.experience || null,
+      city: structuredLocation, experience: structuredExp,
     });
     if (error) throw new Error(error.message);
     await supabaseAdmin.from("user_roles").upsert({ user_id: context.userId, role: "partner" }, { onConflict: "user_id,role" });
@@ -49,13 +84,15 @@ export const getPartnerPortal = createServerFn({ method: "GET" })
       supabase.from("profiles").select("full_name, phone, avatar_url").eq("id", userId).maybeSingle(),
       supabase.from("partner_levels").select("*").order("min_leads"),
     ]);
-    if (!partner) return { partner: null, profile, levels: levels ?? [] };
+    const enrichedLevels = enrichLevelsWithServerConfig(levels ?? []);
+    if (!partner) return { partner: null, profile, levels: enrichedLevels };
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const [leads, apps, comms] = await Promise.all([
-      supabase.from("leads").select("*").eq("partner_id", partner.id).order("created_at", { ascending: false }),
-      supabase.from("applications").select("id, status, stage, deposit_paid, created_at, full_name, programs(track, countries(name_en, name_ar))").eq("partner_id", partner.id).order("created_at", { ascending: false }),
-      supabase.from("commissions").select("*").eq("partner_id", partner.id).order("created_at", { ascending: false }),
+      supabaseAdmin.from("leads").select("*").eq("partner_id", partner.id).order("created_at", { ascending: false }),
+      supabaseAdmin.from("applications").select("id, status, stage, deposit_paid, created_at, full_name, phone, promo_code, payment_plan, installments, programs(track, title_en, title_ar, countries(slug, name_en, name_ar))").eq("partner_id", partner.id).order("created_at", { ascending: false }),
+      supabaseAdmin.from("commissions").select("*").eq("partner_id", partner.id).order("created_at", { ascending: false }),
     ]);
-    return { partner, profile, levels: levels ?? [], leads: leads.data ?? [], applications: apps.data ?? [], commissions: comms.data ?? [] };
+    return { partner, profile, levels: enrichedLevels, leads: leads.data ?? [], applications: apps.data ?? [], commissions: comms.data ?? [] };
   });
 
 export const addLead = createServerFn({ method: "POST" })
@@ -102,7 +139,7 @@ export const getAdminSales = createServerFn({ method: "GET" })
       s.from("applications").select("id, partner_id, status, full_name").not("partner_id", "is", null),
       s.from("commissions").select("*").order("created_at", { ascending: false }),
     ]);
-    const lv = (levels.data ?? []) as Level[];
+    const lv = enrichLevelsWithServerConfig(levels.data ?? []);
     const rows = (partners.data ?? []).map((p: any) => {
       const myLeads = (leads.data ?? []).filter((l) => l.partner_id === p.id).length;
       const myApps = (apps.data ?? []).filter((a) => a.partner_id === p.id);
@@ -156,12 +193,15 @@ export const adminSetCommissionStatus = createServerFn({ method: "POST" })
 
 export const adminUpdateLevel = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { id: string; min_leads: number; commission_rate: number; client_discount: number }) => {
+  .inputValidator((d: { id: string; min_leads: number; commission_rate: number; commission_amount?: number | undefined; client_discount: number }) => {
     if (d.min_leads < 0 || d.commission_rate < 0 || d.commission_rate > 100 || d.client_discount < 0 || d.client_discount > 50) throw new Error("Invalid values");
     return d;
   })
   .handler(async ({ data, context }) => {
     await assertAdmin(context);
+    if (typeof data.commission_amount === "number") {
+      saveServerLevelCommission(data.id, data.commission_amount);
+    }
     const { error } = await context.supabase.from("partner_levels")
       .update({ min_leads: Math.round(data.min_leads), commission_rate: data.commission_rate, client_discount: data.client_discount }).eq("id", data.id);
     if (error) throw new Error(error.message);

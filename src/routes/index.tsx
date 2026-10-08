@@ -262,7 +262,7 @@ function Partners() {
           <Users {...ico} className="h-6 w-6 text-beige" />
           <h3 className="mt-6 text-3xl font-semibold">{t("partnerTitle")}</h3>
           <p className="mt-3 text-ivory/65">{t("partnerText")}</p>
-          <Link to="/auth" className="mt-6 inline-flex items-center gap-2 text-beige">{t("becomePartner")} <ArrowRight className="h-4 w-4 rtl:rotate-180" strokeWidth={1.5} /></Link>
+          <Link to="/partners/join" className="mt-6 inline-flex items-center gap-2 text-beige">{t("becomePartner")} <ArrowRight className="h-4 w-4 rtl:rotate-180" strokeWidth={1.5} /></Link>
         </Reveal>
       </div>
     </section>

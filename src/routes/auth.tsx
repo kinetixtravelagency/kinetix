@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Logo } from "@/components/site/SiteChrome";
+import { Logo, Nav, Footer } from "@/components/site/SiteChrome";
 import { useLang } from "@/lib/i18n";
 import { useSession } from "@/lib/useSession";
 
@@ -43,24 +43,35 @@ function AuthPage() {
   const input = "w-full rounded-xl border border-input bg-background px-4 py-3 outline-none focus:border-beige";
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-navy px-5 text-ivory">
-      <div className="w-full max-w-md rounded-3xl bg-ivory p-8 text-navy shadow-2xl">
-        <Logo />
-        <h1 className="mt-6 text-3xl font-semibold">{t("welcome")}</h1>
-        <p className="mt-2 text-sm text-muted-foreground">{t("authSub")}</p>
-        <form onSubmit={submit} className="mt-6 space-y-4">
-          {mode === "signup" && <input className={input} placeholder={t("fullName")} value={fullName} onChange={(e) => setFullName(e.target.value)} required />}
-          <input className={input} type="email" placeholder={t("email")} value={email} onChange={(e) => setEmail(e.target.value)} required />
-          <input className={input} type="password" placeholder={t("password")} value={password} onChange={(e) => setPassword(e.target.value)} required minLength={6} />
-          {msg && <p className="text-sm text-muted-foreground">{msg}</p>}
-          <button disabled={busy} className="w-full rounded-full bg-navy py-3.5 font-medium text-ivory disabled:opacity-60">
-            {mode === "signin" ? t("signInBtn") : t("createAccount")}
+    <div className="flex min-h-screen flex-col bg-navy text-ivory">
+      <Nav solid />
+      <main className="flex flex-1 items-center justify-center px-5 py-12 md:py-20">
+        <div className="w-full max-w-md rounded-3xl bg-ivory p-8 text-navy shadow-2xl">
+          <Logo />
+          <h1 className="mt-6 text-3xl font-semibold">{t("welcome")}</h1>
+          <p className="mt-2 text-sm text-muted-foreground">{t("authSub")}</p>
+          <form onSubmit={submit} className="mt-6 space-y-4">
+            {mode === "signup" && <input className={input} placeholder={t("fullName")} value={fullName} onChange={(e) => setFullName(e.target.value)} required />}
+            <input className={input} type="email" placeholder={t("email")} value={email} onChange={(e) => setEmail(e.target.value)} required />
+            <input className={input} type="password" placeholder={t("password")} value={password} onChange={(e) => setPassword(e.target.value)} required minLength={6} />
+            {msg && <p className="text-sm text-muted-foreground">{msg}</p>}
+            <button disabled={busy} className="w-full rounded-full bg-navy py-3.5 font-medium text-ivory disabled:opacity-60">
+              {mode === "signin" ? t("signInBtn") : t("createAccount")}
+            </button>
+          </form>
+          <button onClick={() => setMode(mode === "signin" ? "signup" : "signin")} className="mt-5 w-full text-center text-sm text-muted-foreground underline-offset-4 hover:underline">
+            {mode === "signin" ? t("needAccount") : t("haveAccount")}
           </button>
-        </form>
-        <button onClick={() => setMode(mode === "signin" ? "signup" : "signin")} className="mt-5 w-full text-center text-sm text-muted-foreground underline-offset-4 hover:underline">
-          {mode === "signin" ? t("needAccount") : t("haveAccount")}
-        </button>
-      </div>
-    </main>
+          <div className="mt-4 border-t border-border pt-4 text-center text-xs text-muted-foreground">
+            Sales Partner?{" "}
+            <a href="/partners/login" className="underline underline-offset-4 hover:text-foreground">
+              Go to Partner Login →
+            </a>
+          </div>
+        </div>
+      </main>
+      <Footer />
+    </div>
   );
 }
+

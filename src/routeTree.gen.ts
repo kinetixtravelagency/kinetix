@@ -18,6 +18,7 @@ import { Route as AuthenticatedDashboardRouteImport } from './routes/_authentica
 import { Route as AuthenticatedPartnerRouteImport } from './routes/_authenticated/partner'
 import { Route as CountriesSlugRouteImport } from './routes/countries.$slug'
 import { Route as PartnersJoinRouteImport } from './routes/partners.join'
+import { Route as PartnersLoginRouteImport } from './routes/partners.login'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -63,6 +64,11 @@ const PartnersJoinRoute = PartnersJoinRouteImport.update({
   path: '/partners/join',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PartnersLoginRoute = PartnersLoginRouteImport.update({
+  id: '/partners/login',
+  path: '/partners/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -73,6 +79,7 @@ export interface FileRoutesByFullPath {
   '/partner': typeof AuthenticatedPartnerRoute
   '/countries/$slug': typeof CountriesSlugRoute
   '/partners/join': typeof PartnersJoinRoute
+  '/partners/login': typeof PartnersLoginRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -83,6 +90,7 @@ export interface FileRoutesByTo {
   '/partner': typeof AuthenticatedPartnerRoute
   '/countries/$slug': typeof CountriesSlugRoute
   '/partners/join': typeof PartnersJoinRoute
+  '/partners/login': typeof PartnersLoginRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -95,6 +103,7 @@ export interface FileRoutesById {
   '/_authenticated/partner': typeof AuthenticatedPartnerRoute
   '/countries/$slug': typeof CountriesSlugRoute
   '/partners/join': typeof PartnersJoinRoute
+  '/partners/login': typeof PartnersLoginRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -107,6 +116,7 @@ export interface FileRouteTypes {
     | '/partner'
     | '/countries/$slug'
     | '/partners/join'
+    | '/partners/login'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -117,6 +127,7 @@ export interface FileRouteTypes {
     | '/partner'
     | '/countries/$slug'
     | '/partners/join'
+    | '/partners/login'
   id:
     | '__root__'
     | '/'
@@ -128,6 +139,7 @@ export interface FileRouteTypes {
     | '/_authenticated/partner'
     | '/countries/$slug'
     | '/partners/join'
+    | '/partners/login'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -136,6 +148,7 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRoute
   CountriesSlugRoute: typeof CountriesSlugRoute
   PartnersJoinRoute: typeof PartnersJoinRoute
+  PartnersLoginRoute: typeof PartnersLoginRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -203,6 +216,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PartnersJoinRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/partners/login': {
+      id: '/partners/login'
+      path: '/partners/login'
+      fullPath: '/partners/login'
+      preLoaderRoute: typeof PartnersLoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -229,6 +249,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRoute,
   CountriesSlugRoute: CountriesSlugRoute,
   PartnersJoinRoute: PartnersJoinRoute,
+  PartnersLoginRoute: PartnersLoginRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

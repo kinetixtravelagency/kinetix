@@ -74,19 +74,51 @@ export function DocUploader({ appId, docTypes, existing, onChange }: { appId: st
 export function StageTracker({ stage, depositPaid }: { stage: number; depositPaid: boolean }) {
   const { t } = useLang();
   const labels = [t("stage0"), t("stage1"), t("stage2"), t("stage3"), t("stage4"), t("stage5")];
-  const current = depositPaid ? Math.max(1, stage) : 0;
+  const current = depositPaid && stage < 1 ? 1 : Math.max(0, Math.min(5, stage));
+  const progressPercent = (current / 5) * 100;
+
   return (
-    <ol className="grid grid-cols-6 gap-1.5">
-      {labels.map((l, i) => {
-        const done = i < current || (i === 0 && depositPaid);
-        const active = i === current;
-        return (
-          <li key={l} className="flex flex-col gap-2">
-            <span className={`h-1.5 rounded-full ${done ? "bg-navy" : active ? "bg-beige" : "bg-secondary"}`} />
-            <span className={`text-[10px] leading-tight sm:text-xs ${active ? "font-semibold text-foreground" : "text-muted-foreground"}`}>{l}</span>
-          </li>
-        );
-      })}
-    </ol>
+    <div className="relative py-2">
+      {/* Background connector line */}
+      <div className="absolute top-5 start-4 end-4 h-1 -translate-y-1/2 rounded-full bg-secondary" />
+      {/* Foreground filled line */}
+      <div
+        className="absolute top-5 start-4 h-1 -translate-y-1/2 rounded-full bg-gradient-to-r from-navy via-beige to-emerald-600 transition-all duration-300"
+        style={{ width: `calc(${progressPercent}% - 1rem)` }}
+      />
+
+      <ol className="relative flex justify-between">
+        {labels.map((l, i) => {
+          const done = i < current || (i === 1 && depositPaid);
+          const active = i === current;
+          return (
+            <li key={l} className="flex flex-col items-center text-center" style={{ width: "64px" }}>
+              <div
+                className={`relative flex h-8 w-8 items-center justify-center rounded-full text-xs transition-all duration-300 ${
+                  done
+                    ? "bg-navy text-ivory shadow-sm ring-2 ring-navy/20"
+                    : active
+                    ? "scale-110 bg-beige font-bold text-navy shadow-md ring-4 ring-beige/30 animate-pulse"
+                    : "border-2 border-border bg-card text-muted-foreground"
+                }`}
+              >
+                {done ? <Check className="h-4 w-4 stroke-[2.5]" /> : i + 1}
+              </div>
+              <span
+                className={`mt-2 text-[10px] leading-tight sm:text-xs transition-colors ${
+                  active
+                    ? "font-bold text-foreground"
+                    : done
+                    ? "font-medium text-foreground/80"
+                    : "text-muted-foreground"
+                }`}
+              >
+                {l}
+              </span>
+            </li>
+          );
+        })}
+      </ol>
+    </div>
   );
 }
