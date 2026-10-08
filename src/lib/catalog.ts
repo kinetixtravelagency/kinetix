@@ -934,6 +934,7 @@ export const countries: Country[] = [
 ];
 
 export const fromPrice = (c: Country) => Math.min(...c.programs.map((p) => p.price));
+export const fromDeposit = (c: Country) => Math.min(...c.programs.map((p) => p.deposit));
 export const eur = (n: number) => `€${n.toLocaleString("en-US")}`;
 export const getCountry = (slug: string) => countries.find((c) => c.slug === slug);
 export const getProgram = (slug: string) => {

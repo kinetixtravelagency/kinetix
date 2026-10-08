@@ -57,7 +57,12 @@ function ProgramCard({ p, ar, t }: { p: Program; ar: boolean; t: (k: any) => str
             <h2 className="mt-2 text-xl font-semibold leading-snug">{title}</h2>
             <p className="mt-1 text-sm text-muted-foreground">{category}</p>
           </div>
-          <p className="font-display text-2xl shrink-0">{eur(p.price)}</p>
+          <div className="text-end shrink-0">
+            <span className="text-xs text-muted-foreground block">{ar ? "المقدم المطلوب" : "Deposit Required"}</span>
+            <p className="font-display text-2xl font-bold text-navy dark:text-beige">{eur(p.deposit)}</p>
+            <p className="text-xs font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">≈ {Math.round(p.deposit * 54).toLocaleString()} {ar ? "ج.م" : "EGP"}</p>
+            <span className="text-[11px] text-muted-foreground block mt-1">{ar ? "إجمالي البرنامج" : "Total"}: {eur(p.price)}</span>
+          </div>
         </div>
 
         {/* Expected Salary Badge */}

@@ -285,9 +285,14 @@ function Apply() {
                       >
                         <div className="flex items-start justify-between gap-2">
                           <p className="font-semibold text-sm">{ar ? p.titleAr : p.title}</p>
-                          <span className={`text-xs shrink-0 rounded-full px-2 py-0.5 ${isSelected ? "bg-beige text-navy font-bold" : "bg-secondary text-muted-foreground"}`}>
-                            {eur(p.price)}
-                          </span>
+                          <div className="text-end shrink-0">
+                            <span className={`text-xs inline-block rounded-full px-2 py-0.5 font-bold ${isSelected ? "bg-beige text-navy" : "bg-secondary text-foreground"}`}>
+                              {ar ? "مقدم" : "Deposit"} {eur(p.deposit)}
+                            </span>
+                            <span className={`text-[10px] block mt-0.5 font-medium ${isSelected ? "text-ivory/80" : "text-emerald-600 dark:text-emerald-400"}`}>
+                              ≈ {Math.round(p.deposit * 54).toLocaleString()} {ar ? "ج.م" : "EGP"}
+                            </span>
+                          </div>
                         </div>
                         <p className={`mt-1 text-xs ${isSelected ? "text-ivory/70" : "text-muted-foreground"}`}>
                           {ar ? p.categoryAr : p.category} · {p.duration}
