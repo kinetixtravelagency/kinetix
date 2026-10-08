@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
   getAdminFull, adminUpdateApplicationStatus, adminUpdateProgramPrice,
+  adminCreateProgram, adminUpdateProgram, adminDeleteProgram, adminSyncCatalogPrograms,
   adminUpdateApplication, adminSetDocumentStatus,
   adminManagePartner, adminAddCommission, adminSetCommission,
   adminUpdateLevel, adminUpdateCountry,
@@ -16,7 +17,8 @@ import {
   Users, Globe, Briefcase, LayoutDashboard, Award, Wallet,
   ChevronDown, ChevronUp, CheckCircle2, XCircle, Clock,
   TrendingUp, Plus, Pencil, Save, X, Eye, ShieldCheck, Ban, AlertCircle, MessageSquare,
-  Mail, Phone, MapPin, Calendar, Copy, Check, ExternalLink, Link2,
+  Mail, Phone, MapPin, Calendar, Copy, Check, ExternalLink, Link2, Trash2, RefreshCw,
+  Sparkles, Filter, Layers, CheckSquare, Loader2,
 } from "lucide-react";
 import { AdminChatTab } from "@/components/admin/AdminChatTab";
 
@@ -169,7 +171,7 @@ function Admin() {
 
         {/* ── PROGRAMS ── */}
         {tab === "programs" && (
-          <ProgramsTab programs={d.programs} onChange={refetch} />
+          <ProgramsTab programs={d.programs} countries={d.countries} onChange={refetch} />
         )}
 
         {/* ── COUNTRIES ── */}
@@ -354,12 +356,28 @@ function ApplicationsTab({ apps, onChange }: { apps: any[]; onChange: () => void
 /* ═══════════════════════════════════════
    PROGRAMS TAB
 ═══════════════════════════════════════ */
-function ProgramsTab({ programs, onChange }: { programs: any[]; onChange: () => void }) {
+function ProgramsTab({ programs, countries, onChange }: { programs: any[]; countries: any[]; onChange: () => void }) {
   const setPrice = useServerFn(adminUpdateProgramPrice);
+  const createProg = useServerFn(adminCreateProgram);
+  const updateProg = useServerFn(adminUpdateProgram);
+  const deleteProg = useServerFn(adminDeleteProgram);
+  const syncCatalog = useServerFn(adminSyncCatalogPrograms);
+
   const [search, setSearch] = useState("");
   const [countryFilter, setCountryFilter] = useState("all");
+  const [trackFilter, setTrackFilter] = useState<"all" | "student" | "graduate">("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | "published" | "draft">("all");
+  const [syncing, setSyncing] = useState(false);
+  const [syncMessage, setSyncMessage] = useState<string | null>(null);
 
-  const countries = Array.from(new Set(programs.map((p: any) => p.countries?.name_en).filter(Boolean)));
+  // Modal states
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalMode, setModalMode] = useState<"add" | "edit">("add");
+  const [selectedProgram, setSelectedProgram] = useState<any | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+
+  const countryNames = Array.from(new Set(programs.map((p: any) => p.countries?.name_en).filter(Boolean)));
 
   const filtered = programs.filter((p: any) => {
     const matchesSearch =
@@ -367,94 +385,854 @@ function ProgramsTab({ programs, onChange }: { programs: any[]; onChange: () => 
       p.title_en?.toLowerCase().includes(search.toLowerCase()) ||
       p.title_ar?.includes(search) ||
       p.category_en?.toLowerCase().includes(search.toLowerCase()) ||
+      p.category_ar?.includes(search) ||
       p.slug?.toLowerCase().includes(search.toLowerCase());
     const matchesCountry = countryFilter === "all" || p.countries?.name_en === countryFilter;
-    return matchesSearch && matchesCountry;
+    const matchesTrack = trackFilter === "all" || p.track === trackFilter;
+    const matchesStatus =
+      statusFilter === "all" ||
+      (statusFilter === "published" ? p.published !== false : p.published === false);
+    return matchesSearch && matchesCountry && matchesTrack && matchesStatus;
   });
 
+  const handleSync = async () => {
+    if (syncing) return;
+    setSyncing(true);
+    setSyncMessage(null);
+    try {
+      const res = await syncCatalog();
+      setSyncMessage(`✓ Synced ${res.count} programs from master catalog.`);
+      onChange();
+    } catch (e: any) {
+      setSyncMessage(`Failed to sync: ${e.message}`);
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    setDeletingId(id);
+    try {
+      await deleteProg({ data: { id } });
+      setDeleteConfirmId(null);
+      onChange();
+    } catch (e: any) {
+      alert(`Could not delete program: ${e.message}`);
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  const handleTogglePublished = async (p: any) => {
+    const nextPublished = !(p.published !== false);
+    await updateProg({ data: { id: p.id, published: nextPublished } });
+    onChange();
+  };
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
+      {/* Target Deposit Guidelines Banner */}
+      <div className="rounded-3xl border border-border bg-card p-5 shadow-sm space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600">
+              <TrendingUp className="h-5 w-5" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-base flex items-center gap-2">
+                Program & Deposit Management
+                <span className="rounded-full bg-secondary px-2.5 py-0.5 text-xs text-muted-foreground font-normal">
+                  {programs.length} Total Programs
+                </span>
+              </h3>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Target Deposit Range: <strong className="text-foreground">10,000 – 12,000 EGP</strong> (≈ €185 – €222 at 54 EGP/EUR)
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleSync}
+              disabled={syncing}
+              className="flex items-center gap-1.5 rounded-full border border-border bg-background px-4 py-2 text-xs font-medium text-foreground hover:border-beige transition-colors disabled:opacity-60"
+            >
+              <RefreshCw className={`h-3.5 w-3.5 ${syncing ? "animate-spin text-beige" : ""}`} />
+              {syncing ? "Syncing…" : "Sync Catalog"}
+            </button>
+            <button
+              onClick={() => {
+                setSelectedProgram(null);
+                setModalMode("add");
+                setModalOpen(true);
+              }}
+              className="flex items-center gap-1.5 rounded-full bg-navy px-4 py-2 text-xs font-semibold text-ivory hover:opacity-90 shadow-sm transition-opacity"
+            >
+              <Plus className="h-3.5 w-3.5" /> Add New Program
+            </button>
+          </div>
+        </div>
+
+        {/* Deposit Guideline Chips */}
+        <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-border/60 text-xs">
+          <span className="text-muted-foreground font-medium">Standard Tiers:</span>
+          <span className="rounded-lg bg-secondary/80 border border-border px-2.5 py-1 text-xs">
+            <strong className="text-foreground">€185</strong> (≈ 9,990 EGP) <span className="text-muted-foreground opacity-80">· Lowest tier</span>
+          </span>
+          <span className="rounded-lg bg-secondary/80 border border-border px-2.5 py-1 text-xs">
+            <strong className="text-foreground">€196</strong> (≈ 10,584 EGP) <span className="text-muted-foreground opacity-80">· Standard</span>
+          </span>
+          <span className="rounded-lg bg-secondary/80 border border-border px-2.5 py-1 text-xs">
+            <strong className="text-foreground">€204</strong> (≈ 11,016 EGP) <span className="text-muted-foreground opacity-80">· Mid-High</span>
+          </span>
+          <span className="rounded-lg bg-secondary/80 border border-border px-2.5 py-1 text-xs">
+            <strong className="text-foreground">€214</strong> (≈ 11,556 EGP) <span className="text-muted-foreground opacity-80">· Premium</span>
+          </span>
+          <span className="rounded-lg bg-secondary/80 border border-border px-2.5 py-1 text-xs">
+            <strong className="text-foreground">€222</strong> (≈ 11,988 EGP) <span className="text-muted-foreground opacity-80">· Top tier</span>
+          </span>
+        </div>
+
+        {syncMessage && (
+          <p className="text-xs font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 p-2.5 rounded-xl border border-emerald-200 dark:border-emerald-900">
+            {syncMessage}
+          </p>
+        )}
+      </div>
+
+      {/* Filter and Search Bar */}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <input
-            className={`${inp} max-w-60`}
-            placeholder="Search programs, jobs…"
+            className={`${inp} max-w-64`}
+            placeholder="Search programs, jobs, slug…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
           <select
             value={countryFilter}
             onChange={(e) => setCountryFilter(e.target.value)}
-            className="rounded-full border border-input bg-background px-3 py-1.5 text-xs outline-none"
+            className="rounded-full border border-input bg-background px-3 py-2 text-xs font-medium outline-none focus:border-beige"
           >
-            <option value="all">All Countries ({programs.length})</option>
-            {countries.map((c) => (
+            <option value="all">All Countries ({countryNames.length})</option>
+            {countryNames.map((c) => (
               <option key={c} value={c}>
                 {c}
               </option>
             ))}
           </select>
+          <select
+            value={trackFilter}
+            onChange={(e) => setTrackFilter(e.target.value as any)}
+            className="rounded-full border border-input bg-background px-3 py-2 text-xs font-medium outline-none focus:border-beige"
+          >
+            <option value="all">All Tracks</option>
+            <option value="student">Students 🎓</option>
+            <option value="graduate">Graduates 💼</option>
+          </select>
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value as any)}
+            className="rounded-full border border-input bg-background px-3 py-2 text-xs font-medium outline-none focus:border-beige"
+          >
+            <option value="all">All Status</option>
+            <option value="published">Published</option>
+            <option value="draft">Drafts</option>
+          </select>
         </div>
-        <p className="text-xs text-muted-foreground">{filtered.length} programs shown</p>
+        <p className="text-xs text-muted-foreground font-medium">
+          Showing <strong>{filtered.length}</strong> of {programs.length} programs
+        </p>
       </div>
 
-      <div className="overflow-x-auto rounded-3xl border border-border bg-card">
+      {/* Programs Table */}
+      <div className="overflow-x-auto rounded-3xl border border-border bg-card shadow-sm">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-border text-xs text-muted-foreground">
-              <th className="p-4 text-start font-medium">Program / Job Title</th>
-              <th className="p-4 text-start font-medium">Country</th>
-              <th className="p-4 text-start font-medium">Track</th>
-              <th className="p-4 text-start font-medium">Duration</th>
-              <th className="p-4 text-start font-medium">Price (€)</th>
-              <th className="p-4 text-start font-medium">Deposit (€)</th>
-              <th className="p-4 text-start font-medium">Max Inst.</th>
-              <th className="p-4" />
+            <tr className="border-b border-border bg-secondary/50 text-xs text-muted-foreground">
+              <th className="p-4 text-start font-semibold">Program / Job Opportunity</th>
+              <th className="p-4 text-start font-semibold">Country</th>
+              <th className="p-4 text-start font-semibold">Track</th>
+              <th className="p-4 text-start font-semibold">Duration</th>
+              <th className="p-4 text-center font-semibold">Total Price (€)</th>
+              <th className="p-4 text-center font-semibold">Deposit (€)</th>
+              <th className="p-4 text-center font-semibold">Max Inst.</th>
+              <th className="p-4 text-center font-semibold">Status</th>
+              <th className="p-4 text-end font-semibold">Actions</th>
             </tr>
           </thead>
-          <tbody>
+          <tbody className="divide-y divide-border">
             {filtered.map((p) => (
               <ProgramRow
                 key={p.id}
                 p={p}
-                onSave={async (v) => {
+                onEdit={() => {
+                  setSelectedProgram(p);
+                  setModalMode("edit");
+                  setModalOpen(true);
+                }}
+                onSavePrice={async (v) => {
                   await setPrice({ data: { id: p.id, ...v } });
                   onChange();
                 }}
+                onTogglePublished={() => handleTogglePublished(p)}
+                onDelete={() => setDeleteConfirmId(p.id)}
+                isDeleting={deletingId === p.id}
               />
             ))}
           </tbody>
         </table>
+
         {filtered.length === 0 && (
-          <p className="py-10 text-center text-sm text-muted-foreground">No programs matching search.</p>
+          <div className="py-16 text-center space-y-3">
+            <p className="text-sm text-muted-foreground">No programs match the current filters or search.</p>
+            <button
+              onClick={() => {
+                setSearch("");
+                setCountryFilter("all");
+                setTrackFilter("all");
+                setStatusFilter("all");
+              }}
+              className="text-xs text-navy dark:text-beige underline font-medium"
+            >
+              Clear filters
+            </button>
+          </div>
         )}
       </div>
+
+      {/* Edit / Add Modal */}
+      {modalOpen && (
+        <ProgramModal
+          mode={modalMode}
+          program={selectedProgram}
+          countries={countries}
+          onClose={() => {
+            setModalOpen(false);
+            setSelectedProgram(null);
+          }}
+          onSave={async (formData) => {
+            if (modalMode === "add") {
+              await createProg({ data: formData });
+            } else {
+              await updateProg({ data: { id: selectedProgram.id, ...formData } });
+            }
+            setModalOpen(false);
+            setSelectedProgram(null);
+            onChange();
+          }}
+        />
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteConfirmId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs">
+          <div className="w-full max-w-md rounded-3xl border border-border bg-card p-6 shadow-xl space-y-4">
+            <div className="flex items-center gap-3 text-red-600">
+              <div className="rounded-full bg-red-100 dark:bg-red-950/60 p-2.5">
+                <Trash2 className="h-5 w-5" />
+              </div>
+              <h3 className="font-semibold text-lg text-foreground">Delete Program</h3>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Are you sure you want to permanently delete this program? Any applications referencing it might be affected.
+            </p>
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                onClick={() => setDeleteConfirmId(null)}
+                className="rounded-full border border-border px-4 py-2 text-xs font-medium hover:bg-secondary"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleDelete(deleteConfirmId)}
+                disabled={Boolean(deletingId)}
+                className="rounded-full bg-red-600 px-4 py-2 text-xs font-semibold text-white hover:bg-red-700 disabled:opacity-50"
+              >
+                {deletingId ? "Deleting…" : "Confirm Delete"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-function ProgramRow({ p, onSave }: { p: any; onSave: (v: any) => Promise<void> }) {
+function ProgramRow({
+  p,
+  onEdit,
+  onSavePrice,
+  onTogglePublished,
+  onDelete,
+  isDeleting,
+}: {
+  p: any;
+  onEdit: () => void;
+  onSavePrice: (v: any) => Promise<void>;
+  onTogglePublished: () => Promise<void>;
+  onDelete: () => void;
+  isDeleting: boolean;
+}) {
   const [price, setPrice] = useState(p.price);
   const [deposit, setDeposit] = useState(p.deposit);
   const [inst, setInst] = useState(p.max_installments);
   const [saving, setSaving] = useState(false);
+
   const dirty = price !== p.price || deposit !== p.deposit || inst !== p.max_installments;
-  const cell = "w-24 rounded-lg border border-input bg-background px-2 py-1.5 text-sm text-center";
+  const cell = "w-20 rounded-lg border border-input bg-background px-2 py-1 text-xs text-center font-medium focus:border-beige outline-none";
+
+  const depositEgp = Math.round(deposit * 54);
+  const isDepositInRange = depositEgp >= 9900 && depositEgp <= 12100;
+  const isPublished = p.published !== false;
+
   return (
-    <tr className="border-b border-border last:border-0 hover:bg-secondary/30">
-      <td className="p-4 font-medium">{p.title_en}</td>
-      <td className="p-4 text-muted-foreground">{p.countries?.name_en}</td>
-      <td className="p-4"><span className={`${pill} ${p.track === "student" ? "bg-blue-100 text-blue-800" : "bg-purple-100 text-purple-800"}`}>{p.track}</span></td>
-      <td className="p-4"><input type="number" className={cell} value={price} onChange={e => setPrice(+e.target.value)} /></td>
-      <td className="p-4"><input type="number" className={cell} value={deposit} onChange={e => setDeposit(+e.target.value)} /></td>
-      <td className="p-4"><input type="number" className={cell} min={1} max={12} value={inst} onChange={e => setInst(+e.target.value)} /></td>
-      <td className="p-4">
-        {dirty && <button disabled={saving} onClick={async () => { setSaving(true); await onSave({ price, deposit, max_installments: inst }); setSaving(false); }}
-          className="flex items-center gap-1 rounded-full bg-navy px-4 py-1.5 text-xs text-ivory disabled:opacity-60">
-          <Save className="h-3 w-3" /> Save
-        </button>}
+    <tr className="hover:bg-secondary/20 transition-colors">
+      {/* Program Details */}
+      <td className="p-4 min-w-56">
+        <div className="space-y-0.5">
+          <p className="font-semibold text-sm text-foreground">{p.title_en}</p>
+          {p.title_ar && <p className="text-xs text-muted-foreground">{p.title_ar}</p>}
+          <div className="flex flex-wrap items-center gap-1.5 pt-1">
+            <span className="rounded-md bg-secondary px-2 py-0.5 text-[11px] text-muted-foreground font-medium">
+              {p.category_en || p.category_ar || "General"}
+            </span>
+            <span className="text-[10px] text-muted-foreground font-mono">
+              {p.slug}
+            </span>
+          </div>
+        </div>
+      </td>
+
+      {/* Country */}
+      <td className="p-4 whitespace-nowrap">
+        <span className="font-medium text-foreground text-xs block">
+          {p.countries?.name_en || "—"}
+        </span>
+      </td>
+
+      {/* Track */}
+      <td className="p-4 whitespace-nowrap">
+        <span
+          className={`${pill} ${
+            p.track === "student"
+              ? "bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300"
+              : "bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300"
+          }`}
+        >
+          {p.track === "student" ? "Student" : "Graduate"}
+        </span>
+      </td>
+
+      {/* Duration */}
+      <td className="p-4 whitespace-nowrap text-xs text-muted-foreground">
+        {p.duration || "12–24 mo"}
+      </td>
+
+      {/* Price Input & EGP Preview */}
+      <td className="p-4 text-center whitespace-nowrap">
+        <div className="inline-flex flex-col items-center">
+          <input
+            type="number"
+            className={cell}
+            value={price}
+            onChange={(e) => setPrice(+e.target.value)}
+          />
+          <span className="text-[10px] text-muted-foreground mt-0.5">
+            ≈ {Math.round(price * 54).toLocaleString()} EGP
+          </span>
+        </div>
+      </td>
+
+      {/* Deposit Input & EGP Preview */}
+      <td className="p-4 text-center whitespace-nowrap">
+        <div className="inline-flex flex-col items-center">
+          <input
+            type="number"
+            className={`${cell} ${
+              isDepositInRange
+                ? "border-emerald-400 bg-emerald-50/40 dark:bg-emerald-950/20 text-emerald-800 dark:text-emerald-300 font-bold"
+                : ""
+            }`}
+            value={deposit}
+            onChange={(e) => setDeposit(+e.target.value)}
+          />
+          <span
+            className={`text-[10px] font-semibold mt-0.5 ${
+              isDepositInRange
+                ? "text-emerald-600 dark:text-emerald-400"
+                : "text-muted-foreground"
+            }`}
+          >
+            ≈ {depositEgp.toLocaleString()} EGP
+          </span>
+        </div>
+      </td>
+
+      {/* Max Installments */}
+      <td className="p-4 text-center whitespace-nowrap">
+        <div className="inline-flex flex-col items-center">
+          <input
+            type="number"
+            className="w-14 rounded-lg border border-input bg-background px-2 py-1 text-xs text-center font-medium focus:border-beige outline-none"
+            min={1}
+            max={12}
+            value={inst}
+            onChange={(e) => setInst(+e.target.value)}
+          />
+          <span className="text-[10px] text-muted-foreground mt-0.5">
+            {inst} months
+          </span>
+        </div>
+      </td>
+
+      {/* Status Toggle */}
+      <td className="p-4 text-center whitespace-nowrap">
+        <button
+          onClick={onTogglePublished}
+          className={`rounded-full px-2.5 py-1 text-[11px] font-semibold transition-colors ${
+            isPublished
+              ? "bg-emerald-100 text-emerald-800 hover:bg-emerald-200 dark:bg-emerald-950 dark:text-emerald-300"
+              : "bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-400"
+          }`}
+          title="Click to toggle published / draft"
+        >
+          {isPublished ? "Published" : "Draft"}
+        </button>
+      </td>
+
+      {/* Actions */}
+      <td className="p-4 text-end whitespace-nowrap">
+        <div className="flex items-center justify-end gap-1.5">
+          {dirty && (
+            <button
+              disabled={saving}
+              onClick={async () => {
+                setSaving(true);
+                await onSavePrice({ price, deposit, max_installments: inst });
+                setSaving(false);
+              }}
+              className="flex items-center gap-1 rounded-full bg-navy px-3 py-1 text-xs text-ivory font-semibold hover:opacity-90 disabled:opacity-60 shadow-sm"
+              title="Save inline prices"
+            >
+              <Save className="h-3 w-3" /> Save
+            </button>
+          )}
+          <button
+            onClick={onEdit}
+            className="flex h-7 w-7 items-center justify-center rounded-full border border-border text-muted-foreground hover:border-beige hover:text-foreground transition-colors"
+            title="Edit full program details"
+          >
+            <Pencil className="h-3.5 w-3.5" />
+          </button>
+          <button
+            onClick={onDelete}
+            disabled={isDeleting}
+            className="flex h-7 w-7 items-center justify-center rounded-full border border-border text-red-500 hover:border-red-300 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors"
+            title="Delete program"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </button>
+        </div>
       </td>
     </tr>
+  );
+}
+
+function ProgramModal({
+  mode,
+  program,
+  countries,
+  onClose,
+  onSave,
+}: {
+  mode: "add" | "edit";
+  program?: any;
+  countries: any[];
+  onClose: () => void;
+  onSave: (data: any) => Promise<void>;
+}) {
+  const [countryId, setCountryId] = useState(
+    program?.country_id || countries[0]?.id || ""
+  );
+  const [track, setTrack] = useState<"student" | "graduate">(
+    program?.track || "student"
+  );
+  const [titleEn, setTitleEn] = useState(program?.title_en || "");
+  const [titleAr, setTitleAr] = useState(program?.title_ar || "");
+  const [categoryEn, setCategoryEn] = useState(program?.category_en || "General");
+  const [categoryAr, setCategoryAr] = useState(program?.category_ar || "عام");
+  const [slug, setSlug] = useState(program?.slug || "");
+  const [duration, setDuration] = useState(program?.duration || "12–24 months");
+  const [price, setPrice] = useState(program?.price ?? 1500);
+  const [deposit, setDeposit] = useState(program?.deposit ?? 196);
+  const [installments, setInstallments] = useState(program?.max_installments ?? 6);
+  const [published, setPublished] = useState(program?.published !== false);
+  const [saving, setSaving] = useState(false);
+
+  // Auto slug generator
+  const handleAutoSlug = () => {
+    const selectedCountry = countries.find((c) => c.id === countryId);
+    const countryPrefix = selectedCountry?.slug || "program";
+    const cleanedTitle = titleEn
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "");
+    setSlug(`${countryPrefix}-${cleanedTitle || "item"}`);
+  };
+
+  const depositEgp = Math.round(deposit * 54);
+  const isDepositInRange = depositEgp >= 9900 && depositEgp <= 12100;
+  const monthlyEur = installments > 0 ? Math.ceil((price - deposit) / installments) : 0;
+  const monthlyEgp = Math.round(monthlyEur * 54);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!titleEn.trim()) return alert("English title is required.");
+    if (!slug.trim()) return alert("Slug is required.");
+    if (!countryId) return alert("Please select a country.");
+
+    setSaving(true);
+    try {
+      await onSave({
+        country_id: countryId,
+        track,
+        title_en: titleEn,
+        title_ar: titleAr || titleEn,
+        category_en: categoryEn,
+        category_ar: categoryAr,
+        slug,
+        duration,
+        price: Number(price),
+        deposit: Number(deposit),
+        max_installments: Number(installments),
+        published,
+      });
+    } catch (err: any) {
+      alert(`Error saving program: ${err.message}`);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs overflow-y-auto">
+      <div className="w-full max-w-2xl my-8 rounded-3xl border border-border bg-card shadow-2xl overflow-hidden">
+        {/* Modal Header */}
+        <div className="flex items-center justify-between border-b border-border bg-secondary/50 px-6 py-4">
+          <div className="flex items-center gap-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-navy text-ivory">
+              {mode === "add" ? <Plus className="h-4 w-4" /> : <Pencil className="h-4 w-4" />}
+            </div>
+            <div>
+              <h3 className="font-semibold text-foreground">
+                {mode === "add" ? "Add New Program / Job" : "Edit Program"}
+              </h3>
+              <p className="text-xs text-muted-foreground">
+                {mode === "add"
+                  ? "Create a new opportunity with transparent pricing & deposit"
+                  : `Editing ${program?.title_en}`}
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="rounded-full p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        {/* Modal Body */}
+        <form onSubmit={handleSubmit} className="p-6 space-y-5">
+          {/* Country & Track Selection */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-muted-foreground mb-1">
+                Country *
+              </label>
+              <select
+                value={countryId}
+                onChange={(e) => setCountryId(e.target.value)}
+                className={inp}
+                required
+              >
+                {countries.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name_en} {c.name_ar ? `(${c.name_ar})` : ""}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-muted-foreground mb-1">
+                Track / Audience *
+              </label>
+              <select
+                value={track}
+                onChange={(e) => setTrack(e.target.value as any)}
+                className={inp}
+              >
+                <option value="student">Students 🎓 (عمل موسمي / دراسة للطلاب)</option>
+                <option value="graduate">Graduates 💼 (توظيف وعقود خريجين)</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Titles in EN & AR */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-muted-foreground mb-1">
+                Program Title (English) *
+              </label>
+              <input
+                className={inp}
+                placeholder="e.g. Seasonal Hotel & Hospitality Services"
+                value={titleEn}
+                onChange={(e) => setTitleEn(e.target.value)}
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-muted-foreground mb-1">
+                Program Title (العربية)
+              </label>
+              <input
+                className={inp}
+                placeholder="مثال: عمل موسمي في الفنادق والضيافة"
+                value={titleAr}
+                onChange={(e) => setTitleAr(e.target.value)}
+                dir="rtl"
+              />
+            </div>
+          </div>
+
+          {/* Categories & Duration */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-muted-foreground mb-1">
+                Category (EN)
+              </label>
+              <input
+                className={inp}
+                placeholder="e.g. Hospitality, Logistics"
+                value={categoryEn}
+                onChange={(e) => setCategoryEn(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-muted-foreground mb-1">
+                التخصص (العربية)
+              </label>
+              <input
+                className={inp}
+                placeholder="مثال: ضيافة وفنادق"
+                value={categoryAr}
+                onChange={(e) => setCategoryAr(e.target.value)}
+                dir="rtl"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-muted-foreground mb-1">
+                Duration
+              </label>
+              <input
+                className={inp}
+                placeholder="e.g. 3–6 months, 12–24 months"
+                value={duration}
+                onChange={(e) => setDuration(e.target.value)}
+              />
+            </div>
+          </div>
+
+          {/* Slug */}
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-xs font-semibold text-muted-foreground">
+                URL Identifier (Slug) *
+              </label>
+              <button
+                type="button"
+                onClick={handleAutoSlug}
+                className="text-[11px] text-navy dark:text-beige underline font-medium hover:opacity-80"
+              >
+                Auto-generate from title
+              </button>
+            </div>
+            <input
+              className={inp}
+              placeholder="e.g. bulgaria-student-hospitality"
+              value={slug}
+              onChange={(e) => setSlug(e.target.value)}
+              required
+            />
+          </div>
+
+          {/* Financials & Deposit Target Card */}
+          <div className="rounded-2xl border border-border bg-secondary/40 p-4 space-y-4">
+            <div className="flex items-center justify-between">
+              <h4 className="font-semibold text-sm flex items-center gap-1.5 text-foreground">
+                <Wallet className="h-4 w-4 text-beige" /> Financials & Deposit Configuration
+              </h4>
+              <span className="text-[11px] text-muted-foreground">
+                Exchange rate: ~54 EGP / EUR
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              {/* Total Price */}
+              <div>
+                <label className="block text-xs font-semibold text-muted-foreground mb-1">
+                  Total Price (€) *
+                </label>
+                <input
+                  type="number"
+                  className={inp}
+                  min={0}
+                  value={price}
+                  onChange={(e) => setPrice(+e.target.value)}
+                  required
+                />
+                <span className="text-[11px] text-muted-foreground block mt-1">
+                  ≈ {Math.round(price * 54).toLocaleString()} EGP
+                </span>
+              </div>
+
+              {/* Deposit Required */}
+              <div>
+                <label className="block text-xs font-semibold text-muted-foreground mb-1">
+                  Deposit Required (€) *
+                </label>
+                <input
+                  type="number"
+                  className={`${inp} ${
+                    isDepositInRange
+                      ? "border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/30 font-bold"
+                      : ""
+                  }`}
+                  min={0}
+                  value={deposit}
+                  onChange={(e) => setDeposit(+e.target.value)}
+                  required
+                />
+                <div className="flex items-center justify-between mt-1">
+                  <span
+                    className={`text-[11px] font-bold ${
+                      isDepositInRange
+                        ? "text-emerald-600 dark:text-emerald-400"
+                        : "text-muted-foreground"
+                    }`}
+                  >
+                    ≈ {depositEgp.toLocaleString()} EGP
+                  </span>
+                  {isDepositInRange ? (
+                    <span className="text-[10px] text-emerald-600 font-semibold">
+                      ✓ Target Range OK
+                    </span>
+                  ) : (
+                    <span className="text-[10px] text-amber-600 font-medium">
+                      Target: 10k–12k
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Installments */}
+              <div>
+                <label className="block text-xs font-semibold text-muted-foreground mb-1">
+                  Max Installments *
+                </label>
+                <input
+                  type="number"
+                  className={inp}
+                  min={1}
+                  max={12}
+                  value={installments}
+                  onChange={(e) => setInstallments(+e.target.value)}
+                  required
+                />
+                <span className="text-[11px] text-muted-foreground block mt-1">
+                  {monthlyEur} €/mo (≈ {monthlyEgp.toLocaleString()} EGP)
+                </span>
+              </div>
+            </div>
+
+            {/* Quick Deposit Preset Chips */}
+            <div className="space-y-1.5 pt-2 border-t border-border/60">
+              <span className="text-[11px] font-medium text-muted-foreground block">
+                Quick Deposit Presets (10,000 – 12,000 EGP Target):
+              </span>
+              <div className="flex flex-wrap gap-1.5">
+                {[
+                  [185, "~9,990 EGP"],
+                  [196, "~10,580 EGP"],
+                  [204, "~11,016 EGP"],
+                  [214, "~11,556 EGP"],
+                  [222, "~11,988 EGP"],
+                ].map(([val, label]) => (
+                  <button
+                    key={val}
+                    type="button"
+                    onClick={() => setDeposit(Number(val))}
+                    className={`rounded-lg px-2.5 py-1 text-xs font-medium border transition-colors ${
+                      deposit === val
+                        ? "bg-navy text-ivory border-navy font-bold"
+                        : "bg-background border-border hover:border-beige text-foreground"
+                    }`}
+                  >
+                    €{val} ({label})
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Published Toggle */}
+          <div className="flex items-center gap-3 pt-1">
+            <input
+              type="checkbox"
+              id="program-published"
+              checked={published}
+              onChange={(e) => setPublished(e.target.checked)}
+              className="h-4 w-4 rounded-md border-input text-navy accent-navy cursor-pointer"
+            />
+            <label
+              htmlFor="program-published"
+              className="text-xs font-medium text-foreground cursor-pointer select-none"
+            >
+              Publish this program immediately (visible to candidates and partners)
+            </label>
+          </div>
+
+          {/* Submit & Cancel Buttons */}
+          <div className="flex items-center justify-end gap-3 pt-3 border-t border-border">
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-full border border-border px-5 py-2.5 text-xs font-medium text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={saving}
+              className="flex items-center gap-2 rounded-full bg-navy px-6 py-2.5 text-xs font-semibold text-ivory hover:opacity-90 disabled:opacity-50 transition-opacity shadow-sm"
+            >
+              {saving ? (
+                <>
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" /> Saving…
+                </>
+              ) : (
+                <>
+                  <Check className="h-3.5 w-3.5" />
+                  {mode === "add" ? "Create Program" : "Save Changes"}
+                </>
+              )}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
   );
 }
 

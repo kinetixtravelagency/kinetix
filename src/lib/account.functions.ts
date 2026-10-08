@@ -118,10 +118,158 @@ export const adminUpdateProgramPrice = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { data: isAdmin } = await context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" });
     if (!isAdmin) throw new Error("Forbidden");
-    const { error } = await context.supabase.from("programs")
-      .update({ price: data.price, deposit: data.deposit, max_installments: data.max_installments }).eq("id", data.id);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin.from("programs")
+      .update({ price: data.price, deposit: data.deposit, max_installments: data.max_installments, updated_at: new Date().toISOString() }).eq("id", data.id);
     if (error) throw new Error(error.message);
     return { ok: true };
+  });
+
+export const adminCreateProgram = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: {
+    country_id: string;
+    slug: string;
+    track: "student" | "graduate";
+    title_en: string;
+    title_ar: string;
+    category_en: string;
+    category_ar: string;
+    duration: string;
+    price: number;
+    deposit: number;
+    max_installments: number;
+    published?: boolean;
+  }) => {
+    if (!d.country_id) throw new Error("Country is required");
+    if (!d.title_en?.trim()) throw new Error("English title is required");
+    if (!d.slug?.trim()) throw new Error("Slug is required");
+    return d;
+  })
+  .handler(async ({ data, context }) => {
+    const { data: isAdmin } = await context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" });
+    if (!isAdmin) throw new Error("Forbidden");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const slug = data.slug.trim().toLowerCase().replace(/[^a-z0-9_-]/g, "-");
+    const { data: item, error } = await supabaseAdmin.from("programs").insert({
+      country_id: data.country_id,
+      slug,
+      track: data.track || "student",
+      title_en: data.title_en.trim(),
+      title_ar: data.title_ar?.trim() || data.title_en.trim(),
+      category_en: data.category_en?.trim() || "General",
+      category_ar: data.category_ar?.trim() || "عام",
+      duration: data.duration?.trim() || "12 months",
+      price: Math.max(0, Math.round(Number(data.price) || 0)),
+      deposit: Math.max(0, Math.round(Number(data.deposit) || 0)),
+      max_installments: Math.max(1, Math.min(12, Math.round(Number(data.max_installments) || 6))),
+      published: data.published ?? true,
+    }).select("id").single();
+    if (error) throw new Error(error.message);
+    return { ok: true, id: item.id };
+  });
+
+export const adminUpdateProgram = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: {
+    id: string;
+    country_id?: string;
+    slug?: string;
+    track?: "student" | "graduate";
+    title_en?: string;
+    title_ar?: string;
+    category_en?: string;
+    category_ar?: string;
+    duration?: string;
+    price?: number;
+    deposit?: number;
+    max_installments?: number;
+    published?: boolean;
+  }) => {
+    if (!d.id) throw new Error("Program ID is required");
+    return d;
+  })
+  .handler(async ({ data, context }) => {
+    const { data: isAdmin } = await context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" });
+    if (!isAdmin) throw new Error("Forbidden");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const patch: any = { updated_at: new Date().toISOString() };
+    if (data.country_id) patch.country_id = data.country_id;
+    if (data.slug) patch.slug = data.slug.trim().toLowerCase().replace(/[^a-z0-9_-]/g, "-");
+    if (data.track) patch.track = data.track;
+    if (data.title_en !== undefined) patch.title_en = data.title_en.trim();
+    if (data.title_ar !== undefined) patch.title_ar = data.title_ar.trim();
+    if (data.category_en !== undefined) patch.category_en = data.category_en.trim();
+    if (data.category_ar !== undefined) patch.category_ar = data.category_ar.trim();
+    if (data.duration !== undefined) patch.duration = data.duration.trim();
+    if (data.price !== undefined) patch.price = Math.max(0, Math.round(Number(data.price) || 0));
+    if (data.deposit !== undefined) patch.deposit = Math.max(0, Math.round(Number(data.deposit) || 0));
+    if (data.max_installments !== undefined) patch.max_installments = Math.max(1, Math.min(12, Math.round(Number(data.max_installments) || 6)));
+    if (data.published !== undefined) patch.published = data.published;
+
+    const { error } = await supabaseAdmin.from("programs").update(patch).eq("id", data.id);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export const adminDeleteProgram = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { id: string }) => {
+    if (!d.id) throw new Error("ID required");
+    return d;
+  })
+  .handler(async ({ data, context }) => {
+    const { data: isAdmin } = await context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" });
+    if (!isAdmin) throw new Error("Forbidden");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin.from("programs").delete().eq("id", data.id);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export const adminSyncCatalogPrograms = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { data: isAdmin } = await context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" });
+    if (!isAdmin) throw new Error("Forbidden");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { countries: catCountries } = await import("./catalog");
+
+    let count = 0;
+    for (const c of catCountries) {
+      let { data: dbCountry } = await supabaseAdmin.from("countries").select("id").eq("slug", c.slug).maybeSingle();
+      if (!dbCountry) {
+        const { data: newC } = await supabaseAdmin.from("countries").insert({
+          slug: c.slug,
+          name_en: c.name,
+          name_ar: c.nameAr,
+          published: true,
+          tagline_en: c.tagline,
+          tagline_ar: c.taglineAr,
+        }).select("id").single();
+        dbCountry = newC;
+      }
+      if (!dbCountry) continue;
+
+      for (const p of c.programs) {
+        await supabaseAdmin.from("programs").upsert({
+          country_id: dbCountry.id,
+          slug: p.slug,
+          track: p.track,
+          title_en: p.title,
+          title_ar: p.titleAr,
+          category_en: p.category,
+          category_ar: p.categoryAr,
+          duration: p.duration,
+          price: p.price,
+          deposit: p.deposit,
+          max_installments: p.installments,
+          published: true,
+        }, { onConflict: "slug" });
+        count++;
+      }
+    }
+    return { ok: true, count };
   });
 
 export const createApplication = createServerFn({ method: "POST" })
@@ -278,6 +426,35 @@ export const getAdminFull = createServerFn({ method: "GET" })
       console.error("Could not fetch auth users for admin:", e);
     }
 
+    let progList = programs.data ?? [];
+    if (progList.length < 20) {
+      try {
+        const { countries: catCountries } = await import("./catalog");
+        for (const c of catCountries) {
+          let { data: dbCountry } = await supabaseAdmin.from("countries").select("id").eq("slug", c.slug).maybeSingle();
+          if (!dbCountry) {
+            const { data: newC } = await supabaseAdmin.from("countries").insert({
+              slug: c.slug, name_en: c.name, name_ar: c.nameAr, published: true,
+            }).select("id").single();
+            dbCountry = newC;
+          }
+          if (!dbCountry) continue;
+          for (const p of c.programs) {
+            await supabaseAdmin.from("programs").upsert({
+              country_id: dbCountry.id, slug: p.slug, track: p.track,
+              title_en: p.title, title_ar: p.titleAr, category_en: p.category,
+              category_ar: p.categoryAr, duration: p.duration, price: p.price,
+              deposit: p.deposit, max_installments: p.installments, published: true,
+            }, { onConflict: "slug" });
+          }
+        }
+        const refreshed = await supabaseAdmin.from("programs").select("*, countries(name_en, slug)").order("created_at");
+        progList = refreshed.data ?? [];
+      } catch (e) {
+        console.error("Auto-sync programs failed:", e);
+      }
+    }
+
     // enrich partners with email/lead/app/commission counts
     const enrichedPartners = (partners.data ?? []).map((p: any) => {
       const email = userEmailMap.get(p.user_id) || null;
@@ -304,7 +481,7 @@ export const getAdminFull = createServerFn({ method: "GET" })
       applications: enrichedApps,
       partners: enrichedPartners,
       countries: countries.data ?? [],
-      programs: programs.data ?? [],
+      programs: progList,
       levels: enrichLevelsWithServerConfig(levels.data ?? []),
       commissions: commissions.data ?? [],
     };
