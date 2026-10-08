@@ -186,10 +186,22 @@ function Apply() {
                   </div>
                 )}
                 <div className="mt-4 grid grid-cols-2 gap-4 rounded-2xl bg-secondary p-5">
-                  <div><p className="text-xs text-muted-foreground">{t("dueNow")}</p><p className="font-display text-2xl">{eur(dueNow)}</p></div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">{t("dueNow")}</p>
+                    <p className="font-display text-2xl font-bold">{eur(dueNow)}</p>
+                    <p className="text-xs font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">≈ {Math.round(dueNow * 54).toLocaleString()} {ar ? "ج.م" : "EGP"}</p>
+                  </div>
                   {plan === "installments"
-                    ? <div><p className="text-xs text-muted-foreground">{months}× {t("thenMonthly")}</p><p className="font-display text-2xl">{eur(monthly)}</p></div>
-                    : <div><p className="text-xs text-muted-foreground">{t("totalCost")}</p><p className="font-display text-2xl">{eur(program.price)}</p></div>}
+                    ? <div>
+                        <p className="text-xs text-muted-foreground">{months}× {t("thenMonthly")}</p>
+                        <p className="font-display text-2xl">{eur(monthly)}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">≈ {Math.round(monthly * 54).toLocaleString()} {ar ? "ج.م" : "EGP"}</p>
+                      </div>
+                    : <div>
+                        <p className="text-xs text-muted-foreground">{t("totalCost")}</p>
+                        <p className="font-display text-2xl">{eur(program.price)}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">≈ {Math.round(program.price * 54).toLocaleString()} {ar ? "ج.م" : "EGP"}</p>
+                      </div>}
                 </div>
               </div>
 
@@ -309,10 +321,22 @@ function Apply() {
                   </div>
                 )}
                 <div className="mt-4 grid grid-cols-2 gap-4 rounded-2xl bg-secondary p-5">
-                  <div><p className="text-xs text-muted-foreground">{t("dueNow")}</p><p className="font-display text-2xl">{eur(dueNow)}</p></div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">{t("dueNow")}</p>
+                    <p className="font-display text-2xl font-bold">{eur(dueNow)}</p>
+                    <p className="text-xs font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">≈ {Math.round(dueNow * 54).toLocaleString()} {ar ? "ج.م" : "EGP"}</p>
+                  </div>
                   {plan === "installments"
-                    ? <div><p className="text-xs text-muted-foreground">{months}× {t("thenMonthly")}</p><p className="font-display text-2xl">{eur(monthly)}</p></div>
-                    : <div><p className="text-xs text-muted-foreground">{t("totalCost")}</p><p className="font-display text-2xl">{eur(program.price)}</p></div>}
+                    ? <div>
+                        <p className="text-xs text-muted-foreground">{months}× {t("thenMonthly")}</p>
+                        <p className="font-display text-2xl">{eur(monthly)}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">≈ {Math.round(monthly * 54).toLocaleString()} {ar ? "ج.م" : "EGP"}</p>
+                      </div>
+                    : <div>
+                        <p className="text-xs text-muted-foreground">{t("totalCost")}</p>
+                        <p className="font-display text-2xl">{eur(program.price)}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">≈ {Math.round(program.price * 54).toLocaleString()} {ar ? "ج.م" : "EGP"}</p>
+                      </div>}
                 </div>
               </div>
 

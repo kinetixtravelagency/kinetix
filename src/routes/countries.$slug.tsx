@@ -69,14 +69,25 @@ function ProgramCard({ p, ar, t }: { p: Program; ar: boolean; t: (k: any) => str
         )}
 
         {/* Payment summary */}
-        <div className="mt-5 grid grid-cols-2 gap-4 rounded-2xl bg-secondary p-5 text-sm">
-          <div>
-            <p className="text-muted-foreground">{t("payFull")}</p>
-            <p className="font-display text-xl">{eur(p.price)}</p>
+        <div className="mt-5 rounded-2xl bg-secondary/80 border border-border p-5 text-sm space-y-3">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <p className="text-xs text-muted-foreground">{t("payFull")}</p>
+              <p className="font-display text-xl font-bold mt-0.5">{eur(p.price)}</p>
+              <p className="text-xs text-muted-foreground mt-0.5">≈ {Math.round(p.price * 54).toLocaleString()} {ar ? "ج.م" : "EGP"}</p>
+            </div>
+            <div>
+              <p className="text-xs font-medium text-foreground">{ar ? "المقدم المطلوب" : "Deposit Required"}</p>
+              <p className="font-display text-xl font-bold text-navy dark:text-beige mt-0.5">{eur(p.deposit)}</p>
+              <p className="text-xs font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">≈ {Math.round(p.deposit * 54).toLocaleString()} {ar ? "ج.م" : "EGP"}</p>
+            </div>
           </div>
-          <div>
-            <p className="text-muted-foreground">{t("deposit")} + {t("upTo")} {p.installments}x</p>
-            <p className="font-display text-xl">{eur(p.deposit)} + {eur(Math.ceil((p.price - p.deposit) / p.installments))}</p>
+          <div className="rounded-xl bg-background/90 border border-border/80 px-3.5 py-2.5 flex items-center justify-between">
+            <span className="text-xs text-muted-foreground">{ar ? `أقساط شهرية (حتى ${p.installments} أشهر)` : `Monthly installments (up to ${p.installments}x)`}</span>
+            <span className="font-semibold text-sm">
+              {eur(Math.ceil((p.price - p.deposit) / p.installments))} / {ar ? "شهر" : "mo"}
+              <span className="text-xs font-normal text-muted-foreground ms-1.5">(≈ {Math.round(Math.ceil((p.price - p.deposit) / p.installments) * 54).toLocaleString()} {ar ? "ج.م" : "EGP"})</span>
+            </span>
           </div>
         </div>
 

@@ -222,7 +222,13 @@ function Pricing() {
           <select value={slug} onChange={(e) => setSlug(e.target.value)} className="mt-2 w-full rounded-xl border border-input bg-background px-4 py-3 font-medium outline-none focus:border-beige">
             {all.map((x) => <option key={x.slug} value={x.slug}>{x.country} — {lang === "ar" ? x.titleAr : x.title}</option>)}
           </select>
-          <div className="mt-6 flex items-baseline justify-between"><span className="text-muted-foreground">{t("totalCost")}</span><span className="font-display text-4xl font-semibold">{eur(p.price)}</span></div>
+          <div className="mt-6 flex items-baseline justify-between">
+            <span className="text-muted-foreground">{t("totalCost")}</span>
+            <div className="text-end">
+              <span className="font-display text-4xl font-semibold">{eur(p.price)}</span>
+              <span className="block text-xs text-muted-foreground mt-0.5">≈ {Math.round(p.price * 54).toLocaleString()} {lang === "ar" ? "ج.م" : "EGP"}</span>
+            </div>
+          </div>
           <p className="eyebrow mt-8 text-muted-foreground">{t("paymentPlan")}</p>
           <div className="mt-3 grid grid-cols-2 gap-2">
             {([[true, t("payFull")], [false, t("payInst")]] as const).map(([v, l]) => (
@@ -235,9 +241,23 @@ function Pricing() {
             ))}
           </div>}
           <div className="mt-8 grid grid-cols-2 gap-4 rounded-2xl bg-secondary p-5">
-            <div><p className="text-xs text-muted-foreground">{t("dueToday")}</p><p className="font-display text-2xl">{eur(full ? p.price : p.deposit)}</p></div>
-            {full ? <div><p className="text-xs text-muted-foreground">{t("remaining")}</p><p className="font-display text-2xl">{eur(0)}</p></div>
-              : <div><p className="text-xs text-muted-foreground">{Math.max(m, 2)}× {t("thenMonthly")}</p><p className="font-display text-2xl">{eur(Math.ceil((p.price - p.deposit) / Math.max(m, 2)))}</p></div>}
+            <div>
+              <p className="text-xs text-muted-foreground">{t("dueToday")}</p>
+              <p className="font-display text-2xl font-bold">{eur(full ? p.price : p.deposit)}</p>
+              <p className="text-xs font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">≈ {Math.round((full ? p.price : p.deposit) * 54).toLocaleString()} {lang === "ar" ? "ج.م" : "EGP"}</p>
+            </div>
+            {full ? (
+              <div>
+                <p className="text-xs text-muted-foreground">{t("remaining")}</p>
+                <p className="font-display text-2xl">{eur(0)}</p>
+              </div>
+            ) : (
+              <div>
+                <p className="text-xs text-muted-foreground">{Math.max(m, 2)}× {t("thenMonthly")}</p>
+                <p className="font-display text-2xl">{eur(Math.ceil((p.price - p.deposit) / Math.max(m, 2)))}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">≈ {Math.round(Math.ceil((p.price - p.deposit) / Math.max(m, 2)) * 54).toLocaleString()} {lang === "ar" ? "ج.م" : "EGP"}</p>
+              </div>
+            )}
           </div>
           <Link to="/apply" search={{ program: p.slug }} className="mt-6 flex items-center justify-center gap-2 rounded-full bg-navy py-4 font-medium text-ivory transition-transform hover:-translate-y-0.5">
             {t("applyProgram")} <ArrowRight className="h-4 w-4 rtl:rotate-180" strokeWidth={1.5} />
