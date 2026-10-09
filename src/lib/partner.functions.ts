@@ -125,6 +125,42 @@ export const setLeadStatus = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+export const updatePartnerProfile = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: {
+    full_name?: string | undefined;
+    phone?: string | undefined;
+    city?: string | undefined;
+    experience?: string | undefined;
+    payout_method?: string | undefined;
+    payout_details?: string | undefined;
+  }) => d)
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    if (data.full_name !== undefined || data.phone !== undefined) {
+      await supabase.from("profiles").update({
+        ...(data.full_name !== undefined ? { full_name: data.full_name.trim() } : {}),
+        ...(data.phone !== undefined ? { phone: data.phone.trim() } : {}),
+      }).eq("id", userId);
+    }
+    const updates: {
+      city?: string | null;
+      experience?: string | null;
+      payout_method?: string | null;
+      payout_details?: string | null;
+    } = {};
+    if (data.city !== undefined) updates.city = data.city ? data.city.trim() : null;
+    if (data.experience !== undefined) updates.experience = data.experience ? data.experience.trim() : null;
+    if (data.payout_method !== undefined) updates.payout_method = data.payout_method ? data.payout_method.trim() : null;
+    if (data.payout_details !== undefined) updates.payout_details = data.payout_details ? data.payout_details.trim() : null;
+
+    if (Object.keys(updates).length > 0) {
+      const { error } = await supabase.from("partners").update(updates as any).eq("user_id", userId);
+      if (error) throw new Error(error.message);
+    }
+    return { ok: true };
+  });
+
 /* ---------- Admin ---------- */
 
 export const getAdminSales = createServerFn({ method: "GET" })
