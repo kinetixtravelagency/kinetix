@@ -87,8 +87,9 @@ function Dashboard() {
             <div className="mt-5 space-y-5">
               {(account.applications as any[]).map((a) => {
                 const pr = a.programs;
-                const catProg = pr?.slug ? getProgram(pr.slug)?.program : undefined;
-                const c = getCountry(pr?.countries?.slug ?? catProg?.countrySlug ?? "");
+                const catEntry = pr?.slug ? getProgram(pr.slug) : undefined;
+                const catProg = catEntry?.program;
+                const c = getCountry(pr?.countries?.slug ?? catEntry?.country?.slug ?? "");
                 const effectiveDeposit = catProg?.deposit ?? (pr?.deposit && pr.deposit <= 250 ? pr.deposit : 196);
                 const effectivePrice = catProg?.price ?? pr?.price ?? 2400;
                 const due = a.payment_plan === "full" ? effectivePrice : effectiveDeposit;
