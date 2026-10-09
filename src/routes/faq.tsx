@@ -59,6 +59,15 @@ export function FaqPage() {
     },
     {
       category: "general",
+      qEn: "Which countries are currently available for travel and work?",
+      qAr: "ما هي الدول المتاحة للسفر والعمل حالياً عبر كينيتكس؟",
+      aEn:
+        "We currently operate across 7 verified destinations: Bulgaria (EU/Schengen), Luxembourg (EU/Schengen), Armenia, Russia, Italy (EU/Schengen), Slovenia (EU/Schengen), and Ireland (EU). Programs cover seasonal student internships, hospitality, agriculture, healthcare/nursing, IT, engineering, and logistics.",
+      aAr:
+        "نوفر حالياً 7 وجهات دولية معتمدة وموثقة: بلغاريا (شنغن)، لوكسمبورغ (شنغن)، أرمينيا، روسيا، إيطاليا (شنغن)، سلوفينيا (شنغن)، وأيرلندا (الاتحاد الأوروبي). وتشمل البرامج فرص التدريب الطلابي الموسمي، والضيافة والفنادق، والزراعة، والرعاية الصحية والتمريض، وتكنولوجيا المعلومات، والهندسة، واللوجستيات.",
+    },
+    {
+      category: "general",
       qEn: "Is foreign language (English or host country language) mandatory?",
       qAr: "هل يشترط إتقان اللغة الإنجليزية أو لغة البلد للسفر؟",
       aEn:

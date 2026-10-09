@@ -1,6 +1,6 @@
 {
-  "version": 3,
-  "lastUpdated": "2026-10-09T19:02:21.263Z",
+  "version": 1,
+  "lastUpdated": "2026-10-09T19:17:48.720Z",
   "categories": [
     {
       "id": "about",
@@ -41,7 +41,7 @@
       "titleEn": "Who is Kinetix?",
       "sortOrder": 1,
       "published": true,
-      "updatedAt": "2026-10-09T19:02:21.263Z",
+      "updatedAt": "2026-10-09T19:17:48.721Z",
       "contentAr": "كينتيكس (Kinetix) هي الوكالة الرائدة المعتمدة المتخصصة في تيسير السفر والتدريب والتوظيف الدولي للشباب والطلاب والمهنيين في أوروبا والدول المتقدمة. نوفر برامج رسمية ومضمونة تشمل التدريب المهني في فنادق ومطاعم 5 نجوم، والمستشفيات، والشركات التكنولوجية والهندسية، مع توفير عقود موثقة وإقامة قانونية وتأشيرات شنغن موثوقة.",
       "contentEn": "Kinetix is a leading premier agency specializing in facilitating international travel, paid internships, and professional placements across Europe. We connect students and graduates with verified 5-star hotel groups, medical centers, and tech companies, backed by legal contracts, verified Schengen permits, and dedicated on-ground support."
     },
@@ -52,9 +52,9 @@
       "titleEn": "Student Pathway (Internships)",
       "sortOrder": 2,
       "published": true,
-      "updatedAt": "2026-10-09T19:02:21.263Z",
-      "contentAr": "• مخصص لطلاب الجامعات والمعاهد المقيدين حالياً.\n• البرامج تشمل تدريباً عملياً مدفوع الأجر في اليونان، إسبانيا، إيطاليا، مالطا وفرنسا.\n• المزايا: راتب شهري يتراوح بين 700€ إلى 1200€ صافي، بالإضافة إلى سكن كامل مجاني، ووجبات يومية مجانية، وتأمين طبي شامل.\n• تصريح عمل وتأشيرة تدريب رسمية لا تؤثر على القيد الجامعي.",
-      "contentEn": "• Designed for currently enrolled university and institute students.\n• Destinations include Greece, Spain, Italy, Malta, and France.\n• Benefits: Monthly stipend of 700€ to 1200€ net, plus 100% free accommodation, free duty meals, and comprehensive health insurance.\n• Official legal training visa and contract."
+      "updatedAt": "2026-10-09T19:17:48.721Z",
+      "contentAr": "• مخصص لطلاب الجامعات والمعاهد المقيدين حالياً.\n• البرامج تشمل تدريباً عملياً مدفوع الأجر في بلغاريا، إيطاليا، سلوفينيا، لوكسمبورغ، أرمينيا، روسيا، وأيرلندا.\n• المزايا: راتب شهري يتراوح بين 700€ إلى 1200€ صافي، بالإضافة إلى سكن كامل مجاني، ووجبات يومية مجانية، وتأمين طبي شامل.\n• تصريح عمل وتأشيرة تدريب رسمية لا تؤثر على القيد الجامعي.",
+      "contentEn": "• Designed for currently enrolled university and institute students.\n• Destinations include Bulgaria, Italy, Slovenia, Luxembourg, Armenia, Russia, and Ireland.\n• Benefits: Monthly stipend of 700€ to 1200€ net, plus 100% free accommodation, free duty meals, and comprehensive health insurance.\n• Official legal training visa and contract."
     },
     {
       "id": "sec_path_graduates",
@@ -63,7 +63,7 @@
       "titleEn": "Graduate Pathway (Full Placement)",
       "sortOrder": 3,
       "published": true,
-      "updatedAt": "2026-10-09T19:02:21.263Z",
+      "updatedAt": "2026-10-09T19:17:48.721Z",
       "contentAr": "• مخصص للخريجين وأصحاب المؤهلات العليا والمتوسطة.\n• يشمل عقود عمل وتدريب وظيفي وتأهيل مهني في مجالات الضيافة، التمريض والمجال الطبي، الهندسة وتكنولوجيا المعلومات، وخدمة العملاء.\n• المزايا: رواتب تبدأ من 1,200€ وحتى 2,500€ مع مسار واضح لتجديد الإقامة أو التقديم على الإقامة الدائمة حسب لوائح دولة الاستقبال.",
       "contentEn": "• Tailored for university graduates and experienced professionals.\n• Contracts in hospitality, nursing/healthcare, engineering, IT, and customer care.\n• Monthly compensation from 1,200€ to 2,500€ with clear paths to visa renewal or residency."
     },
@@ -74,7 +74,7 @@
       "titleEn": "Official Application Roadmap",
       "sortOrder": 4,
       "published": true,
-      "updatedAt": "2026-10-09T19:02:21.263Z",
+      "updatedAt": "2026-10-09T19:17:48.721Z",
       "contentAr": "1. تقديم الطلب ورفع المستندات: تعبئة البيانات ورفع جواز السفر، السيرة الذاتية، وإثبات القيد أو المؤهل.\n2. سداد الديبوزت (الدفعة الأولى): لتأكيد جدية التقديم وحجز المقعد في المقابلات الأوروبية.\n3. المقابلة التأهيلية الأولية (Pre-Interview): جلسة تدريبية ومراجعة مستوى اللغة الإنجليزية مع فريق كينتيكس.\n4. المقابلة الرسمية (Host Interview): مقابلة عبر الفيديو مع جهة العمل أو الفندق الأوروبي.\n5. استخراج تصريح العمل والتأشيرة: استلام العقد الموثق وبدء إجراءات السفارة.\n6. حجز الطيران والسفر: استقبال في المطار وبدء البرنامج.",
       "contentEn": "1. Application & Documents: Personal details, passport, CV, and university enrollment/degree.\n2. Deposit Payment: Confirms seat and activates interview queue.\n3. Pre-Interview Training: 1-on-1 English and interview preparation by Kinetix experts.\n4. Official Employer Interview: Video interview with the host venue in Europe.\n5. Work Permit & Schengen Visa: Legal permit processing and embassy submission.\n6. Flight & Departure: On-ground arrival coordination."
     },
@@ -85,9 +85,9 @@
       "titleEn": "Installment Systems & Refund Policy",
       "sortOrder": 5,
       "published": true,
-      "updatedAt": "2026-10-09T19:02:21.263Z",
-      "contentAr": "• لا يُطلب سداد كامل تكلفة البرنامج مقدماً أبداً.\n• نظام السداد مقسم على دفعات مريحة: دفعة مقدمة (ديبوزت) تبدأ من 185€ إلى 250€، والباقي موزع على أقساط شهرية ميسرة حتى 6 أشهر بدون فوائد.\n• وسائل الدفع المعتمدة: إنستاباي InstaPay، فودافون كاش، محافظ المحمول الذكية، تحويل بنكي، وكروت الدفع البنكية.\n• سياسة الحماية: في حال عدم اجتياز المقابلة بعد التدريب التأهيلي يتم إرجاع الديبوزت كاملاً وفقاً لبنود العقد الموحد.",
-      "contentEn": "• Program fees are split into manageable milestones.\n• Initial deposit starts from 185€ to 250€, with remaining balances split into interest-free installments up to 6 months.\n• Supported payment channels: InstaPay, Vodafone Cash, smart mobile wallets, bank wire, credit/debit cards.\n• Guarantee policy: Fully refundable if candidate is not matched after guided interview preparation."
+      "updatedAt": "2026-10-09T19:17:48.721Z",
+      "contentAr": "• لا يُطلب سداد كامل تكلفة البرنامج مقدماً أبداً.\n• نظام السداد مقسم على دفعات مريحة: دفعة مقدمة (ديبوزت) تبدأ من 250€ إلى 500€، والباقي موزع على مراحل الحصول على العقد والتأشيرة.\n• وسائل الدفع المعتمدة: إنستاباي InstaPay، فودافون كاش، محافظ المحمول الذكية، تحويل بنكي، وكروت الدفع البنكية.\n• سياسة الحماية: في حال عدم اجتياز المقابلة بعد 3 محاولات تدريبية يتم إرجاع الديبوزت كاملاً وفقاً لبنود العقد الموحد.",
+      "contentEn": "• Program fees are split into manageable milestones.\n• Initial deposit starts from 250€ to 500€, with remaining balances due upon contract signing and visa approval.\n• Supported payment channels: InstaPay, Vodafone Cash, smart mobile wallets, bank wire, credit/debit cards.\n• Guarantee policy: Refundable if candidate is not matched after 3 guided interview attempts."
     },
     {
       "id": "sec_sales_objections",
@@ -96,8 +96,8 @@
       "titleEn": "Sales Tips & Overcoming Customer Objections",
       "sortOrder": 6,
       "published": true,
-      "updatedAt": "2026-10-09T19:02:21.263Z",
-      "contentAr": "• الاعتراض 1: 'هل السكن والأكل على حسابي؟'\nالرد: في برامج الطلاب والضيافة، السكن مجاني تماماً + 3 وجبات يومية مجانية، ما يعني أن الراتب بالكامل صافي للادخار.\n• الاعتراض 2: 'إنجليزيتي ضعيفة، هل سأُقبل؟'\nالرد: كينتيكس توفر جلسة Pre-Interview تدريبية مجانية لتدريبك على الأسئلة المتوقعة وكيفية اجتياز المقابلة بثقة حتى مع المستوى المتوسط (B1).\n• الاعتراض 3: 'ما الضمان لعدم ضياع أموالي؟'\nالرد: التعامل يتم بعقود رسمية موثقة ووصل استلام لكل دفعة، مع إمكانية استرداد الديبوزت كاملاً لو لم يتم قبولك بعد التدريب.",
+      "updatedAt": "2026-10-09T19:17:48.721Z",
+      "contentAr": "• الاعتراض 1: 'هل السكن والأكل على حسابي؟'\nالرد: في أغلب برامج الطلاب والضيافة، السكن مجاني تماماً + 3 وجبات يومية مجانية، ما يعني أن الراتب بالكامل صافي للادخار.\n• الاعتراض 2: 'إنجليزيتي ضعيفة، هل سأُقبل؟'\nالرد: كينتيكس توفر جلسة Pre-Interview تدريبية مجانية لتدريبك على الأسئلة المتوقعة وكيفية اجتياز المقابلة بثقة حتى مع المستوى المتوسط (B1).\n• الاعتراض 3: 'ما الضمان لعدم ضياع أموالي؟'\nالرد: التعامل يتم بعقود رسمية موثقة ووصل استلام لكل دفعة، مع إمكانية استرداد الديبوزت لو لم يتم قبولك بعد التدريب.",
       "contentEn": "• Objection 1: 'Do I pay for living expenses?'\nAnswer: In student and hospitality placements, full room & board are provided 100% free, meaning your stipend is nearly all savings.\n• Objection 2: 'My English is not fluent.'\nAnswer: We offer personalized pre-interview coaching to prepare you specifically for the questions asked by host companies.\n• Objection 3: 'Is my deposit safe?'\nAnswer: Yes, covered by legal agreement and clear refund terms if no placement offer is secured after coaching."
     }
   ],
@@ -115,11 +115,21 @@
     {
       "id": "faq_about_2",
       "category": "general",
-      "questionAr": "ما هي الدول الأوروبية المتاحة للسفر حالياً؟",
-      "questionEn": "Which European countries are currently open for applicants?",
-      "answerAr": "الدول المتاحة تشمل: بلغاريا، اليونان، إسبانيا، إيطاليا، مالطا، ألمانيا، فرنسا، وأيرلندا. وتتنوع الفرص ما بين قطاعات الضيافة والفنادق، والزراعة والحصاد، والمجال الطبي والتمريض، وتكنولوجيا المعلومات واللوجستيات.",
-      "answerEn": "Available destinations include Bulgaria, Greece, Spain, Italy, Malta, Germany, France, and Ireland, spanning hospitality, seasonal agriculture, healthcare, IT, and logistics.",
+      "questionAr": "ما هي الدول المتاحة للسفر حالياً في كينتيكس وما مجالات كل دولة؟",
+      "questionEn": "Which countries are currently available at Kinetix and what fields do they offer?",
+      "answerAr": "تتعاقد كينتيكس حالياً على 7 وجهات دولية معتمدة وموثقة رسمياً في الكتالوج:\n\n1. 🇧🇬 بلغاريا (شنغن): عمل موسمي طلابي بالضيافة والفنادق والمنتجعات الشاطئية، حصاد وزراعة، لوجستيات ومستودعات، مصانع وخطوط إنتاج، تمريض ومساعدو أطباء، وهندسة.\n2. 🇱🇺 لوكسمبورغ (شنغن): تدريب فندقي وضيافة فاخرة، تكنولوجيا معلومات وبرمجيات، تمريض ورعاية طبية وسريرية، هندسة واستشارات، لوجستيات، وقطاع مالي ومصرفي.\n3. 🇦🇲 أرمينيا: إجراءات سريعة لفرص عمل وتدريب في تطوير الويب والـ IT، خدمة العملاء بالإنجليزية، الفنادق والسياحة، اللوجستيات والمخازن، والصناعات الغذائية.\n4. 🇷🇺 روسيا: برامج دراسة وعمل طلابي، موظفو فنادق ومطاعم، تشغيل مصانع وإنتاج، مستودعات وشحن لوجستي، ومقاولات وإنشاءات هندسية.\n5. 🇮🇹 إيطاليا (شنغن): منتجعات صيفية وضيافة ساحلية، عمل زراعي موسمي رسمي (حصص قانونية)، فنون الطهي والمطاعم، تمريض ورعاية مسنين، مقاولات وبنية تحتية، ولوجستيات.\n6. 🇸🇮 سلوفينيا (شنغن): سياحة وضيافة موسمية، خطوط إنتاج وتشغيل صناعي، تمريض ومساعدو رعاية صحية، وهندسة متخصصة.\n7. 🇮🇪 أيرلندا (الاتحاد الأوروبي): دراسة وتدريب، مسار الأطباء البشريين والممارسين، تمريض ومساعدو تمريض، هندسة وبرمجيات بتصريح المهارات الحرجة (Critical Skills).",
+      "answerEn": "Kinetix currently features 7 verified destination countries:\n1. 🇧🇬 Bulgaria (Schengen): Hospitality, resorts, agriculture, logistics, manufacturing, nursing, engineering.\n2. 🇱🇺 Luxembourg (Schengen): Luxury hospitality, software/IT, clinical nursing, engineering, logistics, finance.\n3. 🇦🇲 Armenia: Fast-track web dev/IT, English customer support, hospitality, logistics, food production.\n4. 🇷🇺 Russia: Study & work tracks, hospitality, manufacturing, logistics, civil construction.\n5. 🇮🇹 Italy (Schengen): Coastal resorts, seasonal agriculture quota, culinary, nursing, civil works, logistics.\n6. 🇸🇮 Slovenia (Schengen): Alpine hospitality, manufacturing, nursing care, specialized engineering.\n7. 🇮🇪 Ireland (EU): Study tracks, Medical Doctor track, registered nursing, software/engineering via Critical Skills permits.",
       "sortOrder": 2,
+      "published": true
+    },
+    {
+      "id": "faq_about_dest_guide",
+      "category": "general",
+      "questionAr": "كيف يساعد السيلز العميل في اختيار الدولة الأنسب له بين الدول الـ 7؟",
+      "questionEn": "How do sales reps guide clients to choose the best country among the 7?",
+      "answerAr": "بناءً على بروفايل العميل واحتياجاته:\n• الطلاب الراغبون في أسهل وأسرع تدريب صيفي بفيزا شنغن: بلغاريا، إيطاليا، وسلوفينيا.\n• الكوادر الطبية (أطباء وتمريض) والمهندسون: أيرلندا (تصاريح مهارات حرجة)، لوكسمبورغ، وإيطاليا.\n• مبرمجو الـ IT وتطوير الويب: لوكسمبورغ، أيرلندا، وأرمينيا.\n• أسرع توظيف وإجراءات فيزا بدون تعقيدات: أرمينيا وبلغاريا.\n• العمل الصناعي والإنتاج واللوجستيات والمخازن: بلغاريا، سلوفينيا، روسيا، وإيطاليا.",
+      "answerEn": "Based on the client's profile:\n• Students seeking easiest summer Schengen internship: Bulgaria, Italy, and Slovenia.\n• Healthcare (Doctors & Nurses) and Engineers: Ireland (Critical Skills), Luxembourg, and Italy.\n• IT and Software: Luxembourg, Ireland, and Armenia.\n• Fastest visa processing timeline: Armenia and Bulgaria.\n• Manufacturing, logistics & warehousing: Bulgaria, Slovenia, Russia, and Italy.",
+      "sortOrder": 3,
       "published": true
     },
     {
