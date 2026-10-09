@@ -18,22 +18,124 @@ export const Route = createFileRoute("/partners/join")({
   component: JoinPartner,
 });
 
-const COUNTRY_CODES = [
-  { code: "+20", flag: "🇪🇬", nameAr: "مصر (+20)", nameEn: "Egypt (+20)" },
-  { code: "+966", flag: "🇸🇦", nameAr: "السعودية (+966)", nameEn: "Saudi Arabia (+966)" },
-  { code: "+971", flag: "🇦🇪", nameAr: "الإمارات (+971)", nameEn: "UAE (+971)" },
-  { code: "+965", flag: "🇰🇼", nameAr: "الكويت (+965)", nameEn: "Kuwait (+965)" },
-  { code: "+974", flag: "🇶🇦", nameAr: "قطر (+974)", nameEn: "Qatar (+974)" },
-  { code: "+968", flag: "🇴🇲", nameAr: "عُمان (+968)", nameEn: "Oman (+968)" },
-  { code: "+973", flag: "🇧🇭", nameAr: "البحرين (+973)", nameEn: "Bahrain (+973)" },
-  { code: "+962", flag: "🇯🇴", nameAr: "الأردن (+962)", nameEn: "Jordan (+962)" },
-  { code: "+218", flag: "🇱🇾", nameAr: "ليبيا (+218)", nameEn: "Libya (+218)" },
-  { code: "+249", flag: "🇸🇩", nameAr: "السودان (+249)", nameEn: "Sudan (+249)" },
-  { code: "+44", flag: "🇬🇧", nameAr: "المملكة المتحدة (+44)", nameEn: "UK (+44)" },
-  { code: "+1", flag: "🇺🇸", nameAr: "أمريكا / كندا (+1)", nameEn: "USA / Canada (+1)" },
-  { code: "+49", flag: "🇩🇪", nameAr: "ألمانيا (+49)", nameEn: "Germany (+49)" },
-  { code: "+39", flag: "🇮🇹", nameAr: "إيطاليا (+39)", nameEn: "Italy (+39)" },
+interface CountryDialCode {
+  code: string;
+  flag: string;
+  nameAr: string;
+  nameEn: string;
+  digits?: number;
+  placeholder?: string;
+}
+
+const COUNTRY_CODES: CountryDialCode[] = [
+  // Primary (Egypt)
+  { code: "+20", flag: "🇪🇬", nameAr: "مصر", nameEn: "Egypt", digits: 10, placeholder: "1012345678" },
+
+  // Arab League Countries
+  { code: "+966", flag: "🇸🇦", nameAr: "السعودية", nameEn: "Saudi Arabia", digits: 9, placeholder: "512345678" },
+  { code: "+971", flag: "🇦🇪", nameAr: "الإمارات", nameEn: "UAE", digits: 9, placeholder: "501234567" },
+  { code: "+965", flag: "🇰🇼", nameAr: "الكويت", nameEn: "Kuwait", digits: 8, placeholder: "51234567" },
+  { code: "+974", flag: "🇶🇦", nameAr: "قطر", nameEn: "Qatar", digits: 8, placeholder: "33123456" },
+  { code: "+968", flag: "🇴🇲", nameAr: "عُمان", nameEn: "Oman", digits: 8, placeholder: "91234567" },
+  { code: "+973", flag: "🇧🇭", nameAr: "البحرين", nameEn: "Bahrain", digits: 8, placeholder: "36123456" },
+  { code: "+962", flag: "🇯🇴", nameAr: "الأردن", nameEn: "Jordan", digits: 9, placeholder: "791234567" },
+  { code: "+964", flag: "🇮🇶", nameAr: "العراق", nameEn: "Iraq", digits: 10, placeholder: "7712345678" },
+  { code: "+970", flag: "🇵🇸", nameAr: "فلسطين", nameEn: "Palestine", digits: 9, placeholder: "591234567" },
+  { code: "+961", flag: "🇱🇧", nameAr: "لبنان", nameEn: "Lebanon", digits: 8, placeholder: "70123456" },
+  { code: "+963", flag: "🇸🇾", nameAr: "سوريا", nameEn: "Syria", digits: 9, placeholder: "941234567" },
+  { code: "+967", flag: "🇾🇪", nameAr: "اليمن", nameEn: "Yemen", digits: 9, placeholder: "712345678" },
+  { code: "+218", flag: "🇱🇾", nameAr: "ليبيا", nameEn: "Libya", digits: 9, placeholder: "911234567" },
+  { code: "+249", flag: "🇸🇩", nameAr: "السودان", nameEn: "Sudan", digits: 9, placeholder: "911234567" },
+  { code: "+212", flag: "🇲🇦", nameAr: "المغرب", nameEn: "Morocco", digits: 9, placeholder: "612345678" },
+  { code: "+213", flag: "🇩🇿", nameAr: "الجزائر", nameEn: "Algeria", digits: 9, placeholder: "551234567" },
+  { code: "+216", flag: "🇹🇳", nameAr: "تونس", nameEn: "Tunisia", digits: 8, placeholder: "20123456" },
+  { code: "+222", flag: "🇲🇷", nameAr: "موريتانيا", nameEn: "Mauritania", digits: 8, placeholder: "22123456" },
+  { code: "+252", flag: "🇸🇴", nameAr: "الصومال", nameEn: "Somalia", digits: 8, placeholder: "61234567" },
+  { code: "+253", flag: "🇩🇯", nameAr: "جيبوتي", nameEn: "Djibouti", digits: 8, placeholder: "77123456" },
+  { code: "+269", flag: "🇰🇲", nameAr: "جزر القمر", nameEn: "Comoros", digits: 7, placeholder: "3212345" },
+
+  // Europe & Major Destinations
+  { code: "+44", flag: "🇬🇧", nameAr: "المملكة المتحدة", nameEn: "UK", digits: 10, placeholder: "7911123456" },
+  { code: "+49", flag: "🇩🇪", nameAr: "ألمانيا", nameEn: "Germany", digits: 10, placeholder: "1512345678" },
+  { code: "+39", flag: "🇮🇹", nameAr: "إيطاليا", nameEn: "Italy", digits: 10, placeholder: "3201234567" },
+  { code: "+33", flag: "🇫🇷", nameAr: "فرنسا", nameEn: "France", digits: 9, placeholder: "612345678" },
+  { code: "+34", flag: "🇪🇸", nameAr: "إسبانيا", nameEn: "Spain", digits: 9, placeholder: "612345678" },
+  { code: "+31", flag: "🇳🇱", nameAr: "هولندا", nameEn: "Netherlands", digits: 9, placeholder: "612345678" },
+  { code: "+32", flag: "🇧🇪", nameAr: "بلجيكا", nameEn: "Belgium", digits: 9, placeholder: "470123456" },
+  { code: "+352", flag: "🇱🇺", nameAr: "لوكسمبورغ", nameEn: "Luxembourg", digits: 9, placeholder: "621123456" },
+  { code: "+353", flag: "🇮🇪", nameAr: "أيرلندا", nameEn: "Ireland", digits: 9, placeholder: "851234567" },
+  { code: "+41", flag: "🇨🇭", nameAr: "سويسرا", nameEn: "Switzerland", digits: 9, placeholder: "781234567" },
+  { code: "+43", flag: "🇦🇹", nameAr: "النمسا", nameEn: "Austria", digits: 10, placeholder: "6641234567" },
+  { code: "+48", flag: "🇵🇱", nameAr: "بولندا", nameEn: "Poland", digits: 9, placeholder: "512345678" },
+  { code: "+359", flag: "🇧🇬", nameAr: "بلغاريا", nameEn: "Bulgaria", digits: 9, placeholder: "871234567" },
+  { code: "+40", flag: "🇷🇴", nameAr: "رومانيا", nameEn: "Romania", digits: 9, placeholder: "712345678" },
+  { code: "+30", flag: "🇬🇷", nameAr: "اليونان", nameEn: "Greece", digits: 10, placeholder: "6912345678" },
+  { code: "+357", flag: "🇨🇾", nameAr: "قبرص", nameEn: "Cyprus", digits: 8, placeholder: "99123456" },
+  { code: "+374", flag: "🇦🇲", nameAr: "أرمينيا", nameEn: "Armenia", digits: 8, placeholder: "77123456" },
+  { code: "+995", flag: "🇬🇪", nameAr: "جورجيا", nameEn: "Georgia", digits: 9, placeholder: "555123456" },
+  { code: "+90", flag: "🇹🇷", nameAr: "تركيا", nameEn: "Turkey", digits: 10, placeholder: "5321234567" },
+  { code: "+7", flag: "🇷🇺", nameAr: "روسيا", nameEn: "Russia", digits: 10, placeholder: "9123456789" },
+  { code: "+46", flag: "🇸🇪", nameAr: "السويد", nameEn: "Sweden", digits: 9, placeholder: "701234567" },
+  { code: "+47", flag: "🇳🇴", nameAr: "النرويج", nameEn: "Norway", digits: 8, placeholder: "41234567" },
+  { code: "+45", flag: "🇩🇰", nameAr: "الدنمارك", nameEn: "Denmark", digits: 8, placeholder: "20123456" },
+  { code: "+358", flag: "🇫🇮", nameAr: "فنلندا", nameEn: "Finland", digits: 9, placeholder: "401234567" },
+  { code: "+351", flag: "🇵🇹", nameAr: "البرتغال", nameEn: "Portugal", digits: 9, placeholder: "912345678" },
+  { code: "+420", flag: "🇨🇿", nameAr: "التشيك", nameEn: "Czechia", digits: 9, placeholder: "601123456" },
+  { code: "+36", flag: "🇭🇺", nameAr: "المجر", nameEn: "Hungary", digits: 9, placeholder: "201234567" },
+  { code: "+385", flag: "🇭🇷", nameAr: "كرواتيا", nameEn: "Croatia", digits: 9, placeholder: "911234567" },
+  { code: "+381", flag: "🇷🇸", nameAr: "صربيا", nameEn: "Serbia", digits: 9, placeholder: "601234567" },
+  { code: "+380", flag: "🇺🇦", nameAr: "أوكرانيا", nameEn: "Ukraine", digits: 9, placeholder: "501234567" },
+
+  // Americas
+  { code: "+1", flag: "🇺🇸", nameAr: "أمريكا / كندا", nameEn: "USA / Canada", digits: 10, placeholder: "2025550123" },
+  { code: "+52", flag: "🇲🇽", nameAr: "المكسيك", nameEn: "Mexico", digits: 10, placeholder: "5512345678" },
+  { code: "+55", flag: "🇧🇷", nameAr: "البرازيل", nameEn: "Brazil", digits: 11, placeholder: "11912345678" },
+  { code: "+54", flag: "🇦🇷", nameAr: "الأرجنتين", nameEn: "Argentina", digits: 10, placeholder: "1112345678" },
+  { code: "+57", flag: "🇨🇴", nameAr: "كولومبيا", nameEn: "Colombia", digits: 10, placeholder: "3001234567" },
+
+  // Asia / Africa / Oceania
+  { code: "+91", flag: "🇮🇳", nameAr: "الهند", nameEn: "India", digits: 10, placeholder: "9812345678" },
+  { code: "+92", flag: "🇵🇰", nameAr: "باكستان", nameEn: "Pakistan", digits: 10, placeholder: "3001234567" },
+  { code: "+880", flag: "🇧🇩", nameAr: "بنغلاديش", nameEn: "Bangladesh", digits: 10, placeholder: "1712345678" },
+  { code: "+60", flag: "🇲🇾", nameAr: "ماليزيا", nameEn: "Malaysia", digits: 9, placeholder: "123456789" },
+  { code: "+62", flag: "🇮🇩", nameAr: "إندونيسيا", nameEn: "Indonesia", digits: 10, placeholder: "8123456789" },
+  { code: "+63", flag: "🇵🇭", nameAr: "الفلبين", nameEn: "Philippines", digits: 10, placeholder: "9171234567" },
+  { code: "+86", flag: "🇨🇳", nameAr: "الصين", nameEn: "China", digits: 11, placeholder: "13800138000" },
+  { code: "+81", flag: "🇯🇵", nameAr: "اليابان", nameEn: "Japan", digits: 10, placeholder: "9012345678" },
+  { code: "+82", flag: "🇰🇷", nameAr: "كوريا الجنوبية", nameEn: "South Korea", digits: 10, placeholder: "1012345678" },
+  { code: "+65", flag: "🇸🇬", nameAr: "سنغافورة", nameEn: "Singapore", digits: 8, placeholder: "81234567" },
+  { code: "+61", flag: "🇦🇺", nameAr: "أستراليا", nameEn: "Australia", digits: 9, placeholder: "412345678" },
+  { code: "+64", flag: "🇳🇿", nameAr: "نيوزيلندا", nameEn: "New Zealand", digits: 9, placeholder: "211234567" },
+  { code: "+27", flag: "🇿🇦", nameAr: "جنوب أفريقيا", nameEn: "South Africa", digits: 9, placeholder: "821234567" },
+  { code: "+234", flag: "🇳🇬", nameAr: "نيجيريا", nameEn: "Nigeria", digits: 10, placeholder: "8021234567" },
+  { code: "+254", flag: "🇰🇪", nameAr: "كينيا", nameEn: "Kenya", digits: 9, placeholder: "712345678" },
+  { code: "+233", flag: "🇬🇭", nameAr: "غانا", nameEn: "Ghana", digits: 9, placeholder: "241234567" },
 ];
+
+function normalizeArabicDigits(str: string): string {
+  return str
+    .replace(/[٠-٩]/g, (d) => String(d.charCodeAt(0) - 1632))
+    .replace(/[۰-۹]/g, (d) => String(d.charCodeAt(0) - 1776));
+}
+
+function sanitizePhoneInput(rawVal: string, countryCode: string): string {
+  let val = normalizeArabicDigits(rawVal);
+  // Strip country code if pasted (e.g. +20 or 0020 or 20)
+  const numCode = countryCode.replace("+", "");
+  val = val.replace(new RegExp(`^(\\+${numCode}|00${numCode}|${numCode})`), "");
+  // Keep only digits
+  val = val.replace(/\D/g, "");
+
+  // Strip leading zero(s) because country code is already selected
+  if (val.startsWith("0")) {
+    val = val.replace(/^0+/, "");
+  }
+
+  // Cap max digits according to country definition
+  const country = COUNTRY_CODES.find((c) => c.code === countryCode);
+  const max = country?.digits ?? 15;
+  return val.slice(0, max);
+}
 
 const EGYPTIAN_GOVERNORATES_AR = [
   "القاهرة", "الجيزة", "الإسكندرية", "القليوبية", "الغربية", "المنوفية",
@@ -223,22 +325,36 @@ function JoinPartner() {
     }
 
     // 2. Phone with Country Code validation
-    const cleanPhone = f.phone.replace(/[\s\-]/g, "");
+    const cleanPhone = sanitizePhoneInput(f.phone, f.country_code);
     if (!cleanPhone) {
       errs.phone = tr("Phone / WhatsApp number is required.", "رقم الموبايل / واتساب مطلوب (إجباري).");
     } else if (f.country_code === "+20") {
-      // Egyptian mobile: 10 or 11 digits starting with 010, 011, 012, 015
-      const egRegex = /^(01[0125]\d{8}|1[0125]\d{8})$/;
+      // Egyptian mobile without trunk 0: exactly 10 digits starting with 10, 11, 12, or 15
+      const egRegex = /^1[0125]\d{8}$/;
       const isRepeated = /^(\d)\1+$/.test(cleanPhone);
-      if (!egRegex.test(cleanPhone) || isRepeated || cleanPhone === "01234567890") {
+      if (cleanPhone.length !== 10) {
         errs.phone = tr(
-          "Invalid Egyptian mobile number. Must be 11 digits starting with 010, 011, 012, or 015 (e.g. 01012345678).",
-          "رقم الموبايل المصري غير صحيح. يجب أن يتكون من 11 رقماً ويبدأ بـ 010 أو 011 أو 012 أو 015 (مثال: 01012345678)."
+          `Egyptian number must be exactly 10 digits without leading 0 (you entered ${cleanPhone.length} digits).`,
+          `رقم الموبايل المصري يجب أن يكون 10 أرقام بالضبط بدون الصفر الأول (كتبت ${cleanPhone.length} أرقام فقط).`
         );
+      } else if (!egRegex.test(cleanPhone)) {
+        errs.phone = tr(
+          "Number must start with 10, 11, 12, or 15 (e.g. 1012345678).",
+          "يجب أن يبدأ الرقم بـ 10 أو 11 أو 12 أو 15 (مثال: 1012345678)."
+        );
+      } else if (isRepeated || cleanPhone === "1234567890") {
+        errs.phone = tr("Please enter a real phone number.", "يرجى كتابة رقم موبايل صحيح ونشط.");
       }
     } else {
-      // Other country: digits only, 7 to 15 digits
-      if (!/^\d{7,15}$/.test(cleanPhone) || /^(\d)\1+$/.test(cleanPhone)) {
+      const selected = COUNTRY_CODES.find((c) => c.code === f.country_code);
+      const expected = selected?.digits;
+      const isRepeated = /^(\d)\1+$/.test(cleanPhone);
+      if (expected && cleanPhone.length !== expected) {
+        errs.phone = tr(
+          `Number for ${selected?.nameEn ?? "country"} must be ${expected} digits without leading 0 (entered ${cleanPhone.length}).`,
+          `رقم الهاتف لـ ${selected?.nameAr ?? "الدولة"} يجب أن يتكون من ${expected} أرقام بدون الصفر الأول (كتبت ${cleanPhone.length}).`
+        );
+      } else if (cleanPhone.length < 7 || cleanPhone.length > 15 || isRepeated) {
         errs.phone = tr("Invalid phone number digits.", "رقم الهاتف غير صحيح. الرجاء إدخال أرقام صحيحة.");
       }
     }
@@ -343,10 +459,8 @@ function JoinPartner() {
       ? f.faculty_custom.trim()
       : f.faculty_select;
 
-    const cleanPhone = f.phone.replace(/[\s\-]/g, "");
-    const formattedPhone = f.country_code === "+20"
-      ? (cleanPhone.startsWith("0") ? `+20${cleanPhone.slice(1)}` : `+20${cleanPhone}`)
-      : `${f.country_code}${cleanPhone}`;
+    const cleanPhone = sanitizePhoneInput(f.phone, f.country_code);
+    const formattedPhone = `${f.country_code}${cleanPhone}`;
 
     const expOption = SALES_EXPERIENCES.find((s) => s.val === f.experience);
     const expText = ar ? expOption?.labelAr ?? f.experience : expOption?.labelEn ?? f.experience;
@@ -547,44 +661,79 @@ function JoinPartner() {
 
             {/* Phone with Country Code */}
             <div data-has-error={!!fieldErrors.phone}>
-              <label className="block text-xs font-semibold text-navy mb-1.5">
-                {tr("Mobile / WhatsApp Number", "رقم الموبايل / واتساب")} <span className="text-red-500 font-bold">*</span>
-              </label>
-              <div className="flex gap-2">
-                <select
-                  className="rounded-xl border border-input bg-background px-3 py-3 text-sm font-medium outline-none focus:border-beige shrink-0 max-w-[145px]"
-                  value={f.country_code}
-                  onChange={(e) => {
-                    setF({ ...f, country_code: e.target.value });
-                    clearFieldError("phone");
-                  }}
-                >
-                  {COUNTRY_CODES.map((c) => (
-                    <option key={c.code} value={c.code}>
-                      {c.flag} {c.code} {ar ? `(${c.nameAr.split(" ")[0]})` : ""}
-                    </option>
-                  ))}
-                </select>
-                <div className="flex-1">
-                  <input
-                    className={inputClass(!!fieldErrors.phone)}
-                    required
-                    type="tel"
-                    maxLength={20}
-                    placeholder={f.country_code === "+20" ? "01012345678" : "123456789"}
-                    value={f.phone}
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="text-xs font-semibold text-navy">
+                  {tr("Mobile / WhatsApp Number", "رقم الموبايل / واتساب")} <span className="text-red-500 font-bold">*</span>
+                </label>
+                <span className="text-[11px] font-medium text-muted-foreground" dir="ltr">
+                  {f.phone.length} / {COUNTRY_CODES.find((c) => c.code === f.country_code)?.digits ?? 10} {tr("digits", "أرقام")}
+                </span>
+              </div>
+
+              {/* Unified international phone input container */}
+              <div
+                className={`flex rounded-xl border bg-background transition-all overflow-hidden ${
+                  fieldErrors.phone
+                    ? "border-red-500 bg-red-500/5 ring-1 ring-red-500"
+                    : "border-input focus-within:border-beige focus-within:ring-2 focus-within:ring-beige/40"
+                }`}
+                dir="ltr"
+              >
+                {/* Country Code Selector */}
+                <div className="relative flex items-center bg-muted/40 border-r border-border shrink-0 max-w-[155px] sm:max-w-[185px]">
+                  <select
+                    className="w-full h-full bg-transparent pl-3 pr-7 py-3 text-xs sm:text-sm font-semibold outline-none cursor-pointer appearance-none text-navy"
+                    value={f.country_code}
                     onChange={(e) => {
-                      setF({ ...f, phone: e.target.value });
+                      const newCode = e.target.value;
+                      setF((prev) => ({
+                        ...prev,
+                        country_code: newCode,
+                        phone: sanitizePhoneInput(prev.phone, newCode),
+                      }));
                       clearFieldError("phone");
                     }}
-                  />
+                  >
+                    {COUNTRY_CODES.map((c) => (
+                      <option key={`${c.code}-${c.nameEn}`} value={c.code} className="text-navy bg-white">
+                        {c.flag} {c.code} ({ar ? c.nameAr : c.nameEn})
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="h-3.5 w-3.5 text-muted-foreground absolute right-2 pointer-events-none" />
                 </div>
+
+                {/* Number Input (strictly digits, caps at exact digit count) */}
+                <input
+                  className="flex-1 bg-transparent px-3.5 py-3 text-sm font-medium outline-none placeholder:text-muted-foreground/50 text-navy tracking-wider"
+                  required
+                  type="tel"
+                  inputMode="numeric"
+                  dir="ltr"
+                  maxLength={COUNTRY_CODES.find((c) => c.code === f.country_code)?.digits ?? 15}
+                  placeholder={COUNTRY_CODES.find((c) => c.code === f.country_code)?.placeholder ?? "1012345678"}
+                  value={f.phone}
+                  onChange={(e) => {
+                    const sanitized = sanitizePhoneInput(e.target.value, f.country_code);
+                    setF((prev) => ({ ...prev, phone: sanitized }));
+                    clearFieldError("phone");
+                  }}
+                />
               </div>
-              <p className="mt-1 text-[11px] text-muted-foreground">
+
+              {/* Dynamic Guidance Note */}
+              <p className="mt-1.5 text-[11px] text-muted-foreground leading-relaxed">
                 {f.country_code === "+20"
-                  ? tr("Egyptian number must be 11 digits starting with 010, 011, 012, or 015.", "يجب كتابة 11 رقماً يبدأ بـ 010 أو 011 أو 012 أو 015.")
-                  : tr("Enter mobile number with digits only.", "أدخل رقم الهاتف بأرقام صحيحة.")}
+                  ? tr(
+                      "Enter 10 digits starting with 10, 11, 12, or 15 (without leading 0 since +20 is already selected).",
+                      "أدخل 10 أرقام تبدأ بـ 10 أو 11 أو 12 أو 15 (بدون الصفر الأول لأن كود +20 محدد بالفعل)."
+                    )
+                  : tr(
+                      `Enter ${COUNTRY_CODES.find((c) => c.code === f.country_code)?.digits ?? "mobile"} digits without leading 0 (country code already selected).`,
+                      `أدخل ${COUNTRY_CODES.find((c) => c.code === f.country_code)?.digits ?? ""} أرقام الهاتف بدون الصفر الأول (كود الدولة محدد مسبقاً).`
+                    )}
               </p>
+
               {fieldErrors.phone && (
                 <p className="mt-1 flex items-center gap-1 text-xs font-medium text-red-600">
                   <AlertCircle className="h-3.5 w-3.5 shrink-0" />
