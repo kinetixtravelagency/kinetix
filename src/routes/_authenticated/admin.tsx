@@ -269,19 +269,25 @@ function ApplicationsTab({ apps, onChange }: { apps: any[]; onChange: () => void
   const upd = useServerFn(adminUpdateApplication);
   const setDoc = useServerFn(adminSetDocumentStatus);
   const [filter, setFilter] = useState("all");
+  const [stageFilter, setStageFilter] = useState<number | "all">("all");
   const [search, setSearch] = useState("");
   const [exp, setExp] = useState<string | null>(null);
-  const [optimisticOverrides, setOptimisticOverrides] = useState<Record<string, { status?: string; stage?: number; deposit_paid?: boolean }>>({});
+  const [activeDetailTab, setActiveDetailTab] = useState<Record<string, string>>({});
+  const [optimisticOverrides, setOptimisticOverrides] = useState<Record<string, { status?: string; stage?: number; deposit_paid?: boolean; notes?: string }>>({});
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [notesEditing, setNotesEditing] = useState<string | null>(null);
+  const [notesDraft, setNotesDraft] = useState<Record<string, string>>({});
+  const [savingNotes, setSavingNotes] = useState(false);
+  const [copied, setCopied] = useState<string | null>(null);
 
   const statuses = ["all", "submitted", "in_review", "documents", "approved", "rejected"];
   const stages = [
-    "0: تقديم ومستندات (Application & Docs)",
-    "1: ديبوزت (Deposit)",
-    "2: بري انترفيو (Pre-Interview)",
-    "3: انترفيو (Interview)",
-    "4: التصريح والتأشيرة (Permit & Visa)",
-    "5: جاهز للسفر (Ready to Travel)",
+    { label: "تقديم ومستندات", labelEn: "Application & Docs", icon: "📋" },
+    { label: "ديبوزت", labelEn: "Deposit", icon: "💰" },
+    { label: "بري انترفيو", labelEn: "Pre-Interview", icon: "📝" },
+    { label: "انترفيو", labelEn: "Interview", icon: "🎤" },
+    { label: "التصريح والتأشيرة", labelEn: "Permit & Visa", icon: "🛂" },
+    { label: "جاهز للسفر", labelEn: "Ready to Travel", icon: "✈️" },
   ];
 
   const isPaymentApp = (a: any) =>
@@ -289,16 +295,24 @@ function ApplicationsTab({ apps, onChange }: { apps: any[]; onChange: () => void
 
   const paymentsCount = apps.filter(isPaymentApp).length;
 
+  // Stage counts for quick summary
+  const stageCounts = stages.map((_, i) => apps.filter(a => (a.stage ?? 0) === i).length);
+  const statusCounts: Record<string, number> = {};
+  statuses.slice(1).forEach(s => { statusCounts[s] = apps.filter(a => a.status === s).length; });
+
   const filtered = apps.filter(a => {
     const effStatus = optimisticOverrides[a.id]?.status ?? a.status;
+    const effStage = optimisticOverrides[a.id]?.stage ?? (a.stage ?? 0);
     if (filter === "payments") {
       if (!isPaymentApp(a)) return false;
     } else if (filter !== "all" && effStatus !== filter) {
       return false;
     }
+    if (stageFilter !== "all" && effStage !== stageFilter) return false;
     return (!search || (a.full_name ?? "").toLowerCase().includes(search.toLowerCase()) ||
       (a.phone ?? "").includes(search) || (a.promo_code ?? "").toLowerCase().includes(search.toLowerCase()) ||
-      (a.user_email ?? "").toLowerCase().includes(search.toLowerCase()));
+      (a.user_email ?? "").toLowerCase().includes(search.toLowerCase()) ||
+      (a.passport_number ?? "").toLowerCase().includes(search.toLowerCase()));
   });
 
   const openDoc = async (path: string) => {
@@ -306,357 +320,626 @@ function ApplicationsTab({ apps, onChange }: { apps: any[]; onChange: () => void
     if (data?.signedUrl) window.open(data.signedUrl, "_blank", "noopener");
   };
 
+  const copyToClipboard = (text: string, key: string) => {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(key);
+      setTimeout(() => setCopied(null), 1800);
+    });
+  };
+
   const handleUpdateStatus = async (appId: string, newStatus: string) => {
-    setOptimisticOverrides(prev => ({
-      ...prev,
-      [appId]: { ...(prev[appId] || {}), status: newStatus }
-    }));
+    setOptimisticOverrides(prev => ({ ...prev, [appId]: { ...(prev[appId] || {}), status: newStatus } }));
     setUpdatingId(appId);
     try {
       await setStatus({ data: { id: appId, status: newStatus } });
       onChange();
     } catch (err: any) {
-      alert("حدث خطأ أثناء تحديث الحالة: " + (err?.message || "خطأ غير معروف"));
-      setOptimisticOverrides(prev => {
-        const copy = { ...prev };
-        if (copy[appId]) delete copy[appId].status;
-        return copy;
-      });
-    } finally {
-      setUpdatingId(null);
-    }
+      alert("خطأ في تحديث الحالة: " + (err?.message || "خطأ"));
+      setOptimisticOverrides(prev => { const c = { ...prev }; if (c[appId]) delete c[appId].status; return c; });
+    } finally { setUpdatingId(null); }
   };
 
   const handleUpdateStage = async (appId: string, newStage: number) => {
-    setOptimisticOverrides(prev => ({
-      ...prev,
-      [appId]: { ...(prev[appId] || {}), stage: newStage }
-    }));
+    setOptimisticOverrides(prev => ({ ...prev, [appId]: { ...(prev[appId] || {}), stage: newStage } }));
     setUpdatingId(appId);
     try {
       await upd({ data: { id: appId, stage: newStage } });
       onChange();
     } catch (err: any) {
-      alert("حدث خطأ أثناء تحديث المرحلة: " + (err?.message || "خطأ غير معروف"));
-      setOptimisticOverrides(prev => {
-        const copy = { ...prev };
-        if (copy[appId]) delete copy[appId].stage;
-        return copy;
-      });
-    } finally {
-      setUpdatingId(null);
-    }
+      alert("خطأ في تحديث المرحلة: " + (err?.message || "خطأ"));
+      setOptimisticOverrides(prev => { const c = { ...prev }; if (c[appId]) delete c[appId].stage; return c; });
+    } finally { setUpdatingId(null); }
   };
 
   const handleToggleDeposit = async (appId: string, currentDeposit: boolean) => {
     const nextVal = !currentDeposit;
-    setOptimisticOverrides(prev => ({
-      ...prev,
-      [appId]: { ...(prev[appId] || {}), deposit_paid: nextVal }
-    }));
+    setOptimisticOverrides(prev => ({ ...prev, [appId]: { ...(prev[appId] || {}), deposit_paid: nextVal } }));
     setUpdatingId(appId);
     try {
       await upd({ data: { id: appId, deposit_paid: nextVal } });
       onChange();
     } catch (err: any) {
-      alert("حدث خطأ أثناء تحديث حالة الديبوزت: " + (err?.message || "خطأ غير معروف"));
-      setOptimisticOverrides(prev => {
-        const copy = { ...prev };
-        if (copy[appId]) delete copy[appId].deposit_paid;
-        return copy;
-      });
-    } finally {
-      setUpdatingId(null);
-    }
+      alert("خطأ في تحديث الديبوزت: " + (err?.message || "خطأ"));
+      setOptimisticOverrides(prev => { const c = { ...prev }; if (c[appId]) delete c[appId].deposit_paid; return c; });
+    } finally { setUpdatingId(null); }
   };
 
+  const handleSaveNotes = async (appId: string) => {
+    const notes = notesDraft[appId] ?? "";
+    setSavingNotes(true);
+    try {
+      await upd({ data: { id: appId, notes } });
+      setOptimisticOverrides(prev => ({ ...prev, [appId]: { ...(prev[appId] || {}), notes } }));
+      setNotesEditing(null);
+      onChange();
+    } catch (err: any) {
+      alert("خطأ في حفظ الملاحظات: " + (err?.message || "خطأ"));
+    } finally { setSavingNotes(false); }
+  };
+
+  const getDetailTab = (appId: string) => activeDetailTab[appId] ?? "overview";
+  const setDetailTab = (appId: string, tab: string) =>
+    setActiveDetailTab(prev => ({ ...prev, [appId]: tab }));
+
   return (
-    <div className="space-y-4">
-      {/* Filters */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-3">
-          <input className={`${inp} max-w-64`} placeholder="Search name, phone, promo, email…" value={search} onChange={e => setSearch(e.target.value)} />
-          <div className="flex flex-wrap gap-1">
-            {statuses.map(s => (
-              <button key={s} onClick={() => setFilter(s)}
-                className={`rounded-full border px-3 py-1.5 text-xs transition-colors ${filter === s ? "border-navy bg-navy text-ivory" : "border-border hover:border-beige"}`}>
-                {s}
-              </button>
-            ))}
-            <button
-              onClick={() => setFilter("payments")}
-              className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition-all ${
-                filter === "payments"
-                  ? "bg-amber-500 text-white border-amber-600 shadow-sm"
-                  : "border-amber-400/60 bg-amber-500/10 text-amber-800 dark:text-amber-300 border border-amber-500/30 hover:bg-amber-500/20"
-              }`}
-            >
-              <CreditCard className="h-3.5 w-3.5 text-amber-600" />
-              طلبات الدفع
-              {paymentsCount > 0 && (
-                <span className="rounded-full bg-amber-600 px-1.5 py-0.2 text-[10px] text-white">
-                  {paymentsCount}
-                </span>
-              )}
-            </button>
-          </div>
-        </div>
-        <p className="text-xs text-muted-foreground">{filtered.length} applications registered</p>
+    <div className="space-y-5">
+      {/* ── Header Stats Bar ── */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+        {stages.map((s, i) => (
+          <button
+            key={i}
+            onClick={() => setStageFilter(stageFilter === i ? "all" : i)}
+            className={`group rounded-2xl border p-3 text-left transition-all ${
+              stageFilter === i
+                ? "border-navy bg-navy text-ivory shadow-md"
+                : "border-border bg-card hover:border-beige hover:shadow-sm"
+            }`}
+          >
+            <div className="text-lg mb-1">{s.icon}</div>
+            <p className={`text-[10px] font-semibold uppercase tracking-wider truncate ${stageFilter === i ? "text-beige" : "text-muted-foreground"}`}>{s.labelEn}</p>
+            <p className={`text-2xl font-display font-bold mt-0.5 ${stageFilter === i ? "text-ivory" : "text-foreground"}`}>{stageCounts[i]}</p>
+          </button>
+        ))}
       </div>
 
-      {filtered.map(a => {
-        const expanded = exp === a.id;
-        const due = a.payment_plan === "full" ? a.programs?.price : a.programs?.deposit;
-        const hasPaymentNote = isPaymentApp(a);
-        const effStatus = optimisticOverrides[a.id]?.status ?? a.status;
-        const effStage = optimisticOverrides[a.id]?.stage ?? (a.stage ?? 0);
-        const effDeposit = optimisticOverrides[a.id]?.deposit_paid ?? a.deposit_paid;
-        const isBusy = updatingId === a.id;
-
-        return (
-          <div key={a.id} className={`rounded-3xl border bg-card overflow-hidden transition-all shadow-xs ${
-            hasPaymentNote ? "border-amber-400/80 shadow-md" : "border-border"
-          }`}>
-            {/* Summary row */}
-            <button className="flex w-full items-start justify-between gap-4 p-5 text-start hover:bg-secondary/20 transition-colors" onClick={() => setExp(expanded ? null : a.id)}>
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <p className="font-display text-base font-semibold text-foreground">{a.full_name ?? a.profiles?.full_name ?? "—"}</p>
-                  <span className={`${pill} ${statusColor(effStatus)}`}>{effStatus}</span>
-                  {hasPaymentNote && (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 border border-amber-500/40 px-2.5 py-0.5 text-xs font-bold text-amber-800 dark:text-amber-300">
-                      <CreditCard className="h-3.5 w-3.5 text-amber-600" />
-                      💳 طلب دفع عبر الشات
-                    </span>
-                  )}
-                  {effDeposit && <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-bold text-emerald-800">✓ Deposit paid</span>}
-                  <span className="rounded-full bg-secondary px-2.5 py-0.5 text-xs font-medium text-foreground">
-                    Stage {effStage}: {stages[effStage]?.split("(")[0]}
-                  </span>
-                  {isBusy && <span className="text-[10px] text-amber-600 animate-pulse font-bold">جاري الحفظ…</span>}
-                </div>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {a.programs?.countries?.name_en} · {a.programs?.title_en || a.programs?.track} · {eur(a.programs?.price ?? 0)}
-                  {a.promo_code ? ` · 🏷 ${a.promo_code} (${a.discount_percent ?? 0}% off)` : ""}
-                  {" · "}{a.payment_plan === "full" ? "Full payment" : `${a.installments}× installments`}
-                </p>
-                <p className="mt-0.5 text-xs text-muted-foreground">{a.phone ?? ""} · {a.passport_number ?? ""} · {new Date(a.created_at).toLocaleDateString()}</p>
-              </div>
-              <div className="shrink-0 flex items-center gap-2 pt-1 text-muted-foreground">
-                <span className="text-xs hidden sm:inline">{expanded ? "Hide details" : "Full dossier"}</span>
-                {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-              </div>
+      {/* ── Filters Row ── */}
+      <div className="rounded-2xl border border-border bg-card p-4 space-y-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="relative flex-1 min-w-[180px]">
+            <Filter className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+            <input
+              className="w-full rounded-xl border border-input bg-background pl-9 pr-3 py-2 text-xs placeholder:text-muted-foreground outline-none focus:border-beige"
+              placeholder="Search by name, phone, email, passport, promo…"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+            />
+          </div>
+          <p className="text-xs text-muted-foreground ml-auto">
+            <span className="font-bold text-foreground">{filtered.length}</span> / {apps.length} applications
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-1.5">
+          {statuses.map(s => (
+            <button key={s} onClick={() => setFilter(s)}
+              className={`rounded-full border px-3 py-1 text-[11px] font-semibold transition-all ${
+                filter === s ? "border-navy bg-navy text-ivory" : "border-border hover:border-beige text-foreground"
+              }`}>
+              {s === "all" ? `All (${apps.length})` : `${s} (${statusCounts[s] ?? 0})`}
             </button>
+          ))}
+          <button onClick={() => setFilter("payments")}
+            className={`flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11px] font-bold transition-all ${
+              filter === "payments"
+                ? "bg-amber-500 text-white border-amber-600"
+                : "border-amber-400/60 bg-amber-500/10 text-amber-800 dark:text-amber-300 hover:bg-amber-500/20"
+            }`}>
+            <CreditCard className="h-3 w-3" />
+            طلبات الدفع ({paymentsCount})
+          </button>
+          {stageFilter !== "all" && (
+            <button onClick={() => setStageFilter("all")}
+              className="flex items-center gap-1 rounded-full border border-navy/40 bg-navy/10 px-3 py-1 text-[11px] font-semibold text-navy hover:bg-navy/20">
+              <X className="h-3 w-3" /> Clear Stage Filter
+            </button>
+          )}
+        </div>
+      </div>
 
-            {expanded && (
-              <div className="border-t border-border px-5 pb-6 space-y-5 bg-secondary/10">
-                {/* ── 1. Cohesive Application Status & Workflow Box ── */}
-                <div className="mt-4 rounded-2xl border border-border bg-card p-4 space-y-3.5 shadow-xs">
-                  <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 pb-3">
-                    <div className="flex flex-wrap items-center gap-2.5">
-                      <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Application Status:</span>
-                      <select
-                        value={effStatus}
-                        onChange={e => handleUpdateStatus(a.id, e.target.value)}
-                        className="rounded-full border border-input bg-background px-3 py-1 text-xs font-bold outline-none focus:border-beige cursor-pointer"
-                      >
-                        {["submitted", "in_review", "documents", "approved", "rejected"].map(s => (
-                          <option key={s} value={s}>{s}</option>
-                        ))}
-                      </select>
-                      <span className={`${pill} ${statusColor(effStatus)}`}>{effStatus}</span>
-                    </div>
+      {/* ── Applications List ── */}
+      <div className="space-y-3">
+        {filtered.map(a => {
+          const expanded = exp === a.id;
+          const due = a.payment_plan === "full" ? a.programs?.price : a.programs?.deposit;
+          const hasPaymentNote = isPaymentApp(a);
+          const effStatus = optimisticOverrides[a.id]?.status ?? a.status;
+          const effStage = optimisticOverrides[a.id]?.stage ?? (a.stage ?? 0);
+          const effDeposit = optimisticOverrides[a.id]?.deposit_paid ?? a.deposit_paid;
+          const effNotes = optimisticOverrides[a.id]?.notes ?? a.notes ?? "";
+          const isBusy = updatingId === a.id;
+          const detailTab = getDetailTab(a.id);
+          const partnerName = a.profiles?.full_name || a.profiles?.display_name || (a.promo_code ? `Partner (${a.promo_code})` : null);
 
-                    <button
-                      onClick={() => handleToggleDeposit(a.id, Boolean(effDeposit))}
-                      className={`${pill} border transition-all ${
-                        effDeposit
-                          ? "bg-emerald-100 text-emerald-800 border-transparent font-bold hover:bg-emerald-200"
-                          : "border-beige text-foreground hover:bg-beige/10"
-                      }`}
-                    >
-                      {effDeposit ? `✓ Deposit Paid (${eur(due ?? 0)})` : `Mark Deposit Paid (${eur(due ?? 0)})`}
-                    </button>
-                  </div>
-
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                        Application Stage Progression (Click circle or title to update stage):
-                      </p>
-                      <span className="text-xs font-bold text-beige">
-                        Stage {effStage} of 5
+          return (
+            <div key={a.id} className={`rounded-3xl border bg-card overflow-hidden transition-all ${
+              hasPaymentNote ? "border-amber-400/80 shadow-md" : "border-border shadow-xs hover:shadow-sm"
+            }`}>
+              {/* ── Summary Row ── */}
+              <button
+                className="flex w-full items-start justify-between gap-4 p-5 text-start hover:bg-secondary/20 transition-colors"
+                onClick={() => setExp(expanded ? null : a.id)}
+              >
+                <div className="min-w-0 flex-1">
+                  {/* Name + badges */}
+                  <div className="flex flex-wrap items-center gap-2 mb-1.5">
+                    <p className="font-display text-base font-bold text-foreground">{a.full_name ?? a.profiles?.full_name ?? "—"}</p>
+                    <span className={`${pill} ${statusColor(effStatus)}`}>{effStatus}</span>
+                    {hasPaymentNote && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 border border-amber-500/40 px-2.5 py-0.5 text-xs font-bold text-amber-800 dark:text-amber-300">
+                        <CreditCard className="h-3.5 w-3.5" /> طلب دفع
                       </span>
-                    </div>
-                    <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                      {stages.map((st, i) => {
-                        const isCurrent = effStage === i;
-                        const isPassed = effStage > i || (i === 1 && effDeposit);
-                        return (
-                          <button
-                            key={i}
-                            onClick={() => handleUpdateStage(a.id, i)}
-                            className={`flex items-center gap-2 rounded-xl p-2.5 text-xs text-start transition-all border ${
-                              isCurrent
-                                ? "bg-navy text-ivory font-bold border-navy shadow-md ring-2 ring-beige/40"
-                                : isPassed
-                                ? "bg-card text-foreground border-emerald-500/40 hover:border-emerald-500"
-                                : "bg-card text-muted-foreground border-border hover:border-beige hover:text-foreground"
-                            }`}
-                          >
-                            <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${
-                              isCurrent
-                                ? "bg-beige text-navy"
-                                : isPassed
-                                ? "bg-emerald-500 text-white"
-                                : "bg-secondary text-muted-foreground"
-                            }`}>
-                              {isPassed && !isCurrent ? "✓" : i}
-                            </span>
-                            <span className="truncate">{st.split("(")[0]?.trim() ?? ""}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
+                    )}
+                    {effDeposit && <span className="rounded-full bg-emerald-100 border border-emerald-300 px-2 py-0.5 text-xs font-bold text-emerald-800">✓ Deposit Paid</span>}
+                    {isBusy && <span className="text-[10px] text-amber-600 animate-pulse font-bold">جاري الحفظ…</span>}
+                  </div>
+
+                  {/* Stage progress bar */}
+                  <div className="flex items-center gap-1 mb-2">
+                    {stages.map((s, i) => (
+                      <div key={i} className="flex-1 relative group/stage">
+                        <div className={`h-1.5 rounded-full transition-all ${
+                          i < effStage ? "bg-emerald-500" : i === effStage ? "bg-navy" : "bg-border"
+                        }`} />
+                        <div className="absolute -top-6 left-1/2 -translate-x-1/2 hidden group-hover/stage:block z-10 whitespace-nowrap rounded-lg bg-foreground px-2 py-0.5 text-[10px] text-background font-medium shadow">
+                          {s.icon} {s.labelEn}
+                        </div>
+                      </div>
+                    ))}
+                    <span className="text-[10px] font-bold text-navy ml-1">{effStage}/5</span>
+                  </div>
+
+                  {/* Info line */}
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
+                    {a.programs?.countries?.name_en && <span>🌍 {a.programs.countries.name_en}</span>}
+                    {a.programs?.track && <span>📚 {a.programs.track}</span>}
+                    {a.programs?.price && <span className="font-bold text-beige">{eur(a.programs.price)}</span>}
+                    {a.phone && <span>📞 {a.phone}</span>}
+                    {partnerName && <span className="text-navy font-semibold">👤 {partnerName}</span>}
+                    <span className="ml-auto">{new Date(a.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</span>
                   </div>
                 </div>
 
-                {/* ── 2. Applicant & Program Details Cards ── */}
-                <div className="grid gap-4 sm:grid-cols-2">
-                  {/* Card A: Personal & Contact */}
-                  <div className="rounded-2xl border border-border bg-card p-4 space-y-2.5">
-                    <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                      <User className="h-3.5 w-3.5 text-beige" /> Applicant Dossier & Contact
-                    </p>
-                    <div className="text-xs space-y-2">
-                      <div>
-                        <span className="text-muted-foreground block text-[10px] uppercase font-semibold">Full Name</span>
-                        <span className="font-bold text-foreground text-sm">{a.full_name ?? a.profiles?.full_name ?? "—"}</span>
-                      </div>
-                      <div className="grid grid-cols-2 gap-2">
-                        <div>
-                          <span className="text-muted-foreground block text-[10px] uppercase font-semibold">Phone / WhatsApp</span>
-                          {a.phone ? (
-                            <div className="flex items-center gap-1.5">
-                              <span className="font-medium font-mono">{a.phone}</span>
-                              <a
-                                href={`https://wa.me/${a.phone.replace(/[^0-9]/g, "")}`}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="text-[10px] text-emerald-600 underline font-semibold"
+                <div className="shrink-0 flex items-center gap-2 pt-1 text-muted-foreground">
+                  <span className="text-xs hidden sm:inline">{expanded ? "Collapse" : "Full Dossier"}</span>
+                  {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                </div>
+              </button>
+
+              {/* ── Expanded Detail Panel ── */}
+              {expanded && (
+                <div className="border-t border-border bg-secondary/5">
+                  {/* Detail Tab Nav */}
+                  <div className="flex gap-0.5 border-b border-border bg-background/50 px-5 pt-3 overflow-x-auto">
+                    {[
+                      { id: "overview", label: "Overview", icon: "📋" },
+                      { id: "applicant", label: "Applicant", icon: "👤" },
+                      { id: "program", label: "Program", icon: "📚" },
+                      { id: "documents", label: `Documents (${(a.application_documents ?? []).length})`, icon: "📎" },
+                      { id: "notes", label: "Admin Notes", icon: "✍️" },
+                    ].map(t => (
+                      <button key={t.id} onClick={() => setDetailTab(a.id, t.id)}
+                        className={`flex items-center gap-1.5 rounded-t-xl border-b-2 px-4 py-2 text-xs font-semibold whitespace-nowrap transition-all ${
+                          detailTab === t.id
+                            ? "border-navy text-navy bg-card"
+                            : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
+                        }`}>
+                        <span>{t.icon}</span> {t.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="p-5 space-y-5">
+                    {/* ══ TAB: OVERVIEW ══ */}
+                    {detailTab === "overview" && (
+                      <div className="space-y-4">
+                        {/* Status & Workflow Box */}
+                        <div className="rounded-2xl border border-border bg-card p-4 space-y-4">
+                          <div className="flex items-center justify-between flex-wrap gap-2 border-b border-border/60 pb-3">
+                            <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Application Status & Workflow</p>
+                            {isBusy && <Loader2 className="h-4 w-4 animate-spin text-beige" />}
+                          </div>
+
+                          {/* Status + Deposit row */}
+                          <div className="flex flex-wrap items-center gap-3">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-muted-foreground font-medium">Status:</span>
+                              <select
+                                value={effStatus}
+                                onChange={e => handleUpdateStatus(a.id, e.target.value)}
+                                disabled={isBusy}
+                                className="rounded-full border border-input bg-background px-3 py-1.5 text-xs font-bold outline-none focus:border-beige disabled:opacity-50 cursor-pointer"
                               >
-                                WA
-                              </a>
+                                {["submitted", "in_review", "documents", "approved", "rejected"].map(s => (
+                                  <option key={s} value={s}>{s}</option>
+                                ))}
+                              </select>
+                              <span className={`${pill} ${statusColor(effStatus)}`}>{effStatus}</span>
                             </div>
-                          ) : "—"}
-                        </div>
-                        <div>
-                          <span className="text-muted-foreground block text-[10px] uppercase font-semibold">Email</span>
-                          <span className="font-medium truncate block">{a.user_email || a.profiles?.email || "—"}</span>
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-2 gap-2">
-                        <div>
-                          <span className="text-muted-foreground block text-[10px] uppercase font-semibold">Passport Number</span>
-                          <span className="font-mono font-medium">{a.passport_number || "—"}</span>
-                        </div>
-                        <div>
-                          <span className="text-muted-foreground block text-[10px] uppercase font-semibold">Birth Date</span>
-                          <span>{a.birth_date || "—"}</span>
-                        </div>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground block text-[10px] uppercase font-semibold">Education / Major</span>
-                        <span className="font-medium">{a.education || "—"}</span>
-                      </div>
-                    </div>
-                  </div>
 
-                  {/* Card B: Program & Pathway */}
-                  <div className="rounded-2xl border border-border bg-card p-4 space-y-2.5">
-                    <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                      <Briefcase className="h-3.5 w-3.5 text-beige" /> Selected Program & Pathway
-                    </p>
-                    <div className="text-xs space-y-2">
-                      <div>
-                        <span className="text-muted-foreground block text-[10px] uppercase font-semibold">Target Country</span>
-                        <span className="font-bold text-foreground text-sm">
-                          {a.programs?.countries?.name_en || "General"}
-                        </span>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground block text-[10px] uppercase font-semibold">Program Title & Track</span>
-                        <span className="font-medium">
-                          {a.programs?.title_en || a.programs?.track} ({a.programs?.track || "Direct"})
-                        </span>
-                      </div>
-                      <div className="grid grid-cols-2 gap-2">
-                        <div>
-                          <span className="text-muted-foreground block text-[10px] uppercase font-semibold">Total Price</span>
-                          <span className="font-bold text-beige text-sm">{eur(a.programs?.price ?? 0)}</span>
-                        </div>
-                        <div>
-                          <span className="text-muted-foreground block text-[10px] uppercase font-semibold">Deposit Required</span>
-                          <span className="font-bold text-sm">{eur(a.programs?.deposit ?? 250)}</span>
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-2 gap-2">
-                        <div>
-                          <span className="text-muted-foreground block text-[10px] uppercase font-semibold">Payment Plan</span>
-                          <span>{a.payment_plan === "full" ? "Full payment" : `${a.installments}× installments`}</span>
-                        </div>
-                        <div>
-                          <span className="text-muted-foreground block text-[10px] uppercase font-semibold">Promo Code</span>
-                          <span>{a.promo_code ? `🏷 ${a.promo_code} (${a.discount_percent ?? 0}% off)` : "None"}</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+                            <button
+                              onClick={() => handleToggleDeposit(a.id, Boolean(effDeposit))}
+                              disabled={isBusy}
+                              className={`flex items-center gap-1.5 rounded-full border px-4 py-1.5 text-xs font-bold transition-all disabled:opacity-50 ${
+                                effDeposit
+                                  ? "bg-emerald-100 text-emerald-800 border-emerald-300 hover:bg-emerald-200"
+                                  : "border-beige text-foreground hover:bg-beige/10"
+                              }`}
+                            >
+                              {effDeposit
+                                ? <><CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" /> Deposit Paid ({eur(due ?? 0)})</>
+                                : <><CreditCard className="h-3.5 w-3.5" /> Mark Deposit Paid ({eur(due ?? 0)})</>}
+                            </button>
+                          </div>
 
-                {/* Notes & Payment Request info */}
-                {a.notes && (
-                  <div className="rounded-2xl border border-amber-400/60 bg-amber-500/10 p-4 text-xs text-foreground space-y-1">
-                    <p className="font-bold text-amber-800 dark:text-amber-300 flex items-center gap-1.5">
-                      <CreditCard className="h-4 w-4 text-amber-600" />
-                      ملاحظات طلب السداد / الحسابات:
-                    </p>
-                    <p className="leading-relaxed font-mono text-[11px] whitespace-pre-wrap">{a.notes}</p>
-                  </div>
-                )}
+                          {/* Stage Timeline */}
+                          <div>
+                            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-3">
+                              Stage Progression — click to update:
+                            </p>
+                            <div className="relative">
+                              {/* Connecting line */}
+                              <div className="absolute top-5 left-0 right-0 h-0.5 bg-border mx-5 hidden sm:block" />
+                              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6 relative">
+                                {stages.map((s, i) => {
+                                  const isCurr = effStage === i;
+                                  const isPast = effStage > i || (i === 1 && effDeposit);
+                                  return (
+                                    <button key={i} onClick={() => handleUpdateStage(a.id, i)} disabled={isBusy}
+                                      className={`relative flex flex-col items-center gap-1.5 rounded-2xl p-3 text-xs transition-all border disabled:opacity-50 ${
+                                        isCurr
+                                          ? "bg-navy text-ivory border-navy shadow-lg ring-2 ring-beige/40"
+                                          : isPast
+                                          ? "bg-emerald-50 text-emerald-800 border-emerald-200 hover:border-emerald-400"
+                                          : "bg-card text-muted-foreground border-border hover:border-beige hover:text-foreground"
+                                      }`}>
+                                      <span className={`flex h-7 w-7 items-center justify-center rounded-full text-sm font-bold ${
+                                        isCurr ? "bg-beige text-navy" : isPast ? "bg-emerald-500 text-white" : "bg-secondary text-muted-foreground"
+                                      }`}>
+                                        {isPast && !isCurr ? "✓" : s.icon}
+                                      </span>
+                                      <span className="font-bold text-center leading-tight">{s.labelEn}</span>
+                                      <span className="text-[10px] text-center opacity-70 leading-tight">{s.label}</span>
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
 
-                {/* Documents Table */}
-                {(a.application_documents ?? []).length > 0 && (
-                  <div className="rounded-2xl border border-border bg-card overflow-hidden">
-                    <p className="border-b border-border bg-secondary/30 px-4 py-2 text-xs font-semibold text-muted-foreground">
-                      Submitted Documents ({a.application_documents.length})
-                    </p>
-                    <div className="divide-y divide-border">
-                      {a.application_documents.map((d: any) => (
-                        <div key={d.id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 text-xs">
-                          <button onClick={() => openDoc(d.file_path)} className="text-start underline-offset-2 hover:underline font-medium text-foreground">
-                            {d.doc_type} <span className="text-[11px] text-muted-foreground font-normal">({d.file_name})</span>
-                          </button>
-                          <div className="flex items-center gap-2">
-                            <span className={`${pill} ${statusColor(d.status)}`}>{d.status}</span>
-                            {(["approved", "rejected"] as const).map(s => (
-                              <button key={s} onClick={async () => { await setDoc({ data: { id: d.id, status: s } }); onChange(); }}
-                                className={`${pill} border transition-all ${d.status === s ? (s === "approved" ? "bg-emerald-100 text-emerald-800 border-transparent font-bold" : "bg-red-100 text-red-800 border-transparent font-bold") : "border-border hover:border-beige"}`}>
-                                {s === "approved" ? <CheckCircle2 className="inline h-3 w-3" /> : <XCircle className="inline h-3 w-3" />} {s}
-                              </button>
+                        {/* Quick info grid */}
+                        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                          {[
+                            { label: "Full Name", value: a.full_name ?? a.profiles?.full_name ?? "—", icon: "👤" },
+                            { label: "Phone", value: a.phone ?? "—", icon: "📞", copyKey: `phone-${a.id}`, link: a.phone ? `https://wa.me/${a.phone.replace(/[^0-9]/g,"")}` : null, linkLabel: "WhatsApp" },
+                            { label: "Country", value: a.programs?.countries?.name_en ?? "—", icon: "🌍" },
+                            { label: "Stage", value: `${stages[effStage]?.icon} ${stages[effStage]?.labelEn}`, icon: "📍" },
+                            { label: "Created", value: new Date(a.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }), icon: "📅" },
+                            { label: "Partner", value: partnerName ?? "—", icon: "🤝" },
+                            { label: "Promo Code", value: a.promo_code ? `${a.promo_code} (${a.discount_percent ?? 0}% off)` : "None", icon: "🏷" },
+                            { label: "Payment", value: a.payment_plan === "full" ? "Full Payment" : `${a.installments}× Installments`, icon: "💳" },
+                          ].map((item, i) => (
+                            <div key={i} className="rounded-xl border border-border bg-card p-3 space-y-1">
+                              <p className="text-[10px] uppercase font-semibold text-muted-foreground tracking-wider">{item.icon} {item.label}</p>
+                              <div className="flex items-center gap-1.5">
+                                <p className="text-xs font-bold text-foreground truncate flex-1">{item.value}</p>
+                                {item.copyKey && item.value !== "—" && (
+                                  <button onClick={() => copyToClipboard(String(item.value), item.copyKey!)}
+                                    className="text-muted-foreground hover:text-foreground transition-colors">
+                                    {copied === item.copyKey ? <Check className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3" />}
+                                  </button>
+                                )}
+                                {item.link && (
+                                  <a href={item.link} target="_blank" rel="noreferrer"
+                                    className="text-[10px] font-semibold text-emerald-600 underline whitespace-nowrap">
+                                    {item.linkLabel}
+                                  </a>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* ══ TAB: APPLICANT ══ */}
+                    {detailTab === "applicant" && (
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <div className="rounded-2xl border border-border bg-card p-4 space-y-3">
+                          <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                            <User className="h-3.5 w-3.5 text-beige" /> Personal Information
+                          </p>
+                          {[
+                            ["Full Name", a.full_name ?? a.profiles?.full_name ?? "—"],
+                            ["Date of Birth", a.birth_date ?? "—"],
+                            ["Passport Number", a.passport_number ?? "—"],
+                            ["Education / Major", a.education ?? "—"],
+                            ["Gender", a.profiles?.gender ?? "—"],
+                            ["Nationality", a.profiles?.nationality ?? a.profiles?.governorate ?? "—"],
+                          ].map(([label, value]) => (
+                            <div key={label} className="flex justify-between items-start gap-2 text-xs">
+                              <span className="text-muted-foreground font-medium shrink-0">{label}</span>
+                              <span className="font-bold text-foreground text-right">{value}</span>
+                            </div>
+                          ))}
+                        </div>
+
+                        <div className="rounded-2xl border border-border bg-card p-4 space-y-3">
+                          <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                            <Phone className="h-3.5 w-3.5 text-beige" /> Contact Information
+                          </p>
+                          <div className="text-xs space-y-2.5">
+                            <div>
+                              <span className="text-muted-foreground font-medium block mb-0.5">Phone / WhatsApp</span>
+                              {a.phone ? (
+                                <div className="flex items-center gap-2">
+                                  <span className="font-bold font-mono">{a.phone}</span>
+                                  <button onClick={() => copyToClipboard(a.phone, `phone2-${a.id}`)}
+                                    className="text-muted-foreground hover:text-foreground">
+                                    {copied === `phone2-${a.id}` ? <Check className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3" />}
+                                  </button>
+                                  <a href={`https://wa.me/${a.phone.replace(/[^0-9]/g, "")}`} target="_blank" rel="noreferrer"
+                                    className="inline-flex items-center gap-0.5 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-700 hover:bg-emerald-200 transition-colors">
+                                    <ExternalLink className="h-2.5 w-2.5" /> WhatsApp
+                                  </a>
+                                </div>
+                              ) : <span className="text-muted-foreground">—</span>}
+                            </div>
+                            <div>
+                              <span className="text-muted-foreground font-medium block mb-0.5">Email Address</span>
+                              <div className="flex items-center gap-2">
+                                <span className="font-bold truncate">{a.user_email || a.profiles?.email || "—"}</span>
+                                {(a.user_email || a.profiles?.email) && (
+                                  <button onClick={() => copyToClipboard(a.user_email || a.profiles?.email, `email-${a.id}`)}
+                                    className="text-muted-foreground hover:text-foreground shrink-0">
+                                    {copied === `email-${a.id}` ? <Check className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3" />}
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                            <div>
+                              <span className="text-muted-foreground font-medium block mb-0.5">Referral Partner</span>
+                              <span className="font-bold">{partnerName ?? "Direct (no partner)"}</span>
+                              {a.promo_code && <span className="ml-2 text-navy font-mono text-[11px]">🏷 {a.promo_code}</span>}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* ══ TAB: PROGRAM ══ */}
+                    {detailTab === "program" && (
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <div className="rounded-2xl border border-border bg-card p-4 space-y-3">
+                          <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                            <Briefcase className="h-3.5 w-3.5 text-beige" /> Program & Pathway
+                          </p>
+                          {[
+                            ["Target Country", a.programs?.countries?.name_en ?? "—"],
+                            ["Program Title", a.programs?.title_en ?? "—"],
+                            ["Track", a.programs?.track ?? "—"],
+                            ["Duration", a.programs?.duration_months ? `${a.programs.duration_months} months` : "—"],
+                            ["Pathway", a.programs?.pathway ?? "—"],
+                          ].map(([label, value]) => (
+                            <div key={label} className="flex justify-between items-start gap-2 text-xs">
+                              <span className="text-muted-foreground font-medium shrink-0">{label}</span>
+                              <span className="font-bold text-foreground text-right">{value}</span>
+                            </div>
+                          ))}
+                        </div>
+
+                        <div className="rounded-2xl border border-border bg-card p-4 space-y-3">
+                          <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                            <CreditCard className="h-3.5 w-3.5 text-beige" /> Payment & Financial
+                          </p>
+                          {[
+                            ["Total Program Price", eur(a.programs?.price ?? 0)],
+                            ["Deposit Required", eur(a.programs?.deposit ?? 250)],
+                            ["Payment Plan", a.payment_plan === "full" ? "Full Payment" : `${a.installments}× Installments`],
+                            ["Promo Code", a.promo_code ?? "None"],
+                            ["Discount", a.discount_percent ? `${a.discount_percent}%` : "None"],
+                            ["Deposit Status", effDeposit ? "✅ Paid" : "⏳ Pending"],
+                          ].map(([label, value]) => (
+                            <div key={label} className="flex justify-between items-start gap-2 text-xs">
+                              <span className="text-muted-foreground font-medium shrink-0">{label}</span>
+                              <span className="font-bold text-foreground text-right">{value}</span>
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* Timeline */}
+                        <div className="sm:col-span-2 rounded-2xl border border-border bg-card p-4 space-y-3">
+                          <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                            <Calendar className="h-3.5 w-3.5 text-beige" /> Application Timeline
+                          </p>
+                          <div className="space-y-2">
+                            {[
+                              { label: "Application Submitted", date: a.created_at, done: true },
+                              { label: "Documents Uploaded", date: a.updated_at, done: (a.application_documents ?? []).length > 0 },
+                              { label: "Deposit Paid", date: null, done: Boolean(effDeposit) },
+                              { label: "Interview Scheduled", date: null, done: effStage >= 3 },
+                              { label: "Visa / Permit Issued", date: null, done: effStage >= 4 },
+                              { label: "Ready to Travel", date: null, done: effStage >= 5 },
+                            ].map((item, i) => (
+                              <div key={i} className="flex items-center gap-3 text-xs">
+                                <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${
+                                  item.done ? "bg-emerald-500 text-white" : "bg-secondary text-muted-foreground"
+                                }`}>
+                                  {item.done ? "✓" : i + 1}
+                                </div>
+                                <span className={`flex-1 ${item.done ? "text-foreground font-semibold" : "text-muted-foreground"}`}>{item.label}</span>
+                                {item.date && <span className="text-muted-foreground">{new Date(item.date).toLocaleDateString("en-GB")}</span>}
+                                {!item.date && !item.done && <span className="text-muted-foreground italic">pending</span>}
+                              </div>
                             ))}
                           </div>
                         </div>
-                      ))}
-                    </div>
+                      </div>
+                    )}
+
+                    {/* ══ TAB: DOCUMENTS ══ */}
+                    {detailTab === "documents" && (
+                      <div className="space-y-3">
+                        {(a.application_documents ?? []).length === 0 ? (
+                          <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+                            <BookOpen className="h-10 w-10 mb-3 opacity-30" />
+                            <p className="text-sm font-medium">No documents submitted yet</p>
+                          </div>
+                        ) : (
+                          <div className="rounded-2xl border border-border bg-card overflow-hidden">
+                            <div className="flex items-center justify-between bg-secondary/30 px-4 py-2.5 border-b border-border">
+                              <p className="text-xs font-semibold text-muted-foreground">
+                                Submitted Documents ({a.application_documents.length})
+                              </p>
+                              <p className="text-[10px] text-muted-foreground">Click filename to view · Approve or Reject each document</p>
+                            </div>
+                            <div className="divide-y divide-border">
+                              {a.application_documents.map((d: any) => (
+                                <div key={d.id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3.5">
+                                  <div className="min-w-0 flex-1">
+                                    <button onClick={() => openDoc(d.file_path)}
+                                      className="text-start text-xs font-semibold text-foreground hover:text-navy hover:underline transition-colors">
+                                      {d.doc_type}
+                                    </button>
+                                    <p className="text-[11px] text-muted-foreground font-mono mt-0.5 truncate">{d.file_name}</p>
+                                    {d.uploaded_at && (
+                                      <p className="text-[10px] text-muted-foreground mt-0.5">
+                                        Uploaded: {new Date(d.uploaded_at).toLocaleDateString("en-GB")}
+                                      </p>
+                                    )}
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <span className={`${pill} ${statusColor(d.status)}`}>{d.status}</span>
+                                    <button onClick={() => openDoc(d.file_path)}
+                                      className="flex items-center gap-1 rounded-full border border-border px-2.5 py-1 text-[11px] font-medium hover:border-beige transition-colors">
+                                      <ExternalLink className="h-3 w-3" /> View
+                                    </button>
+                                    <button
+                                      onClick={async () => { await setDoc({ data: { id: d.id, status: "approved" } }); onChange(); }}
+                                      className={`${pill} border transition-all ${d.status === "approved" ? "bg-emerald-100 text-emerald-800 border-emerald-300 font-bold" : "border-border hover:border-emerald-400 hover:bg-emerald-50"}`}>
+                                      <CheckCircle2 className="inline h-3 w-3 mr-0.5" /> Approve
+                                    </button>
+                                    <button
+                                      onClick={async () => { await setDoc({ data: { id: d.id, status: "rejected" } }); onChange(); }}
+                                      className={`${pill} border transition-all ${d.status === "rejected" ? "bg-red-100 text-red-800 border-red-300 font-bold" : "border-border hover:border-red-400 hover:bg-red-50"}`}>
+                                      <XCircle className="inline h-3 w-3 mr-0.5" /> Reject
+                                    </button>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* ══ TAB: ADMIN NOTES ══ */}
+                    {detailTab === "notes" && (
+                      <div className="space-y-4">
+                        {/* Payment Request alert if applicable */}
+                        {hasPaymentNote && effNotes && (
+                          <div className="rounded-2xl border border-amber-400/60 bg-amber-500/10 p-4 space-y-1">
+                            <p className="text-xs font-bold text-amber-800 dark:text-amber-300 flex items-center gap-1.5">
+                              <CreditCard className="h-4 w-4" /> Payment Request via Chat
+                            </p>
+                            <p className="text-xs font-mono whitespace-pre-wrap leading-relaxed text-foreground">{effNotes}</p>
+                          </div>
+                        )}
+
+                        {/* Notes Editor */}
+                        <div className="rounded-2xl border border-border bg-card p-4 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                              Internal Admin Notes
+                            </p>
+                            {notesEditing !== a.id ? (
+                              <button onClick={() => {
+                                setNotesEditing(a.id);
+                                setNotesDraft(prev => ({ ...prev, [a.id]: effNotes }));
+                              }}
+                                className="flex items-center gap-1.5 rounded-full border border-border px-3 py-1 text-xs font-medium hover:border-beige transition-colors">
+                                <Pencil className="h-3 w-3" /> {effNotes ? "Edit Notes" : "Add Notes"}
+                              </button>
+                            ) : (
+                              <div className="flex items-center gap-2">
+                                <button onClick={() => setNotesEditing(null)}
+                                  className="rounded-full border border-border px-3 py-1 text-xs text-muted-foreground hover:border-beige transition-colors">
+                                  Cancel
+                                </button>
+                                <button onClick={() => handleSaveNotes(a.id)} disabled={savingNotes}
+                                  className="flex items-center gap-1.5 rounded-full bg-navy px-3 py-1 text-xs font-bold text-ivory hover:bg-navy/90 disabled:opacity-50 transition-colors">
+                                  {savingNotes ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />} Save
+                                </button>
+                              </div>
+                            )}
+                          </div>
+
+                          {notesEditing === a.id ? (
+                            <textarea
+                              className="w-full rounded-xl border border-input bg-background p-3 text-xs font-mono resize-none focus:border-beige outline-none leading-relaxed"
+                              rows={6}
+                              placeholder="Add internal admin notes here… (e.g. payment status, special requirements, follow-up actions)"
+                              value={notesDraft[a.id] ?? ""}
+                              onChange={e => setNotesDraft(prev => ({ ...prev, [a.id]: e.target.value }))}
+                            />
+                          ) : (
+                            <div className="min-h-[80px] rounded-xl border border-border/50 bg-secondary/20 p-3">
+                              {effNotes ? (
+                                <p className="text-xs font-mono whitespace-pre-wrap leading-relaxed text-foreground">{effNotes}</p>
+                              ) : (
+                                <p className="text-xs text-muted-foreground italic">No admin notes yet. Click "Add Notes" to add internal remarks.</p>
+                              )}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Timestamps */}
+                        <div className="rounded-2xl border border-border bg-card p-4">
+                          <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-3">Record History</p>
+                          <div className="space-y-2 text-xs">
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">Submitted</span>
+                              <span className="font-medium">{new Date(a.created_at).toLocaleString("en-GB")}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">Last Updated</span>
+                              <span className="font-medium">{new Date(a.updated_at || a.created_at).toLocaleString("en-GB")}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">Application ID</span>
+                              <button onClick={() => copyToClipboard(a.id, `appid-${a.id}`)}
+                                className="flex items-center gap-1 font-mono text-[11px] hover:text-navy transition-colors">
+                                {a.id.slice(0, 16)}… {copied === `appid-${a.id}` ? <Check className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3" />}
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
-            )}
+                </div>
+              )}
+            </div>
+          );
+        })}
+
+        {filtered.length === 0 && (
+          <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
+            <Layers className="h-12 w-12 mb-3 opacity-20" />
+            <p className="text-sm font-medium">No applications found</p>
+            <p className="text-xs mt-1">Try adjusting your search or filter</p>
           </div>
-        );
-      })}
-      {filtered.length === 0 && <p className="py-12 text-center text-muted-foreground">No applications found</p>}
+        )}
+      </div>
     </div>
   );
 }

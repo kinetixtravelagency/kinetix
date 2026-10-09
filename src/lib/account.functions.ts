@@ -398,22 +398,24 @@ export const createApplication = createServerFn({ method: "POST" })
 
 export const adminUpdateApplication = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { id: string; stage?: number | undefined; deposit_paid?: boolean | undefined }) => d)
+  .inputValidator((d: { id: string; stage?: number | undefined; deposit_paid?: boolean | undefined; notes?: string | undefined }) => d)
   .handler(async ({ data, context }) => {
     const { data: isAdmin } = await context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" });
     if (!isAdmin) throw new Error("Forbidden");
-    const patch: { stage?: number; deposit_paid?: boolean; deposit_paid_at?: string | null } = {};
+    const patch: { stage?: number; deposit_paid?: boolean; deposit_paid_at?: string | null; notes?: string } = {};
     if (data.stage !== undefined) patch.stage = Math.max(0, Math.min(5, data.stage));
     if (data.deposit_paid !== undefined) {
       patch.deposit_paid = data.deposit_paid;
       patch.deposit_paid_at = data.deposit_paid ? new Date().toISOString() : null;
       if (data.deposit_paid && data.stage === undefined) patch.stage = 1;
     }
+    if (data.notes !== undefined) patch.notes = data.notes;
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error } = await supabaseAdmin.from("applications").update(patch).eq("id", data.id);
     if (error) throw new Error(error.message);
     return { ok: true };
   });
+
 
 export const adminSetDocumentStatus = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
