@@ -206,7 +206,8 @@ export const adminCreateProgram = createServerFn({ method: "POST" })
       requirements: data.requirements ?? [],
       requirements_ar: data.requirements_ar ?? [],
       published: data.published ?? true,
-    }).select("id").single();
+    } as any).select("id").single();
+
     if (error) throw new Error(error.message);
     return { ok: true, id: item.id };
   });
