@@ -49,7 +49,9 @@ export function AdminChatTab() {
     const load = async () => {
       try {
         const res = await fetchChats();
-        setConversations(res.conversations);
+        if (res && Array.isArray(res.conversations)) {
+          setConversations(res.conversations);
+        }
       } catch (err) {
         console.error("Error fetching admin chats:", err);
       }
@@ -69,7 +71,9 @@ export function AdminChatTab() {
     const loadMsgs = async () => {
       try {
         const res = await fetchMessages({ data: { conversationId: selectedId } });
-        setMessages(res.messages);
+        if (res && Array.isArray(res.messages)) {
+          setMessages(res.messages);
+        }
       } catch (err) {
         console.error("Error fetching conversation messages:", err);
       }

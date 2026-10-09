@@ -1,7 +1,4 @@
 import { createServerFn } from "@tanstack/react-start";
-import fs from "node:fs";
-import path from "node:path";
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
 export type MessageSender = "client" | "admin";
 
@@ -36,27 +33,89 @@ type ChatStore = {
   messages: Record<string, ChatMessage[]>;
 };
 
-const DATA_FILE = path.resolve(process.cwd(), "data", "chat_storage.json");
+let memoryCache: ChatStore | null = null;
+let lastFetchTime = 0;
+const CACHE_TTL = 1500; // 1.5s cache for responsive polling without spamming storage
 
-function getStore(): ChatStore {
+async function getStore(): Promise<ChatStore> {
+  const now = Date.now();
+  if (memoryCache && now - lastFetchTime < CACHE_TTL) {
+    return memoryCache;
+  }
+
+  // 1. Primary: Cloud Supabase Storage (Persistent across all Vercel Lambdas)
   try {
-    if (fs.existsSync(DATA_FILE)) {
-      const raw = fs.readFileSync(DATA_FILE, "utf-8");
-      return JSON.parse(raw);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data, error } = await supabaseAdmin.storage
+      .from("documents")
+      .download("_system/chat_storage.json");
+
+    if (data && !error) {
+      const text = await data.text();
+      const parsed = JSON.parse(text) as ChatStore;
+      if (parsed && typeof parsed === "object" && parsed.conversations) {
+        memoryCache = parsed;
+        lastFetchTime = now;
+        return memoryCache;
+      }
     }
   } catch (err) {
-    console.error("Error reading chat storage:", err);
+    console.error("[ChatStore] Supabase storage download error:", err);
   }
-  return { conversations: {}, messages: {} };
+
+  // 2. Fallback: Local filesystem (for offline / local dev)
+  try {
+    const fs = await import("node:fs");
+    const path = await import("node:path");
+    const dataFile = path.resolve(process.cwd(), "data", "chat_storage.json");
+    if (fs.existsSync(dataFile)) {
+      const raw = fs.readFileSync(dataFile, "utf-8");
+      memoryCache = JSON.parse(raw) as ChatStore;
+      lastFetchTime = now;
+      return memoryCache;
+    }
+  } catch {
+    // Expected on Vercel read-only filesystem
+  }
+
+  if (!memoryCache) {
+    memoryCache = { conversations: {}, messages: {} };
+  }
+  return memoryCache;
 }
 
-function saveStore(store: ChatStore) {
+async function saveStore(store: ChatStore): Promise<void> {
+  memoryCache = store;
+  lastFetchTime = Date.now();
+
+  const payload = JSON.stringify(store, null, 2);
+
+  // 1. Primary: Cloud Supabase Storage (Persistent on Vercel)
   try {
-    const dir = path.dirname(DATA_FILE);
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-    fs.writeFileSync(DATA_FILE, JSON.stringify(store, null, 2), "utf-8");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin.storage
+      .from("documents")
+      .upload("_system/chat_storage.json", Buffer.from(payload), {
+        upsert: true,
+        contentType: "application/json",
+      });
+    if (error) {
+      console.error("[ChatStore] Supabase storage upload error:", error);
+    }
   } catch (err) {
-    console.error("Error saving chat storage:", err);
+    console.error("[ChatStore] Supabase storage save failure:", err);
+  }
+
+  // 2. Best-effort local file write
+  try {
+    const fs = await import("node:fs");
+    const path = await import("node:path");
+    const dataFile = path.resolve(process.cwd(), "data", "chat_storage.json");
+    const dir = path.dirname(dataFile);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(dataFile, payload, "utf-8");
+  } catch {
+    // Expected on Vercel serverless read-only filesystem
   }
 }
 
@@ -69,7 +128,7 @@ export const getClientChat = createServerFn({ method: "POST" })
     (d: { conversationId?: string | undefined; visitorId?: string | undefined; userId?: string | undefined }) => d
   )
   .handler(async ({ data }) => {
-    const store = getStore();
+    const store = await getStore();
     let conv: ChatConversation | undefined;
 
     if (data.conversationId && store.conversations[data.conversationId]) {
@@ -95,7 +154,7 @@ export const getClientChat = createServerFn({ method: "POST" })
     }
     if (updated) {
       conv.unreadClientCount = 0;
-      saveStore(store);
+      await saveStore(store);
     }
 
     return {
@@ -120,7 +179,7 @@ export const sendClientMessage = createServerFn({ method: "POST" })
     const text = (data.text || "").trim();
     if (!text) throw new Error("Message text is required");
 
-    const store = getStore();
+    const store = await getStore();
     let conv: ChatConversation | undefined;
 
     if (data.conversationId && store.conversations[data.conversationId]) {
@@ -176,7 +235,7 @@ export const sendClientMessage = createServerFn({ method: "POST" })
     const clientMsgList = store.messages[conv.id] ?? [];
     clientMsgList.push(newMsg);
     store.messages[conv.id] = clientMsgList;
-    saveStore(store);
+    await saveStore(store);
 
     return {
       conversationId: conv.id,
@@ -190,7 +249,7 @@ export const sendClientMessage = createServerFn({ method: "POST" })
 
 export const getAdminChats = createServerFn({ method: "GET" })
   .handler(async () => {
-    const store = getStore();
+    const store = await getStore();
     const list = Object.values(store.conversations).sort(
       (a, b) => new Date(b.lastMessageAt).getTime() - new Date(a.lastMessageAt).getTime()
     );
@@ -203,7 +262,7 @@ export const getAdminChats = createServerFn({ method: "GET" })
 export const getAdminConversationMessages = createServerFn({ method: "POST" })
   .inputValidator((d: { conversationId: string }) => d)
   .handler(async ({ data }) => {
-    const store = getStore();
+    const store = await getStore();
     const conv = store.conversations[data.conversationId];
     if (!conv) throw new Error("Conversation not found");
 
@@ -217,7 +276,7 @@ export const getAdminConversationMessages = createServerFn({ method: "POST" })
     }
     if (updated || conv.unreadCount > 0) {
       conv.unreadCount = 0;
-      saveStore(store);
+      await saveStore(store);
     }
 
     return {
@@ -232,7 +291,7 @@ export const sendAdminReply = createServerFn({ method: "POST" })
     const text = (data.text || "").trim();
     if (!text) throw new Error("Reply text is required");
 
-    const store = getStore();
+    const store = await getStore();
     const conv = store.conversations[data.conversationId];
     if (!conv) throw new Error("Conversation not found");
 
@@ -255,7 +314,7 @@ export const sendAdminReply = createServerFn({ method: "POST" })
     const adminMsgList = store.messages[conv.id] ?? [];
     adminMsgList.push(newMsg);
     store.messages[conv.id] = adminMsgList;
-    saveStore(store);
+    await saveStore(store);
 
     return newMsg;
   });
@@ -263,11 +322,11 @@ export const sendAdminReply = createServerFn({ method: "POST" })
 export const setAdminChatStatus = createServerFn({ method: "POST" })
   .inputValidator((d: { conversationId: string; status: "active" | "resolved" }) => d)
   .handler(async ({ data }) => {
-    const store = getStore();
+    const store = await getStore();
     const conv = store.conversations[data.conversationId];
     if (!conv) throw new Error("Conversation not found");
     conv.status = data.status;
     conv.updatedAt = new Date().toISOString();
-    saveStore(store);
+    await saveStore(store);
     return { ok: true, status: conv.status };
   });

@@ -118,7 +118,9 @@ export function ChatWidget() {
             setConvId(res.conversation.id);
             localStorage.setItem(CONV_KEY, res.conversation.id);
           }
-          setMessages(res.messages);
+          if (Array.isArray(res.messages)) {
+            setMessages(res.messages);
+          }
 
           const newUnread = res.conversation.unreadClientCount ?? 0;
           if (!isOpen && newUnread > prevUnreadRef.current) {
