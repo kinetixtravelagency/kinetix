@@ -8,7 +8,7 @@ import { getMyAccount, updateMyProfile, updateMyPayout } from "@/lib/account.fun
 import { useLang } from "@/lib/i18n";
 import { useSession } from "@/lib/useSession";
 import { Nav, Footer } from "@/components/site/SiteChrome";
-import { eur, getCountry } from "@/lib/catalog";
+import { eur, getCountry, getProgram } from "@/lib/catalog";
 import { egp, defaultCommissionFor } from "@/lib/levels";
 import { ApplicationProgressTracker } from "@/components/site/ApplicationProgressTracker";
 
@@ -87,10 +87,13 @@ function Dashboard() {
             <div className="mt-5 space-y-5">
               {(account.applications as any[]).map((a) => {
                 const pr = a.programs;
-                const c = getCountry(pr?.countries?.slug ?? "");
-                const due = a.payment_plan === "full" ? pr?.price : pr?.deposit;
-                const progTitle = lang === "ar" ? pr?.title_ar || pr?.title_en : pr?.title_en;
-                const countryTitle = lang === "ar" ? pr?.countries?.name_ar : pr?.countries?.name_en;
+                const catProg = pr?.slug ? getProgram(pr.slug)?.program : undefined;
+                const c = getCountry(pr?.countries?.slug ?? catProg?.countrySlug ?? "");
+                const effectiveDeposit = catProg?.deposit ?? (pr?.deposit && pr.deposit <= 250 ? pr.deposit : 196);
+                const effectivePrice = catProg?.price ?? pr?.price ?? 2400;
+                const due = a.payment_plan === "full" ? effectivePrice : effectiveDeposit;
+                const progTitle = lang === "ar" ? pr?.title_ar || catProg?.titleAr || pr?.title_en : pr?.title_en || catProg?.title;
+                const countryTitle = lang === "ar" ? pr?.countries?.name_ar || c?.nameAr : pr?.countries?.name_en || c?.name;
 
                 return (
                   <div key={a.id} className="rounded-3xl border border-border bg-card p-6 shadow-sm space-y-6">

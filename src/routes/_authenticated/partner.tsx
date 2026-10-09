@@ -199,7 +199,23 @@ function PartnerPortal() {
     tried.current = true;
     supabase.auth.getUser().then(async ({ data: u }) => {
       const m = (u.user?.user_metadata ?? {}) as Record<string, string>;
-      if (m["intent"] === "partner") { await register({ data: { full_name: m["full_name"], phone: m["phone"], city: m["city"], experience: m["experience"] } }); refetch(); }
+      if (m["intent"] === "partner") {
+        await register({
+          data: {
+            full_name: m["full_name"],
+            phone: m["phone"],
+            city: m["city"] || m["governorate"],
+            governorate: m["governorate"],
+            university: m["university"],
+            faculty: m["faculty"],
+            academic_status: m["academic_status"],
+            gender: m["gender"],
+            birth_date: m["birth_date"],
+            experience: m["experience"],
+          },
+        });
+        refetch();
+      }
     });
   }, [data]);
 

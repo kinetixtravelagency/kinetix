@@ -24,7 +24,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { requestPaymentSupport } from "@/lib/account.functions";
 import { useLang } from "@/lib/i18n";
-import { eur } from "@/lib/catalog";
+import { eur, getProgram } from "@/lib/catalog";
 import {
   VodafoneLogo,
   InstaPayLogo,
@@ -127,8 +127,9 @@ export function ApplicationProgressTracker({ application, onDocChange }: Applica
   const isMale = appNotes.includes("[GENDER:male]") || application.gender === "male";
 
   const pr = application.programs;
-  const depositEur = pr?.deposit ?? 500;
-  const fullEur = pr?.price ?? 2400;
+  const catProg = pr?.slug ? getProgram(pr.slug)?.program : undefined;
+  const depositEur = catProg?.deposit ?? (pr?.deposit && pr.deposit <= 250 ? pr.deposit : 196);
+  const fullEur = catProg?.price ?? pr?.price ?? 2400;
   const EUR_TO_EGP = 54;
 
   const [payOption, setPayOption] = useState<"deposit" | "full">(

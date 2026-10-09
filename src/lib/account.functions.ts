@@ -23,12 +23,25 @@ export const getMyAccount = createServerFn({ method: "GET" })
       referred = r.data ?? [];
     }
     const { data: u } = await supabase.auth.getUser();
+    const { getProgram } = await import("./catalog");
+    const enrichedApps = (applications.data ?? []).map((app: any) => {
+      const catProg = app.programs?.slug ? getProgram(app.programs.slug)?.program : undefined;
+      return catProg ? {
+        ...app,
+        programs: {
+          ...app.programs,
+          deposit: catProg.deposit,
+          price: catProg.price,
+        },
+      } : app;
+    });
+
     return {
       profile: profile.data,
       metadata: (u.user?.user_metadata ?? {}) as Record<string, any>,
       roles: (roles.data ?? []).map((r) => r.role),
       partner: partner.data,
-      applications: applications.data ?? [],
+      applications: enrichedApps,
       commissions,
       referred,
     };
@@ -472,10 +485,48 @@ export const getAdminFull = createServerFn({ method: "GET" })
       };
     });
 
-    const enrichedApps = (apps.data ?? []).map((a: any) => ({
-      ...a,
-      user_email: userEmailMap.get(a.user_id) || null,
-    }));
+    const { getProgram } = await import("./catalog");
+
+    // Fix any legacy deposits (> 250) in DB asynchronously/inline
+    try {
+      const needsFix = (progList as any[]).filter((p) => p.slug && (!p.deposit || p.deposit > 250));
+      if (needsFix.length > 0) {
+        for (const p of needsFix) {
+          const cat = getProgram(p.slug)?.program;
+          if (cat) {
+            await supabaseAdmin.from("programs").update({
+              deposit: cat.deposit,
+              price: cat.price,
+            }).eq("id", p.id);
+          }
+        }
+      }
+    } catch (e) {
+      console.error("Auto-fix legacy program deposits error:", e);
+    }
+
+    progList = (progList as any[]).map((p: any) => {
+      const cat = p.slug ? getProgram(p.slug)?.program : undefined;
+      return cat ? {
+        ...p,
+        deposit: cat.deposit,
+        price: cat.price || p.price,
+      } : p;
+    });
+
+    const enrichedApps = (apps.data ?? []).map((a: any) => {
+      const catProg = a.programs?.slug ? getProgram(a.programs.slug)?.program : undefined;
+      const resolvedProg = catProg ? {
+        ...a.programs,
+        deposit: catProg.deposit,
+        price: catProg.price || a.programs.price,
+      } : a.programs;
+      return {
+        ...a,
+        programs: resolvedProg,
+        user_email: userEmailMap.get(a.user_id) || null,
+      };
+    });
 
     return {
       applications: enrichedApps,
