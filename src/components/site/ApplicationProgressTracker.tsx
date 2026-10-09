@@ -137,7 +137,11 @@ export function ApplicationProgressTracker({ application, onDocChange }: Applica
   );
   const [paymentMethod, setPaymentMethod] = useState<string>("InstaPay");
   const [requestingPay, setRequestingPay] = useState(false);
-  const [requestSuccess, setRequestSuccess] = useState(false);
+  // Persist payment request success so refresh doesn't allow re-clicking
+  const PAYMENT_PERSIST_KEY = `kinetix_pay_req_${application.id}`;
+  const [requestSuccess, setRequestSuccess] = useState(
+    typeof window !== "undefined" && localStorage.getItem(PAYMENT_PERSIST_KEY) === "yes"
+  );
   const [requestErr, setRequestErr] = useState<string | null>(null);
 
   const requestPay = useServerFn(requestPaymentSupport);
@@ -221,6 +225,7 @@ export function ApplicationProgressTracker({ application, onDocChange }: Applica
       });
 
       setRequestSuccess(true);
+      localStorage.setItem(PAYMENT_PERSIST_KEY, "yes");
       window.dispatchEvent(new CustomEvent("open-kinetix-chat"));
     } catch (e: any) {
       setRequestErr(e.message || "حدث خطأ أثناء إرسال الطلب");
@@ -504,7 +509,7 @@ export function ApplicationProgressTracker({ application, onDocChange }: Applica
                     <span className="font-display text-2xl font-bold text-foreground">
                       {eur(depositEur)}
                     </span>
-                    <span className="text-xs font-medium text-muted-foreground">
+                    <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
                       ≈ {depositEgp.toLocaleString()} {ar ? "ج.م" : "EGP"}
                     </span>
                   </div>
@@ -539,7 +544,7 @@ export function ApplicationProgressTracker({ application, onDocChange }: Applica
                     <span className="font-display text-2xl font-bold text-foreground">
                       {eur(fullEur)}
                     </span>
-                    <span className="text-xs font-medium text-muted-foreground">
+                    <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
                       ≈ {fullEgp.toLocaleString()} {ar ? "ج.م" : "EGP"}
                     </span>
                   </div>
@@ -611,7 +616,7 @@ export function ApplicationProgressTracker({ application, onDocChange }: Applica
                     <span className="font-display text-2xl font-bold text-navy dark:text-beige">
                       {eur(selectedEur)}
                     </span>
-                    <span className="text-sm font-semibold text-muted-foreground">
+                    <span className="text-sm font-medium text-slate-500 dark:text-slate-400">
                       ({selectedEgp.toLocaleString()} {ar ? "جنيه مصري" : "EGP"})
                     </span>
                   </div>
@@ -621,7 +626,7 @@ export function ApplicationProgressTracker({ application, onDocChange }: Applica
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
                 <button
                   type="button"
-                  disabled={requestingPay}
+                  disabled={requestingPay || requestSuccess}
                   onClick={handlePaymentRequest}
                   className="inline-flex items-center justify-center gap-2 rounded-full bg-navy px-6 py-3.5 text-sm font-semibold text-ivory shadow-lg hover:opacity-90 disabled:opacity-50 transition-all active:scale-95"
                 >
@@ -629,6 +634,11 @@ export function ApplicationProgressTracker({ application, onDocChange }: Applica
                     <>
                       <Loader2 className="h-4 w-4 animate-spin" />
                       {ar ? "جاري إرسال الطلب..." : "Sending Request..."}
+                    </>
+                  ) : requestSuccess ? (
+                    <>
+                      <CheckCircle2 className="h-4 w-4 text-beige" />
+                      {ar ? "تم إرسال الطلب ✓" : "Request Sent ✓"}
                     </>
                   ) : (
                     <>

@@ -27,9 +27,12 @@ function Apply() {
   const [track, setTrack] = useState<Track>(found?.program.track ?? "graduate");
   const [plan, setPlan] = useState<"full" | "installments">("installments");
   const [months, setMonths] = useState(MAX_INSTALLMENTS);
-  const [step, setStep] = useState(0);
+  // Persist submitted state so page refresh doesn't allow re-submission
+  const PERSIST_KEY = `kinetix_app_submitted_${initial || "default"}`;
+  const persistedAppId = typeof window !== "undefined" ? localStorage.getItem(PERSIST_KEY) : null;
+  const [step, setStep] = useState(persistedAppId ? 2 : 0);
   const [f, setF] = useState({ full_name: "", phone: "", passport_number: "", birth_date: "", education: "", gender: "", city: "", promo_code: "", military_status: "" });
-  const [appId, setAppId] = useState<string | null>(null);
+  const [appId, setAppId] = useState<string | null>(persistedAppId);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [showAllPrograms, setShowAllPrograms] = useState<boolean>(!found);
@@ -85,8 +88,9 @@ function Apply() {
     if (validationErr) { setErr(validationErr); return; }
     setErr(null); setBusy(true);
     try {
-      const notes = f.gender === "male" ? `[GENDER:male][MILITARY:${f.military_status}]` : "[GENDER:female]";
       const r = await submit({ data: { program: program.slug, payment_plan: plan, installments: plan === "full" ? 1 : months, full_name: f.full_name, phone: f.phone, passport_number: f.passport_number, birth_date: f.birth_date, education: f.education, promo_code: f.promo_code, gender: f.gender, city: f.city } });
+      // Persist so page refresh doesn't re-enable submission
+      localStorage.setItem(PERSIST_KEY, r.id);
       setAppId(r.id); setStep(2);
     } catch (e) { setErr((e as Error).message); } finally { setBusy(false); }
   };
@@ -189,7 +193,7 @@ function Apply() {
                   <div>
                     <p className="text-xs text-muted-foreground">{t("dueNow")}</p>
                     <p className="font-display text-2xl font-bold">{eur(dueNow)}</p>
-                    <p className="text-xs font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">≈ {Math.round(dueNow * 54).toLocaleString()} {ar ? "ج.م" : "EGP"}</p>
+                    <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mt-0.5">≈ {Math.round(dueNow * 54).toLocaleString()} {ar ? "ج.م" : "EGP"}</p>
                   </div>
                   {plan === "installments"
                     ? <div>
@@ -289,7 +293,7 @@ function Apply() {
                             <span className={`text-xs inline-block rounded-full px-2 py-0.5 font-bold ${isSelected ? "bg-beige text-navy" : "bg-secondary text-foreground"}`}>
                               {ar ? "مقدم" : "Deposit"} {eur(p.deposit)}
                             </span>
-                            <span className={`text-[10px] block mt-0.5 font-medium ${isSelected ? "text-ivory/80" : "text-emerald-600 dark:text-emerald-400"}`}>
+                            <span className={`text-[10px] block mt-0.5 font-medium ${isSelected ? "text-ivory/80" : "text-slate-500 dark:text-slate-400"}`}>
                               ≈ {Math.round(p.deposit * 54).toLocaleString()} {ar ? "ج.م" : "EGP"}
                             </span>
                           </div>
@@ -329,7 +333,7 @@ function Apply() {
                   <div>
                     <p className="text-xs text-muted-foreground">{t("dueNow")}</p>
                     <p className="font-display text-2xl font-bold">{eur(dueNow)}</p>
-                    <p className="text-xs font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">≈ {Math.round(dueNow * 54).toLocaleString()} {ar ? "ج.م" : "EGP"}</p>
+                    <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mt-0.5">≈ {Math.round(dueNow * 54).toLocaleString()} {ar ? "ج.م" : "EGP"}</p>
                   </div>
                   {plan === "installments"
                     ? <div>

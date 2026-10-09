@@ -6,14 +6,14 @@
       "visitorId": null,
       "clientName": "admin",
       "clientEmail": "kinetix.travel.agency@gmail.com",
-      "clientPhone": null,
+      "clientPhone": "24242342342342342342",
       "status": "active",
-      "lastMessage": "fgfdfgdf",
-      "lastMessageAt": "2026-10-07T20:29:08.125Z",
-      "unreadCount": 0,
+      "lastMessage": "💳 طلب سداد جديد (دفعة واحدة بالكامل):\n• البرنامج: Seasonal Hospitality & Hotel Services · Bulgaria\n• المبلغ المطلوب: €١٬٤٥٠ (~٧٨٬٣٠٠ ج.م)\n• وسيلة الدفع المفضلة: Vodafone Cash\n• الاسم: يسيسي يسبيسبيس\n• الهاتف: 24242342342342342342\n• كود الطلب: #e5411ace\n\nأرغب في استكمال الدفع، برجاء تزويدي ببيانات التحويل عبر هذه الوسيلة وتأكيد الحجز.",
+      "lastMessageAt": "2026-10-09T11:40:51.897Z",
+      "unreadCount": 1,
       "unreadClientCount": 0,
       "createdAt": "2026-10-07T20:15:58.848Z",
-      "updatedAt": "2026-10-07T20:29:08.125Z"
+      "updatedAt": "2026-10-09T11:40:51.897Z"
     },
     "conv_21m4awet0_1791441897429": {
       "id": "conv_21m4awet0_1791441897429",
@@ -86,6 +86,15 @@
         "text": "fgfdfgdf",
         "isRead": true,
         "createdAt": "2026-10-07T20:29:08.125Z"
+      },
+      {
+        "id": "msg_8w19u1pxo_1791546051897",
+        "conversationId": "conv_yv8dco035_1791404158848",
+        "sender": "client",
+        "senderName": "admin",
+        "text": "💳 طلب سداد جديد (دفعة واحدة بالكامل):\n• البرنامج: Seasonal Hospitality & Hotel Services · Bulgaria\n• المبلغ المطلوب: €١٬٤٥٠ (~٧٨٬٣٠٠ ج.م)\n• وسيلة الدفع المفضلة: Vodafone Cash\n• الاسم: يسيسي يسبيسبيس\n• الهاتف: 24242342342342342342\n• كود الطلب: #e5411ace\n\nأرغب في استكمال الدفع، برجاء تزويدي ببيانات التحويل عبر هذه الوسيلة وتأكيد الحجز.",
+        "isRead": false,
+        "createdAt": "2026-10-09T11:40:51.897Z"
       }
     ],
     "conv_21m4awet0_1791441897429": [
