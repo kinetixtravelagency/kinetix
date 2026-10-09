@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { Award, Gift, Wallet, AlertCircle, Eye, EyeOff, CheckCircle2, ChevronDown } from "lucide-react";
+import { Award, Gift, Wallet, AlertCircle, Eye, EyeOff, CheckCircle2, ChevronDown, Rocket, Shield, Star, Trophy, Crown } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Nav, Footer } from "@/components/site/SiteChrome";
 import { useLang } from "@/lib/i18n";
@@ -430,31 +430,60 @@ function JoinPartner() {
               <p className="font-display font-semibold text-sm text-beige mb-3">
                 {tr("Level & Fixed Commission Progression", "تدرج المستويات والعمولات الثابتة")}:
               </p>
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 text-xs">
-                <div className="rounded-xl bg-navy/60 p-2.5 border border-beige/40">
-                  <p className="font-bold text-ivory">Starter / مبتدئ</p>
-                  <p className="text-beige font-display text-sm font-bold mt-1">9,350 EGP</p>
-                  <p className="text-[10px] text-ivory/60">0+ clients</p>
+              <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 text-xs">
+                <div className="rounded-xl bg-navy/60 p-3 border border-beige/40 flex flex-col justify-between">
+                  <div>
+                    <Rocket className="h-4 w-4 text-beige mb-1.5" strokeWidth={1.5} />
+                    <p className="font-bold text-ivory">{tr("Starter", "مبتدئ")}</p>
+                  </div>
+                  <div className="mt-2">
+                    <p className="text-beige font-display text-sm font-bold">{tr("9,350 EGP", "9,350 ج.م")}</p>
+                    <p className="text-[10px] text-ivory/60">{tr("0+ clients", "0+ عملاء")}</p>
+                  </div>
                 </div>
-                <div className="rounded-xl bg-navy/60 p-2.5 border border-ivory/10">
-                  <p className="font-bold text-ivory">Bronze / برونزي</p>
-                  <p className="text-beige font-display text-sm font-bold mt-1">10,250 EGP</p>
-                  <p className="text-[10px] text-ivory/60">5+ clients</p>
+
+                <div className="rounded-xl bg-navy/60 p-3 border border-ivory/10 hover:border-ivory/20 transition flex flex-col justify-between">
+                  <div>
+                    <Shield className="h-4 w-4 text-amber-400 mb-1.5" strokeWidth={1.5} />
+                    <p className="font-bold text-ivory">{tr("Bronze", "برونزي")}</p>
+                  </div>
+                  <div className="mt-2">
+                    <p className="text-beige font-display text-sm font-bold">{tr("10,250 EGP", "10,250 ج.م")}</p>
+                    <p className="text-[10px] text-ivory/60">{tr("5+ clients", "5+ عملاء")}</p>
+                  </div>
                 </div>
-                <div className="rounded-xl bg-navy/60 p-2.5 border border-ivory/10">
-                  <p className="font-bold text-ivory">Silver / فضي</p>
-                  <p className="text-beige font-display text-sm font-bold mt-1">11,250 EGP</p>
-                  <p className="text-[10px] text-ivory/60">10+ clients</p>
+
+                <div className="rounded-xl bg-navy/60 p-3 border border-ivory/10 hover:border-ivory/20 transition flex flex-col justify-between">
+                  <div>
+                    <Star className="h-4 w-4 text-slate-300 mb-1.5" strokeWidth={1.5} />
+                    <p className="font-bold text-ivory">{tr("Silver", "فضي")}</p>
+                  </div>
+                  <div className="mt-2">
+                    <p className="text-beige font-display text-sm font-bold">{tr("11,250 EGP", "11,250 ج.م")}</p>
+                    <p className="text-[10px] text-ivory/60">{tr("10+ clients", "10+ عملاء")}</p>
+                  </div>
                 </div>
-                <div className="rounded-xl bg-navy/60 p-2.5 border border-ivory/10">
-                  <p className="font-bold text-ivory">Gold / ذهبي</p>
-                  <p className="text-beige font-display text-sm font-bold mt-1">12,500 EGP</p>
-                  <p className="text-[10px] text-ivory/60">20+ clients</p>
+
+                <div className="rounded-xl bg-navy/60 p-3 border border-ivory/10 hover:border-ivory/20 transition flex flex-col justify-between">
+                  <div>
+                    <Trophy className="h-4 w-4 text-yellow-400 mb-1.5" strokeWidth={1.5} />
+                    <p className="font-bold text-ivory">{tr("Gold", "ذهبي")}</p>
+                  </div>
+                  <div className="mt-2">
+                    <p className="text-beige font-display text-sm font-bold">{tr("12,500 EGP", "12,500 ج.م")}</p>
+                    <p className="text-[10px] text-ivory/60">{tr("20+ clients", "20+ عملاء")}</p>
+                  </div>
                 </div>
-                <div className="rounded-xl bg-navy/60 p-2.5 border border-ivory/10">
-                  <p className="font-bold text-ivory">Platinum / بلاتيني</p>
-                  <p className="text-beige font-display text-sm font-bold mt-1">14,000 EGP</p>
-                  <p className="text-[10px] text-ivory/60">40+ clients</p>
+
+                <div className="rounded-xl bg-navy/60 p-3 border border-ivory/10 hover:border-ivory/20 transition flex flex-col justify-between">
+                  <div>
+                    <Crown className="h-4 w-4 text-purple-400 mb-1.5" strokeWidth={1.5} />
+                    <p className="font-bold text-ivory">{tr("Platinum", "بلاتيني")}</p>
+                  </div>
+                  <div className="mt-2">
+                    <p className="text-beige font-display text-sm font-bold">{tr("14,000 EGP", "14,000 ج.م")}</p>
+                    <p className="text-[10px] text-ivory/60">{tr("40+ clients", "40+ عملاء")}</p>
+                  </div>
                 </div>
               </div>
             </div>
