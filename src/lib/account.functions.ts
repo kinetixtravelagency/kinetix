@@ -164,7 +164,15 @@ export const adminCreateProgram = createServerFn({ method: "POST" })
     duration: string;
     price: number;
     deposit: number;
+    flight_price?: number;
     max_installments: number;
+    expected_salary?: string;
+    expected_salary_ar?: string;
+    working_hours?: string;
+    accommodation?: string;
+    accommodation_ar?: string;
+    requirements?: string[];
+    requirements_ar?: string[];
     published?: boolean;
   }) => {
     if (!d.country_id) throw new Error("Country is required");
@@ -185,10 +193,18 @@ export const adminCreateProgram = createServerFn({ method: "POST" })
       title_ar: data.title_ar?.trim() || data.title_en.trim(),
       category_en: data.category_en?.trim() || "General",
       category_ar: data.category_ar?.trim() || "عام",
-      duration: data.duration?.trim() || "12 months",
+      duration: data.duration?.trim() || (data.track === "student" ? "3–6 months" : "9–24 months"),
       price: Math.max(0, Math.round(Number(data.price) || 0)),
       deposit: Math.max(0, Math.round(Number(data.deposit) || 0)),
+      flight_price: Math.max(0, Math.round(Number(data.flight_price) || 0)),
       max_installments: Math.max(1, Math.min(12, Math.round(Number(data.max_installments) || 6))),
+      expected_salary: data.expected_salary ?? "",
+      expected_salary_ar: data.expected_salary_ar ?? "",
+      working_hours: data.working_hours ?? "",
+      accommodation: data.accommodation ?? "",
+      accommodation_ar: data.accommodation_ar ?? "",
+      requirements: data.requirements ?? [],
+      requirements_ar: data.requirements_ar ?? [],
       published: data.published ?? true,
     }).select("id").single();
     if (error) throw new Error(error.message);
@@ -209,7 +225,15 @@ export const adminUpdateProgram = createServerFn({ method: "POST" })
     duration?: string;
     price?: number;
     deposit?: number;
+    flight_price?: number;
     max_installments?: number;
+    expected_salary?: string;
+    expected_salary_ar?: string;
+    working_hours?: string;
+    accommodation?: string;
+    accommodation_ar?: string;
+    requirements?: string[];
+    requirements_ar?: string[];
     published?: boolean;
   }) => {
     if (!d.id) throw new Error("Program ID is required");
@@ -230,7 +254,15 @@ export const adminUpdateProgram = createServerFn({ method: "POST" })
     if (data.duration !== undefined) patch.duration = data.duration.trim();
     if (data.price !== undefined) patch.price = Math.max(0, Math.round(Number(data.price) || 0));
     if (data.deposit !== undefined) patch.deposit = Math.max(0, Math.round(Number(data.deposit) || 0));
+    if (data.flight_price !== undefined) patch.flight_price = Math.max(0, Math.round(Number(data.flight_price) || 0));
     if (data.max_installments !== undefined) patch.max_installments = Math.max(1, Math.min(12, Math.round(Number(data.max_installments) || 6)));
+    if (data.expected_salary !== undefined) patch.expected_salary = data.expected_salary;
+    if (data.expected_salary_ar !== undefined) patch.expected_salary_ar = data.expected_salary_ar;
+    if (data.working_hours !== undefined) patch.working_hours = data.working_hours;
+    if (data.accommodation !== undefined) patch.accommodation = data.accommodation;
+    if (data.accommodation_ar !== undefined) patch.accommodation_ar = data.accommodation_ar;
+    if (data.requirements !== undefined) patch.requirements = data.requirements;
+    if (data.requirements_ar !== undefined) patch.requirements_ar = data.requirements_ar;
     if (data.published !== undefined) patch.published = data.published;
 
     const { error } = await supabaseAdmin.from("programs").update(patch).eq("id", data.id);

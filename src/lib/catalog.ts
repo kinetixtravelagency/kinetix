@@ -15,10 +15,12 @@ export type Program = {
   titleAr: string;
   category: string;
   categoryAr: string;
-  duration: string;
-  price: number;
-  deposit: number;
-  installments: number;
+  duration: string;           // display string e.g. "3–6 months"
+  durationOptions?: string[]; // selectable options e.g. ["3 months","4 months"]
+  price: number;              // EUR — total cost
+  deposit: number;            // EUR — upfront deposit
+  installments: number;       // max installment count
+  flightPrice?: number;       // EUR added when flight included (0 = no flight option)
   expectedSalary?: string;
   expectedSalaryAr?: string;
   workingHours?: string;
@@ -46,10 +48,21 @@ export type Country = {
 
 export const MAX_INSTALLMENTS = 6;
 
-// EUR/EGP rate used for deposit display
-// Target: 10,000–12,000 EGP per deposit
-// At 54 EGP/EUR → 185 EUR (≈9,990 EGP) to 222 EUR (≈11,988 EGP)
-// We use: 185 | 196 | 204 | 214 | 222 EUR per tier
+// ─── Pricing Rules ────────────────────────────────────────────────────────────
+// EGP/EUR rate: 54 EGP per 1 EUR
+// Student total: max 35,000 EGP ≈ max 648 EUR
+// Deposit: 10,000–12,000 EGP ≈ 185–222 EUR (unchanged)
+// Flight option: 10,000–12,000 EGP (185–222 EUR) for most countries
+//                15,000 EGP (278 EUR) for Ireland only (most expensive)
+// ─── Duration Rules ───────────────────────────────────────────────────────────
+// Students:  3, 4, 5, 6 months
+// Graduates: 9, 12, 15, 18, 24 months
+export const STUDENT_DURATION_OPTIONS  = ["3 months", "4 months", "5 months", "6 months"];
+export const GRADUATE_DURATION_OPTIONS = ["9 months", "12 months", "15 months", "18 months", "24 months"];
+
+// Standard flight add-on prices (EUR)
+export const FLIGHT_PRICE_STANDARD = 204; // ≈ 11,016 EGP — most countries
+export const FLIGHT_PRICE_PREMIUM  = 278; // ≈ 15,012 EGP — Ireland only
 
 const docs = [
   "CV in English (السيرة الذاتية)",
@@ -81,9 +94,11 @@ export const countries: Country[] = [
         category: "Hospitality",
         categoryAr: "ضيافة وفنادق",
         duration: "3–6 months",
-        price: 1450,
+        durationOptions: STUDENT_DURATION_OPTIONS,
+        price: 610,
         deposit: 196,
         installments: 6,
+        flightPrice: FLIGHT_PRICE_STANDARD,
         expectedSalary: "€600–€900 / month",
         expectedSalaryAr: "€600–€900 / شهرياً",
         workingHours: "8 hrs/day · 5–6 days/week",
@@ -100,9 +115,11 @@ export const countries: Country[] = [
         category: "Tourism & Resorts",
         categoryAr: "سياحة ومنتجعات",
         duration: "3–6 months",
-        price: 1450,
+        durationOptions: STUDENT_DURATION_OPTIONS,
+        price: 620,
         deposit: 196,
         installments: 6,
+        flightPrice: FLIGHT_PRICE_STANDARD,
         expectedSalary: "€650–€950 / month",
         expectedSalaryAr: "€650–€950 / شهرياً",
         workingHours: "8 hrs/day · 6 days/week",
@@ -119,9 +136,11 @@ export const countries: Country[] = [
         category: "Agriculture",
         categoryAr: "زراعة وحصاد",
         duration: "3–6 months",
-        price: 1350,
+        durationOptions: STUDENT_DURATION_OPTIONS,
+        price: 580,
         deposit: 185,
         installments: 6,
+        flightPrice: FLIGHT_PRICE_STANDARD,
         expectedSalary: "€500–€750 / month",
         expectedSalaryAr: "€500–€750 / شهرياً",
         workingHours: "6–10 hrs/day · seasonal",
@@ -137,10 +156,12 @@ export const countries: Country[] = [
         titleAr: "عمليات الفنادق والمطاعم (خريجون)",
         category: "Hospitality & F&B",
         categoryAr: "فنادق ومطاعم",
-        duration: "12–24 months",
+        duration: "9–24 months",
+        durationOptions: GRADUATE_DURATION_OPTIONS,
         price: 1850,
         deposit: 204,
         installments: 6,
+        flightPrice: FLIGHT_PRICE_STANDARD,
         expectedSalary: "€900–€1,300 / month",
         expectedSalaryAr: "€900–€1,300 / شهرياً",
         workingHours: "8 hrs/day · 5 days/week",
@@ -156,10 +177,12 @@ export const countries: Country[] = [
         titleAr: "مستودعات وعمليات لوجستية",
         category: "Logistics & Supply Chain",
         categoryAr: "لوجستيات وسلاسل إمداد",
-        duration: "12–24 months",
+        duration: "9–24 months",
+        durationOptions: GRADUATE_DURATION_OPTIONS,
         price: 1800,
         deposit: 204,
         installments: 6,
+        flightPrice: FLIGHT_PRICE_STANDARD,
         expectedSalary: "€850–€1,200 / month",
         expectedSalaryAr: "€850–€1,200 / شهرياً",
         workingHours: "8 hrs/day · shift-based",
@@ -175,10 +198,12 @@ export const countries: Country[] = [
         titleAr: "عامل خطوط إنتاج وتصنيع",
         category: "Manufacturing",
         categoryAr: "تصنيع وإنتاج",
-        duration: "12–24 months",
+        duration: "9–24 months",
+        durationOptions: GRADUATE_DURATION_OPTIONS,
         price: 1750,
         deposit: 196,
         installments: 6,
+        flightPrice: FLIGHT_PRICE_STANDARD,
         expectedSalary: "€800–€1,100 / month",
         expectedSalaryAr: "€800–€1,100 / شهرياً",
         workingHours: "8 hrs/day · shift rotation",
@@ -194,10 +219,12 @@ export const countries: Country[] = [
         titleAr: "مهن حرفية وتقنية متخصصة",
         category: "Skilled Trades",
         categoryAr: "حرف ومهن ماهرة",
-        duration: "12–24 months",
+        duration: "9–24 months",
+        durationOptions: GRADUATE_DURATION_OPTIONS,
         price: 2100,
         deposit: 214,
         installments: 6,
+        flightPrice: FLIGHT_PRICE_STANDARD,
         expectedSalary: "€1,100–€1,600 / month",
         expectedSalaryAr: "€1,100–€1,600 / شهرياً",
         workingHours: "8 hrs/day · Mon–Fri",
@@ -213,10 +240,12 @@ export const countries: Country[] = [
         titleAr: "ممرضون ومساعدو أطباء (رعاية صحية ومستشفيات)",
         category: "Healthcare & Nursing",
         categoryAr: "تمريض ومساعد طبيب",
-        duration: "12–24 months",
+        duration: "9–24 months",
+        durationOptions: GRADUATE_DURATION_OPTIONS,
         price: 1950,
         deposit: 204,
         installments: 6,
+        flightPrice: FLIGHT_PRICE_STANDARD,
         expectedSalary: "€1,000–€1,600 / month",
         expectedSalaryAr: "€1,000–€1,600 / شهرياً",
         workingHours: "8 hrs/day · 5 days/week",
@@ -232,10 +261,12 @@ export const countries: Country[] = [
         titleAr: "مهندسون متخصصون (مدني، ميكانيكا، كهرباء)",
         category: "Engineering",
         categoryAr: "هندسة وتقنية",
-        duration: "12–24 months",
+        duration: "9–24 months",
+        durationOptions: GRADUATE_DURATION_OPTIONS,
         price: 2150,
         deposit: 214,
         installments: 6,
+        flightPrice: FLIGHT_PRICE_STANDARD,
         expectedSalary: "€1,200–€1,900 / month",
         expectedSalaryAr: "€1,200–€1,900 / شهرياً",
         workingHours: "8 hrs/day · Mon–Fri",
@@ -245,8 +276,9 @@ export const countries: Country[] = [
         requirementsAr: ["بكالوريوس هندسة معتمد", "خبرة سنة أو أكثر", "إنجليزية مقبولة"],
       },
       // Fallbacks
-      { slug: "bulgaria-student", track: "student", title: "Student Seasonal Track", titleAr: "مسار الطلاب الموسمي", category: "Students", categoryAr: "طلاب", duration: "3–6 months", price: 1450, deposit: 196, installments: 6, expectedSalary: "€600–€900 / month", expectedSalaryAr: "€600–€900 / شهرياً" },
-      { slug: "bulgaria-graduate", track: "graduate", title: "Graduate Employment Track", titleAr: "مسار توظيف الخريجين", category: "Graduates", categoryAr: "خريجون", duration: "12–24 months", price: 1850, deposit: 204, installments: 6, expectedSalary: "€900–€1,300 / month", expectedSalaryAr: "€900–€1,300 / شهرياً" },
+      { slug: "bulgaria-student", track: "student", title: "Student Seasonal Track", titleAr: "مسار الطلاب الموسمي", category: "Students", categoryAr: "طلاب", duration: "3–6 months", durationOptions: STUDENT_DURATION_OPTIONS, price: 610, deposit: 196, installments: 6, flightPrice: FLIGHT_PRICE_STANDARD, expectedSalary: "€600–€900 / month", expectedSalaryAr: "€600–€900 / شهرياً" },
+      { slug: "bulgaria-graduate", track: "graduate", title: "Graduate Employment Track", titleAr: "مسار توظيف الخريجين", category: "Graduates", categoryAr: "خريجون", duration: "9–24 months", durationOptions: GRADUATE_DURATION_OPTIONS, price: 1850, deposit: 204, installments: 6, flightPrice: FLIGHT_PRICE_STANDARD, expectedSalary: "€900–€1,300 / month", expectedSalaryAr: "€900–€1,300 / شهرياً" },
+
     ],
     documents: docs,
     eligibility: ["Age 18–45", "Basic English or Russian", "No prior EU visa refusals", "Valid university enrollment for student tracks"],
@@ -278,7 +310,7 @@ export const countries: Country[] = [
         category: "Higher Education",
         categoryAr: "تعليم جامعي",
         duration: "Academic year",
-        price: 2800,
+        price: 640,
         deposit: 214,
         installments: 6,
         expectedSalary: "Part-time €700–€1,000 / month",
@@ -295,7 +327,7 @@ export const countries: Country[] = [
         category: "Education & Work",
         categoryAr: "دراسة وعمل",
         duration: "12 months",
-        price: 3000,
+        price: 640,
         deposit: 222,
         installments: 6,
         expectedSalary: "€900–€1,200 / month",
@@ -1172,3 +1204,4 @@ export const getProgram = (slug: string) => {
   }
   return undefined;
 };
+

@@ -1378,11 +1378,7 @@ function ProgramRow({
 }
 
 function ProgramModal({
-  mode,
-  program,
-  countries,
-  onClose,
-  onSave,
+  mode, program, countries, onClose, onSave,
 }: {
   mode: "add" | "edit";
   program?: any;
@@ -1390,60 +1386,75 @@ function ProgramModal({
   onClose: () => void;
   onSave: (data: any) => Promise<void>;
 }) {
-  const [countryId, setCountryId] = useState(
-    program?.country_id || countries[0]?.id || ""
-  );
-  const [track, setTrack] = useState<"student" | "graduate">(
-    program?.track || "student"
-  );
+  const [countryId, setCountryId] = useState(program?.country_id || countries[0]?.id || "");
+  const [track, setTrack] = useState<"student" | "graduate">(program?.track || "student");
   const [titleEn, setTitleEn] = useState(program?.title_en || "");
   const [titleAr, setTitleAr] = useState(program?.title_ar || "");
   const [categoryEn, setCategoryEn] = useState(program?.category_en || "General");
   const [categoryAr, setCategoryAr] = useState(program?.category_ar || "عام");
   const [slug, setSlug] = useState(program?.slug || "");
-  const [duration, setDuration] = useState(program?.duration || "12–24 months");
-  const [price, setPrice] = useState(program?.price ?? 1500);
+  const [duration, setDuration] = useState(program?.duration || "");
+  const [price, setPrice] = useState(program?.price ?? 640);
   const [deposit, setDeposit] = useState(program?.deposit ?? 196);
+  const [flightPrice, setFlightPrice] = useState(program?.flight_price ?? 204);
+  const [flightEnabled, setFlightEnabled] = useState((program?.flight_price ?? 0) > 0);
   const [installments, setInstallments] = useState(program?.max_installments ?? 6);
+  const [expectedSalary, setExpectedSalary] = useState(program?.expected_salary || "");
+  const [expectedSalaryAr, setExpectedSalaryAr] = useState(program?.expected_salary_ar || "");
+  const [workingHours, setWorkingHours] = useState(program?.working_hours || "");
+  const [accommodation, setAccommodation] = useState(program?.accommodation || "");
+  const [accommodationAr, setAccommodationAr] = useState(program?.accommodation_ar || "");
+  const [requirements, setRequirements] = useState<string[]>(program?.requirements ?? []);
+  const [requirementsAr, setRequirementsAr] = useState<string[]>(program?.requirements_ar ?? []);
   const [published, setPublished] = useState(program?.published !== false);
   const [saving, setSaving] = useState(false);
+  const [activeTab, setActiveTab] = useState<"basic" | "details" | "financial">("basic");
 
-  // Auto slug generator
+  const studentDurations = ["3 months", "4 months", "5 months", "6 months"];
+  const graduateDurations = ["9 months", "12 months", "15 months", "18 months", "24 months"];
+  const durationOptions = track === "student" ? studentDurations : graduateDurations;
+
   const handleAutoSlug = () => {
-    const selectedCountry = countries.find((c) => c.id === countryId);
-    const countryPrefix = selectedCountry?.slug || "program";
-    const cleanedTitle = titleEn
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-+|-+$/g, "");
-    setSlug(`${countryPrefix}-${cleanedTitle || "item"}`);
+    const sel = countries.find((c) => c.id === countryId);
+    const prefix = sel?.slug || "program";
+    const cleaned = titleEn.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+    setSlug(`${prefix}-${cleaned || "item"}`);
   };
 
   const depositEgp = Math.round(deposit * 54);
   const isDepositInRange = depositEgp >= 9900 && depositEgp <= 12100;
-  const monthlyEur = installments > 0 ? Math.ceil((price - deposit) / installments) : 0;
-  const monthlyEgp = Math.round(monthlyEur * 54);
+  const priceEgp = Math.round(price * 54);
+  const isStudentPriceOk = track !== "student" || priceEgp <= 35000;
+  const monthly = installments > 0 ? Math.ceil((price - deposit) / installments) : 0;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!titleEn.trim()) return alert("English title is required.");
     if (!slug.trim()) return alert("Slug is required.");
     if (!countryId) return alert("Please select a country.");
-
+    if (track === "student" && priceEgp > 35000) return alert(`Student total price (${priceEgp.toLocaleString()} EGP) exceeds 35,000 EGP limit.`);
     setSaving(true);
     try {
       await onSave({
         country_id: countryId,
         track,
-        title_en: titleEn,
-        title_ar: titleAr || titleEn,
-        category_en: categoryEn,
-        category_ar: categoryAr,
-        slug,
-        duration,
-        price: Number(price),
-        deposit: Number(deposit),
-        max_installments: Number(installments),
+        title_en: titleEn.trim(),
+        title_ar: titleAr.trim() || titleEn.trim(),
+        category_en: categoryEn.trim() || "General",
+        category_ar: categoryAr.trim() || "عام",
+        slug: slug.trim(),
+        duration: duration.trim() || (track === "student" ? "3–6 months" : "9–24 months"),
+        price: Math.max(0, Math.round(Number(price))),
+        deposit: Math.max(0, Math.round(Number(deposit))),
+        flight_price: flightEnabled ? Math.max(0, Math.round(Number(flightPrice))) : 0,
+        max_installments: Math.max(1, Math.min(12, Math.round(Number(installments)))),
+        expected_salary: expectedSalary.trim(),
+        expected_salary_ar: expectedSalaryAr.trim(),
+        working_hours: workingHours.trim(),
+        accommodation: accommodation.trim(),
+        accommodation_ar: accommodationAr.trim(),
+        requirements: requirements.filter(Boolean),
+        requirements_ar: requirementsAr.filter(Boolean),
         published,
       });
     } catch (err: any) {
@@ -1453,320 +1464,260 @@ function ProgramModal({
     }
   };
 
+  const tabCls = (t: string) =>
+    `px-4 py-2 text-xs font-semibold rounded-full transition-all ${activeTab === t ? "bg-navy text-ivory" : "text-muted-foreground hover:bg-secondary"}`;
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs overflow-y-auto">
-      <div className="w-full max-w-2xl my-8 rounded-3xl border border-border bg-card shadow-2xl overflow-hidden">
-        {/* Modal Header */}
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-3 backdrop-blur-xs overflow-y-auto">
+      <div className="w-full max-w-2xl my-4 rounded-3xl border border-border bg-card shadow-2xl overflow-hidden">
+
+        {/* Header */}
         <div className="flex items-center justify-between border-b border-border bg-secondary/50 px-6 py-4">
           <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-navy text-ivory">
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-navy text-ivory shrink-0">
               {mode === "add" ? <Plus className="h-4 w-4" /> : <Pencil className="h-4 w-4" />}
             </div>
             <div>
-              <h3 className="font-semibold text-foreground">
-                {mode === "add" ? "Add New Program / Job" : "Edit Program"}
+              <h3 className="font-semibold text-sm text-foreground">
+                {mode === "add" ? "Add New Program / Opportunity" : `Edit: ${program?.title_en}`}
               </h3>
-              <p className="text-xs text-muted-foreground">
-                {mode === "add"
-                  ? "Create a new opportunity with transparent pricing & deposit"
-                  : `Editing ${program?.title_en}`}
-              </p>
+              <p className="text-[11px] text-muted-foreground">All fields marked * are visible to clients & partners</p>
             </div>
           </div>
-          <button
-            onClick={onClose}
-            className="rounded-full p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
-          >
+          <button onClick={onClose} className="rounded-full p-1.5 text-muted-foreground hover:bg-secondary transition-colors">
             <X className="h-4 w-4" />
           </button>
         </div>
 
-        {/* Modal Body */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-5">
-          {/* Country & Track Selection */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-semibold text-muted-foreground mb-1">
-                Country *
-              </label>
-              <select
-                value={countryId}
-                onChange={(e) => setCountryId(e.target.value)}
-                className={inp}
-                required
-              >
-                {countries.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name_en} {c.name_ar ? `(${c.name_ar})` : ""}
-                  </option>
-                ))}
-              </select>
-            </div>
+        {/* Tab nav */}
+        <div className="flex items-center gap-1.5 px-5 py-3 border-b border-border bg-card">
+          <button type="button" className={tabCls("basic")} onClick={() => setActiveTab("basic")}>Basic Info</button>
+          <button type="button" className={tabCls("details")} onClick={() => setActiveTab("details")}>Client Details ★</button>
+          <button type="button" className={tabCls("financial")} onClick={() => setActiveTab("financial")}>Pricing</button>
+        </div>
 
-            <div>
-              <label className="block text-xs font-semibold text-muted-foreground mb-1">
-                Track / Audience *
-              </label>
-              <select
-                value={track}
-                onChange={(e) => setTrack(e.target.value as any)}
-                className={inp}
-              >
-                <option value="student">Students 🎓 (عمل موسمي / دراسة للطلاب)</option>
-                <option value="graduate">Graduates 💼 (توظيف وعقود خريجين)</option>
-              </select>
-            </div>
-          </div>
+        <form onSubmit={handleSubmit} className="p-5 space-y-5 max-h-[70vh] overflow-y-auto">
 
-          {/* Titles in EN & AR */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-semibold text-muted-foreground mb-1">
-                Program Title (English) *
-              </label>
-              <input
-                className={inp}
-                placeholder="e.g. Seasonal Hotel & Hospitality Services"
-                value={titleEn}
-                onChange={(e) => setTitleEn(e.target.value)}
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-muted-foreground mb-1">
-                Program Title (العربية)
-              </label>
-              <input
-                className={inp}
-                placeholder="مثال: عمل موسمي في الفنادق والضيافة"
-                value={titleAr}
-                onChange={(e) => setTitleAr(e.target.value)}
-                dir="rtl"
-              />
-            </div>
-          </div>
-
-          {/* Categories & Duration */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-xs font-semibold text-muted-foreground mb-1">
-                Category (EN)
-              </label>
-              <input
-                className={inp}
-                placeholder="e.g. Hospitality, Logistics"
-                value={categoryEn}
-                onChange={(e) => setCategoryEn(e.target.value)}
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-muted-foreground mb-1">
-                التخصص (العربية)
-              </label>
-              <input
-                className={inp}
-                placeholder="مثال: ضيافة وفنادق"
-                value={categoryAr}
-                onChange={(e) => setCategoryAr(e.target.value)}
-                dir="rtl"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-muted-foreground mb-1">
-                Duration
-              </label>
-              <input
-                className={inp}
-                placeholder="e.g. 3–6 months, 12–24 months"
-                value={duration}
-                onChange={(e) => setDuration(e.target.value)}
-              />
-            </div>
-          </div>
-
-          {/* Slug */}
-          <div>
-            <div className="flex items-center justify-between mb-1">
-              <label className="block text-xs font-semibold text-muted-foreground">
-                URL Identifier (Slug) *
-              </label>
-              <button
-                type="button"
-                onClick={handleAutoSlug}
-                className="text-[11px] text-navy dark:text-beige underline font-medium hover:opacity-80"
-              >
-                Auto-generate from title
-              </button>
-            </div>
-            <input
-              className={inp}
-              placeholder="e.g. bulgaria-student-hospitality"
-              value={slug}
-              onChange={(e) => setSlug(e.target.value)}
-              required
-            />
-          </div>
-
-          {/* Financials & Deposit Target Card */}
-          <div className="rounded-2xl border border-border bg-secondary/40 p-4 space-y-4">
-            <div className="flex items-center justify-between">
-              <h4 className="font-semibold text-sm flex items-center gap-1.5 text-foreground">
-                <Wallet className="h-4 w-4 text-beige" /> Financials & Deposit Configuration
-              </h4>
-              <span className="text-[11px] text-muted-foreground">
-                Exchange rate: ~54 EGP / EUR
-              </span>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              {/* Total Price */}
-              <div>
-                <label className="block text-xs font-semibold text-muted-foreground mb-1">
-                  Total Price (€) *
-                </label>
-                <input
-                  type="number"
-                  className={inp}
-                  min={0}
-                  value={price}
-                  onChange={(e) => setPrice(+e.target.value)}
-                  required
-                />
-                <span className="text-[11px] text-muted-foreground block mt-1">
-                  ≈ {Math.round(price * 54).toLocaleString()} EGP
-                </span>
-              </div>
-
-              {/* Deposit Required */}
-              <div>
-                <label className="block text-xs font-semibold text-muted-foreground mb-1">
-                  Deposit Required (€) *
-                </label>
-                <input
-                  type="number"
-                  className={`${inp} ${
-                    isDepositInRange
-                      ? "border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/30 font-bold"
-                      : ""
-                  }`}
-                  min={0}
-                  value={deposit}
-                  onChange={(e) => setDeposit(+e.target.value)}
-                  required
-                />
-                <div className="flex items-center justify-between mt-1">
-                  <span
-                    className={`text-[11px] font-bold ${
-                      isDepositInRange
-                        ? "text-emerald-600 dark:text-emerald-400"
-                        : "text-muted-foreground"
-                    }`}
-                  >
-                    ≈ {depositEgp.toLocaleString()} EGP
-                  </span>
-                  {isDepositInRange ? (
-                    <span className="text-[10px] text-emerald-600 font-semibold">
-                      ✓ Target Range OK
-                    </span>
-                  ) : (
-                    <span className="text-[10px] text-amber-600 font-medium">
-                      Target: 10k–12k
-                    </span>
-                  )}
+          {/* ── TAB: BASIC ─────────────────────────── */}
+          {activeTab === "basic" && (
+            <div className="space-y-4">
+              {/* Country & Track */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="field-label">Country *</label>
+                  <select value={countryId} onChange={(e) => setCountryId(e.target.value)} className={inp} required>
+                    {countries.map((c) => <option key={c.id} value={c.id}>{c.name_en} {c.name_ar ? `(${c.name_ar})` : ""}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="field-label">Track / Audience *</label>
+                  <select value={track} onChange={(e) => { setTrack(e.target.value as any); setDuration(""); }} className={inp}>
+                    <option value="student">Students — عمل موسمي/دراسة</option>
+                    <option value="graduate">Graduates — توظيف وعقود</option>
+                  </select>
                 </div>
               </div>
 
-              {/* Installments */}
+              {/* Titles */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="field-label">Title (English) * <span className="text-beige">👁 client-visible</span></label>
+                  <input className={inp} placeholder="e.g. Seasonal Hotel & Hospitality Services" value={titleEn} onChange={(e) => setTitleEn(e.target.value)} required />
+                </div>
+                <div>
+                  <label className="field-label">العنوان (عربي) * <span className="text-beige">👁 مرئي للعميل</span></label>
+                  <input className={inp} placeholder="مثال: عمل موسمي في الفنادق" value={titleAr} onChange={(e) => setTitleAr(e.target.value)} dir="rtl" />
+                </div>
+              </div>
+
+              {/* Categories */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="field-label">Category (EN) * <span className="text-beige">👁 client-visible</span></label>
+                  <input className={inp} placeholder="e.g. Hospitality, Logistics, Healthcare" value={categoryEn} onChange={(e) => setCategoryEn(e.target.value)} />
+                </div>
+                <div>
+                  <label className="field-label">التخصص (عربي) * <span className="text-beige">👁 مرئي للعميل</span></label>
+                  <input className={inp} placeholder="مثال: ضيافة وفنادق" value={categoryAr} onChange={(e) => setCategoryAr(e.target.value)} dir="rtl" />
+                </div>
+              </div>
+
+              {/* Duration */}
               <div>
-                <label className="block text-xs font-semibold text-muted-foreground mb-1">
-                  Max Installments *
+                <label className="field-label">Contract Duration * <span className="text-beige">👁 client-visible</span></label>
+                <p className="text-[11px] text-muted-foreground mb-2">
+                  {track === "student" ? "Students: 3, 4, 5, 6 months" : "Graduates: 9, 12, 15, 18, 24 months"} — click to select:
+                </p>
+                <div className="flex flex-wrap gap-2 mb-2">
+                  {durationOptions.map((d) => (
+                    <button key={d} type="button" onClick={() => setDuration(d)}
+                      className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-all ${duration === d ? "bg-navy border-navy text-ivory" : "border-border hover:border-beige"}`}>
+                      {d}
+                    </button>
+                  ))}
+                </div>
+                <input className={inp} placeholder="Or type custom range e.g. 3–6 months" value={duration} onChange={(e) => setDuration(e.target.value)} />
+              </div>
+
+              {/* Slug */}
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="field-label">URL Slug *</label>
+                  <button type="button" onClick={handleAutoSlug} className="text-[11px] text-navy underline font-medium">Auto-generate</button>
+                </div>
+                <input className={inp} placeholder="e.g. bulgaria-student-hospitality" value={slug} onChange={(e) => setSlug(e.target.value)} required />
+              </div>
+
+              {/* Published */}
+              <div className="flex items-center gap-2.5 rounded-xl border border-border bg-secondary/40 p-3">
+                <input type="checkbox" id="prog-pub" checked={published} onChange={(e) => setPublished(e.target.checked)} className="h-4 w-4 rounded accent-navy" />
+                <label htmlFor="prog-pub" className="text-xs font-medium cursor-pointer">
+                  <span className="text-foreground">Published</span>
+                  <span className="text-muted-foreground ml-1">— visible to candidates, partners & on the website</span>
                 </label>
-                <input
-                  type="number"
-                  className={inp}
-                  min={1}
-                  max={12}
-                  value={installments}
-                  onChange={(e) => setInstallments(+e.target.value)}
-                  required
+              </div>
+            </div>
+          )}
+
+          {/* ── TAB: CLIENT DETAILS ─────────────────── */}
+          {activeTab === "details" && (
+            <div className="space-y-4">
+              <div className="rounded-xl bg-beige/10 border border-beige/30 p-3 text-xs text-foreground">
+                <strong className="text-beige">★ Client-Visible Section</strong> — Everything here appears on the apply page and program cards shown to applicants and sales partners.
+              </div>
+
+              {/* Expected Salary */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="field-label">Expected Salary (EN) <span className="text-beige">👁</span></label>
+                  <input className={inp} placeholder="e.g. €700–€1,200 / month" value={expectedSalary} onChange={(e) => setExpectedSalary(e.target.value)} />
+                </div>
+                <div>
+                  <label className="field-label">الراتب المتوقع (عربي) <span className="text-beige">👁</span></label>
+                  <input className={inp} placeholder="مثال: €700–€1,200 / شهرياً" value={expectedSalaryAr} onChange={(e) => setExpectedSalaryAr(e.target.value)} dir="rtl" />
+                </div>
+              </div>
+
+              {/* Working Hours */}
+              <div>
+                <label className="field-label">Working Hours <span className="text-beige">👁 client-visible</span></label>
+                <input className={inp} placeholder="e.g. 8 hrs/day · 5–6 days/week" value={workingHours} onChange={(e) => setWorkingHours(e.target.value)} />
+              </div>
+
+              {/* Accommodation */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="field-label">Accommodation (EN) <span className="text-beige">👁</span></label>
+                  <input className={inp} placeholder="e.g. Provided by employer" value={accommodation} onChange={(e) => setAccommodation(e.target.value)} />
+                </div>
+                <div>
+                  <label className="field-label">السكن (عربي) <span className="text-beige">👁</span></label>
+                  <input className={inp} placeholder="مثال: توفرها جهة العمل" value={accommodationAr} onChange={(e) => setAccommodationAr(e.target.value)} dir="rtl" />
+                </div>
+              </div>
+
+              {/* Requirements */}
+              <div>
+                <label className="field-label">Requirements (EN) — one per line <span className="text-beige">👁</span></label>
+                <textarea rows={4} className={inp}
+                  placeholder={"Age 18–35\nBasic English\nUniversity enrollment proof"}
+                  value={requirements.join("\n")}
+                  onChange={(e) => setRequirements(e.target.value.split("\n"))}
                 />
-                <span className="text-[11px] text-muted-foreground block mt-1">
-                  {monthlyEur} €/mo (≈ {monthlyEgp.toLocaleString()} EGP)
-                </span>
+              </div>
+              <div>
+                <label className="field-label">المتطلبات (عربي) — سطر لكل متطلب <span className="text-beige">👁</span></label>
+                <textarea rows={4} className={inp} dir="rtl"
+                  placeholder={"العمر 18–35\nإنجليزية بسيطة\nإثبات قيد الدراسة"}
+                  value={requirementsAr.join("\n")}
+                  onChange={(e) => setRequirementsAr(e.target.value.split("\n"))}
+                />
               </div>
             </div>
+          )}
 
-            {/* Quick Deposit Preset Chips */}
-            <div className="space-y-1.5 pt-2 border-t border-border/60">
-              <span className="text-[11px] font-medium text-muted-foreground block">
-                Quick Deposit Presets (10,000 – 12,000 EGP Target):
-              </span>
-              <div className="flex flex-wrap gap-1.5">
-                {[
-                  [185, "~9,990 EGP"],
-                  [196, "~10,580 EGP"],
-                  [204, "~11,016 EGP"],
-                  [214, "~11,556 EGP"],
-                  [222, "~11,988 EGP"],
-                ].map(([val, label]) => (
-                  <button
-                    key={val}
-                    type="button"
-                    onClick={() => setDeposit(Number(val))}
-                    className={`rounded-lg px-2.5 py-1 text-xs font-medium border transition-colors ${
-                      deposit === val
-                        ? "bg-navy text-ivory border-navy font-bold"
-                        : "bg-background border-border hover:border-beige text-foreground"
-                    }`}
-                  >
-                    €{val} ({label})
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Published Toggle */}
-          <div className="flex items-center gap-3 pt-1">
-            <input
-              type="checkbox"
-              id="program-published"
-              checked={published}
-              onChange={(e) => setPublished(e.target.checked)}
-              className="h-4 w-4 rounded-md border-input text-navy accent-navy cursor-pointer"
-            />
-            <label
-              htmlFor="program-published"
-              className="text-xs font-medium text-foreground cursor-pointer select-none"
-            >
-              Publish this program immediately (visible to candidates and partners)
-            </label>
-          </div>
-
-          {/* Submit & Cancel Buttons */}
-          <div className="flex items-center justify-end gap-3 pt-3 border-t border-border">
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded-full border border-border px-5 py-2.5 text-xs font-medium text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={saving}
-              className="flex items-center gap-2 rounded-full bg-navy px-6 py-2.5 text-xs font-semibold text-ivory hover:opacity-90 disabled:opacity-50 transition-opacity shadow-sm"
-            >
-              {saving ? (
-                <>
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" /> Saving…
-                </>
-              ) : (
-                <>
-                  <Check className="h-3.5 w-3.5" />
-                  {mode === "add" ? "Create Program" : "Save Changes"}
-                </>
+          {/* ── TAB: PRICING ────────────────────────── */}
+          {activeTab === "financial" && (
+            <div className="space-y-4">
+              {/* Student price warning */}
+              {track === "student" && (
+                <div className={`rounded-xl border p-3 text-xs font-medium ${isStudentPriceOk ? "border-emerald-300 bg-emerald-50 text-emerald-800" : "border-red-300 bg-red-50 text-red-800"}`}>
+                  {isStudentPriceOk
+                    ? `✓ Student price: ${priceEgp.toLocaleString()} EGP — within 35,000 EGP limit`
+                    : `⚠ Student price: ${priceEgp.toLocaleString()} EGP — EXCEEDS 35,000 EGP limit!`}
+                </div>
               )}
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                  <label className="field-label">Total Price (€) * <span className="text-beige">👁</span></label>
+                  <input type="number" className={inp} min={0} value={price} onChange={(e) => setPrice(+e.target.value)} required />
+                  <span className="text-[11px] text-muted-foreground mt-1 block">≈ {priceEgp.toLocaleString()} EGP</span>
+                </div>
+                <div>
+                  <label className="field-label">Deposit (€) * <span className="text-beige">👁</span></label>
+                  <input type="number" className={`${inp} ${isDepositInRange ? "border-emerald-500 font-bold" : ""}`} min={0} value={deposit} onChange={(e) => setDeposit(+e.target.value)} required />
+                  <div className="flex items-center justify-between mt-1">
+                    <span className={`text-[11px] font-bold ${isDepositInRange ? "text-emerald-600" : "text-muted-foreground"}`}>≈ {depositEgp.toLocaleString()} EGP</span>
+                    {isDepositInRange ? <span className="text-[10px] text-emerald-600 font-semibold">✓ In range</span> : <span className="text-[10px] text-amber-600">Target 10k–12k</span>}
+                  </div>
+                </div>
+                <div>
+                  <label className="field-label">Max Installments *</label>
+                  <input type="number" className={inp} min={1} max={12} value={installments} onChange={(e) => setInstallments(+e.target.value)} required />
+                  <span className="text-[11px] text-muted-foreground mt-1 block">{monthly}€/mo ≈ {Math.round(monthly*54).toLocaleString()} EGP</span>
+                </div>
+              </div>
+
+              {/* Deposit presets */}
+              <div className="rounded-xl border border-border bg-secondary/40 p-3 space-y-2">
+                <p className="text-[11px] font-semibold text-muted-foreground">Deposit Presets (10k–12k EGP range):</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {[[185,"~9,990"],[196,"~10,580"],[204,"~11,016"],[214,"~11,556"],[222,"~11,988"]].map(([v,l]) => (
+                    <button key={v} type="button" onClick={() => setDeposit(Number(v))}
+                      className={`rounded-lg px-2.5 py-1 text-xs font-medium border transition-all ${deposit === v ? "bg-navy text-ivory border-navy" : "bg-background border-border hover:border-beige"}`}>
+                      €{v} ({l} EGP)
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Flight option */}
+              <div className="rounded-xl border border-border bg-secondary/40 p-3 space-y-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                    <Plane className="h-3.5 w-3.5 text-beige" />
+                    Flight Option <span className="text-beige">👁 client-visible</span>
+                  </p>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" checked={flightEnabled} onChange={(e) => setFlightEnabled(e.target.checked)} className="accent-navy h-4 w-4" />
+                    <span className="text-xs font-medium">{flightEnabled ? "Enabled" : "Disabled"}</span>
+                  </label>
+                </div>
+                {flightEnabled && (
+                  <div>
+                    <label className="field-label">Flight Add-on Price (€) — shown to client when they select flight</label>
+                    <input type="number" className={inp} min={100} value={flightPrice} onChange={(e) => setFlightPrice(+e.target.value)} />
+                    <div className="flex flex-wrap gap-1.5 mt-2">
+                      {[[185,"~10k EGP"],[204,"~11k EGP"],[222,"~12k EGP"],[278,"~15k EGP (Ireland)"]].map(([v,l]) => (
+                        <button key={v} type="button" onClick={() => setFlightPrice(Number(v))}
+                          className={`rounded-lg px-2.5 py-1 text-xs border transition-all ${flightPrice === v ? "bg-navy text-ivory border-navy" : "bg-background border-border hover:border-beige"}`}>
+                          €{v} ({l})
+                        </button>
+                      ))}
+                    </div>
+                    <p className="text-[11px] text-muted-foreground mt-1">Client sees: +€{flightPrice} ≈ +{Math.round(Number(flightPrice)*54).toLocaleString()} EGP when flight included</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Buttons */}
+          <div className="flex items-center justify-end gap-3 pt-3 border-t border-border sticky bottom-0 bg-card pb-1">
+            <button type="button" onClick={onClose} className="rounded-full border border-border px-5 py-2.5 text-xs font-medium hover:bg-secondary transition-colors">Cancel</button>
+            <button type="submit" disabled={saving} className="flex items-center gap-2 rounded-full bg-navy px-6 py-2.5 text-xs font-semibold text-ivory hover:opacity-90 disabled:opacity-50 shadow-sm">
+              {saving ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Saving…</> : <><Check className="h-3.5 w-3.5" /> {mode === "add" ? "Create Program" : "Save Changes"}</>}
             </button>
           </div>
         </form>
@@ -1774,6 +1725,7 @@ function ProgramModal({
     </div>
   );
 }
+
 
 /* ═══════════════════════════════════════
    COUNTRIES TAB
