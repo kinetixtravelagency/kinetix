@@ -218,20 +218,54 @@ function Why() {
 
 function Pricing() {
   const { t, lang } = useLang();
-  const all = countries.flatMap((c) => c.programs.map((p) => ({ ...p, country: lang === "ar" ? c.nameAr : c.name })));
-  const [slug, setSlug] = useState(all[all.length - 1]!.slug);
-  const p = all.find((x) => x.slug === slug)!;
+  // Display only the cheapest plan from each country
+  const cheapestPerCountry = countries.map((c) => {
+    const cheapest = c.programs.reduce(
+      (min, cur) => (cur.price < min.price ? cur : min),
+      c.programs[0]!
+    );
+    return {
+      ...cheapest,
+      countryName: lang === "ar" ? c.nameAr : c.name,
+      countryFlag: c.flag,
+      countrySlug: c.slug,
+    };
+  });
+
+  const [slug, setSlug] = useState(cheapestPerCountry[0]!.slug);
+  const p = cheapestPerCountry.find((x) => x.slug === slug) ?? cheapestPerCountry[0]!;
   const [months, setMonths] = useState(p.installments);
   const [full, setFull] = useState(false);
   const m = Math.min(months, p.installments);
+
   return (
     <section id="pricing" className="mx-auto max-w-7xl px-5 py-24 md:px-8 md:py-32">
       <div className="grid gap-12 lg:grid-cols-2">
         <SectionHead eyebrow={t("pricingEyebrow")} title={t("pricingTitle")} sub={t("pricingSub")} />
         <Reveal className="rounded-3xl border border-border bg-card p-6 shadow-[0_30px_60px_-30px_var(--navy)] md:p-8">
-          <label className="eyebrow text-muted-foreground">{t("programLabel")}</label>
-          <select value={slug} onChange={(e) => setSlug(e.target.value)} className="mt-2 w-full rounded-xl border border-input bg-background px-4 py-3 font-medium outline-none focus:border-beige">
-            {all.map((x) => <option key={x.slug} value={x.slug}>{x.country} — {lang === "ar" ? x.titleAr : x.title}</option>)}
+          <div className="flex items-center justify-between">
+            <label className="eyebrow text-muted-foreground">
+              {lang === "ar" ? "أرخص خطة معتمدة لكل دولة" : "Cheapest Plan per Country"}
+            </label>
+            <span className="text-[11px] font-semibold text-beige bg-navy px-2.5 py-0.5 rounded-full">
+              {lang === "ar" ? "أفضل سعر للوجهة" : "Best Value Tier"}
+            </span>
+          </div>
+          <select
+            value={slug}
+            onChange={(e) => {
+              const newSlug = e.target.value;
+              setSlug(newSlug);
+              const found = cheapestPerCountry.find((x) => x.slug === newSlug);
+              if (found) setMonths(found.installments);
+            }}
+            className="mt-2 w-full rounded-xl border border-input bg-background px-4 py-3 font-medium outline-none focus:border-beige"
+          >
+            {cheapestPerCountry.map((x) => (
+              <option key={x.slug} value={x.slug}>
+                {x.countryFlag} {x.countryName} — {lang === "ar" ? x.titleAr : x.title} ({eur(x.price)})
+              </option>
+            ))}
           </select>
           <div className="mt-6 flex items-baseline justify-between">
             <span className="text-muted-foreground">{t("totalCost")}</span>
@@ -270,9 +304,14 @@ function Pricing() {
               </div>
             )}
           </div>
-          <Link to="/apply" search={{ program: p.slug }} className="mt-6 flex items-center justify-center gap-2 rounded-full bg-navy py-4 font-medium text-ivory transition-transform hover:-translate-y-0.5">
-            {t("applyProgram")} <ArrowRight className="h-4 w-4 rtl:rotate-180" strokeWidth={1.5} />
-          </Link>
+          <div className="mt-6 flex flex-col gap-2.5">
+            <Link to="/apply" search={{ program: p.slug }} className="flex items-center justify-center gap-2 rounded-full bg-navy py-4 font-medium text-ivory transition-transform hover:-translate-y-0.5">
+              {t("applyProgram")} <ArrowRight className="h-4 w-4 rtl:rotate-180" strokeWidth={1.5} />
+            </Link>
+            <Link to="/pricing" className="text-center text-xs font-semibold text-muted-foreground hover:text-navy transition-colors py-1">
+              {lang === "ar" ? "عرض مقارنة الأسعار الشاملة لجميع الدول والبرامج ←" : "View comprehensive pricing comparison for all programs →"}
+            </Link>
+          </div>
         </Reveal>
       </div>
     </section>

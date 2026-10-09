@@ -198,11 +198,11 @@ export function Nav({ solid = false }: { solid?: boolean }) {
   }, []);
 
   const links = [
-    { href: "/#countries", label: t("countries") },
-    { href: "/#how", label: t("how") },
-    { href: "/#pricing", label: t("pricing") },
-    { href: "/#partners", label: t("partners") },
-    { href: "/#faq", label: t("faq") },
+    { href: "/countries", label: t("countries") },
+    { href: "/how", label: t("how") },
+    { href: "/pricing", label: t("pricing") },
+    { href: "/partners", label: t("partners") },
+    { href: "/faq", label: t("faq") },
   ];
 
   const langBtn = (
@@ -239,7 +239,11 @@ export function Nav({ solid = false }: { solid?: boolean }) {
         <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4 md:px-8">
           <Logo />
           <nav className="hidden items-center gap-7 text-sm text-ivory/75 lg:flex">
-            {links.map((l) => <a key={l.href} href={l.href} className="transition-colors hover:text-beige">{l.label}</a>)}
+            {links.map((l) => (
+              <Link key={l.href} to={l.href as any} className="transition-colors hover:text-beige">
+                {l.label}
+              </Link>
+            ))}
           </nav>
           <div className="hidden items-center gap-3 sm:flex">
             {searchPill}
@@ -278,7 +282,16 @@ export function Nav({ solid = false }: { solid?: boolean }) {
               <Search className="h-4 w-4" strokeWidth={1.5} />
               <span>{ar ? "بحث عن دول أو وظائف..." : "Search countries or jobs..."}</span>
             </button>
-            {links.map((l) => <a key={l.href} href={l.href} onClick={() => setOpen(false)} className="block py-2.5 text-sm text-ivory/85 border-b border-ivory/5">{l.label}</a>)}
+            {links.map((l) => (
+              <Link
+                key={l.href}
+                to={l.href as any}
+                onClick={() => setOpen(false)}
+                className="block py-2.5 text-sm text-ivory/85 border-b border-ivory/5"
+              >
+                {l.label}
+              </Link>
+            ))}
             <Link to={user ? "/dashboard" : "/auth"} className="mt-4 block rounded-full bg-beige py-2.5 text-center font-medium text-sm text-navy">
               {user ? t("dashboard") : t("applyNow")}
             </Link>
@@ -301,10 +314,11 @@ export function Footer() {
         </div>
         <div className="text-sm">
           <p className="eyebrow mb-4 text-beige">{t("explore")}</p>
-          <a href="/#countries" className="block py-1.5 hover:text-beige">{t("countries")}</a>
-          <a href="/#how" className="block py-1.5 hover:text-beige">{t("how")}</a>
-          <a href="/#pricing" className="block py-1.5 hover:text-beige">{t("pricing")}</a>
-          <a href="/#faq" className="block py-1.5 hover:text-beige">{t("faq")}</a>
+          <Link to="/countries" className="block py-1.5 hover:text-beige">{t("countries")}</Link>
+          <Link to="/how" className="block py-1.5 hover:text-beige">{t("how")}</Link>
+          <Link to="/pricing" className="block py-1.5 hover:text-beige">{t("pricing")}</Link>
+          <Link to="/partners" className="block py-1.5 hover:text-beige">{t("partners")}</Link>
+          <Link to="/faq" className="block py-1.5 hover:text-beige">{t("faq")}</Link>
         </div>
         <div className="text-sm">
           <p className="eyebrow mb-4 text-beige">{t("legal")}</p>
