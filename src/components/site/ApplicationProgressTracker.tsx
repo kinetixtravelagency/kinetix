@@ -16,15 +16,25 @@ import {
   Plane,
   Sparkles,
   CreditCard,
-  Zap,
   Phone,
   MessageSquare,
+  MapPin,
+  TrendingUp,
+  GraduationCap,
+  Briefcase,
+  User,
+  Calendar,
+  Home,
+  ShieldCheck,
+  ArrowRight,
+  ArrowLeft,
+  ChevronRight,
 } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { requestPaymentSupport } from "@/lib/account.functions";
 import { useLang } from "@/lib/i18n";
-import { eur, getProgram } from "@/lib/catalog";
+import { eur, getCountry, getProgram } from "@/lib/catalog";
 import {
   VodafoneLogo,
   InstaPayLogo,
@@ -49,70 +59,105 @@ interface ApplicationProgressTrackerProps {
 }
 
 const MAX_FILE_SIZE = 15 * 1024 * 1024; // 15MB
-const ALLOWED_TYPES = [
-  "application/pdf",
-  "image/jpeg",
-  "image/png",
-  "application/msword",
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-];
 
 export function ApplicationProgressTracker({ application, onDocChange }: ApplicationProgressTrackerProps) {
   const { t, lang } = useLang();
   const ar = lang === "ar";
+  const tr = (en: string, a: string) => (ar ? a : en);
+
   const [busy, setBusy] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
+  // Parse notes metadata if available
+  let notesData: Record<string, any> = {};
+  try {
+    if (application.notes) {
+      notesData = typeof application.notes === "string" ? JSON.parse(application.notes) : application.notes;
+    }
+  } catch {
+    notesData = {};
+  }
+
+  // 6 Journey Milestones
   const stage = Number(application.stage ?? 0);
   const depositPaid = Boolean(application.deposit_paid);
   const effectiveStage = depositPaid && stage < 1 ? 1 : Math.max(0, Math.min(5, stage));
 
-  const steps = [
+  const journeyMilestones = [
     {
       id: 0,
-      title: t("stage0"), // تقديم ومستندات
-      sub: t("stageSub0"),
-      desc: t("stageDesc0"),
+      title: ar ? "تقديم ومستندات" : "Application & Docs",
+      sub: ar ? "تسجيل البيانات ورفع الأوراق" : "Profile registration & documents",
+      desc: ar ? "مراجعة واعتماد الملف الأولي من فريق كينتيكس." : "Initial review and verification by Kinetix experts.",
       icon: FileText,
     },
     {
       id: 1,
-      title: t("stage1"), // ديبوزت
-      sub: t("stageSub1"),
-      desc: t("stageDesc1"),
+      title: ar ? "سداد الديبوزت" : "Deposit Payment",
+      sub: ar ? "تأكيد حجز المقعد والمقابلات" : "Locks seat & schedules interview queue",
+      desc: ar ? "سداد دفعة التأمين المبدئية لتفعيل المقابلات الأوروبية وتجهيز العقد." : "Deposit locks your European employer interview slot.",
       icon: Wallet,
     },
     {
       id: 2,
-      title: t("stage2"), // بري انترفيو
-      sub: t("stageSub2"),
-      desc: t("stageDesc2"),
+      title: ar ? "بري انترفيو" : "Pre-Interview",
+      sub: ar ? "تدريب ومراجعة الإنجليزية" : "1-on-1 English coaching & prep",
+      desc: ar ? "جلسة تدريب فردية مجانية مع خبير كينتيكس لضمان اجتياز المقابلة." : "Personalized simulation session to prepare you for employer questions.",
       icon: UserCheck,
     },
     {
       id: 3,
-      title: t("stage3"), // انترفيو
-      sub: t("stageSub3"),
-      desc: t("stageDesc3"),
+      title: ar ? "المقابلة الرسمية" : "Host Interview",
+      sub: ar ? "مقابلة صاحب العمل في أوروبا" : "Live video interview with employer",
+      desc: ar ? "مقابلة الفيديو الرسمية مع الفندق أو المؤسسة الأوروبية المستضيفة." : "Official interview with host organization or resort group in Europe.",
       icon: Video,
     },
     {
       id: 4,
-      title: t("stage4"), // التصريح والتأشيرة
-      sub: t("stageSub4"),
-      desc: t("stageDesc4"),
+      title: ar ? "التصريح والتأشيرة" : "Permit & Visa",
+      sub: ar ? "استخراج العقد وفيزا الشنغن" : "Work authorization & embassy filing",
+      desc: ar ? "استلام العقد الموثق، تصريح العمل الحكومي، والتقديم على التأشيرة بالسفارة." : "Official work permit issuance and embassy appointment coordination.",
       icon: FileBadge,
     },
     {
       id: 5,
-      title: t("stage5"), // جاهز للسفر
-      sub: t("stageSub5"),
-      desc: t("stageDesc5"),
+      title: ar ? "السفر والوصول" : "Ready to Travel",
+      sub: ar ? "حجز الطيران والاستقبال" : "Flight booking & airport pickup",
+      desc: ar ? "استلام تذاكر السفر وتنسيق الاستقبال الميداني في مطار الوصول ومقر السكن." : "Flight arrangements and on-ground relocation assistance upon arrival.",
       icon: Plane,
     },
   ];
 
-  const currentStep = steps[effectiveStage] ?? steps[0]!;
+  const currentMilestone = journeyMilestones[effectiveStage] ?? journeyMilestones[0]!;
+
+  // 4 Application Sections (Sub-steps)
+  // Default to Deposit section (3) if not paid, or Program Overview (0) if already paid
+  const [activeSection, setActiveSection] = useState<number>(depositPaid ? 0 : 3);
+
+  const applicationSections = [
+    { id: 0, titleAr: "تفاصيل البرنامج", titleEn: "Program Details", icon: Briefcase },
+    { id: 1, titleAr: "البيانات الشخصية", titleEn: "Personal Details", icon: User },
+    { id: 2, titleAr: "المستندات والأوراق", titleEn: "Documents & Files", icon: FileText },
+    { id: 3, titleAr: "سداد الديبوزت والحساب", titleEn: "Deposit & Payment", icon: CreditCard },
+  ];
+
+  // Resolve program and country data
+  const pr = application.programs;
+  const catEntry = pr?.slug ? getProgram(pr.slug) : undefined;
+  const catProg = catEntry?.program;
+  const c = getCountry(pr?.countries?.slug ?? catEntry?.country?.slug ?? "");
+
+  const flightIncluded = Boolean(notesData["flight_included"]);
+  const depositEur = pr?.deposit ?? catProg?.deposit ?? 196;
+  const basePriceEur = pr?.price ?? catProg?.price ?? 640;
+  const fullEur = basePriceEur + (flightIncluded ? (catProg?.flightPrice ?? 204) : 0);
+  const EUR_TO_EGP = 54;
+
+  const depositEgp = Math.round(depositEur * EUR_TO_EGP);
+  const fullEgp = Math.round(fullEur * EUR_TO_EGP);
+  const remainingEur = Math.max(0, fullEur - depositEur);
+  const installmentsCount = application.installments || 6;
+  const monthlyEur = Math.ceil(remainingEur / installmentsCount);
 
   // Documents
   const docs: Doc[] = application.application_documents ?? [];
@@ -122,32 +167,15 @@ export function ApplicationProgressTracker({ application, onDocChange }: Applica
     d.doc_type.toLowerCase().includes("resume")
   );
 
-  // Detect gender from application notes
-  const appNotes: string = application.notes ?? "";
-  const isMale = appNotes.includes("[GENDER:male]") || application.gender === "male";
+  const isMale = (application.gender || notesData["gender"] || "").toLowerCase() === "male" ||
+    (application.notes ?? "").includes("[GENDER:male]");
 
-  const pr = application.programs;
-  const catProg = pr?.slug ? getProgram(pr.slug)?.program : undefined;
-  let flightIncluded = false;
-  try {
-    if (application.notes) {
-      const parsed = typeof application.notes === "string" ? JSON.parse(application.notes) : application.notes;
-      flightIncluded = Boolean(parsed.flight_included);
-    }
-  } catch {
-    // ignore parse errors
-  }
-  const depositEur = pr?.deposit ?? catProg?.deposit ?? 196;
-  const basePriceEur = pr?.price ?? catProg?.price ?? 640;
-  const fullEur = basePriceEur + (flightIncluded ? (catProg?.flightPrice ?? 204) : 0);
-  const EUR_TO_EGP = 54;
-
+  // Payment state
   const [payOption, setPayOption] = useState<"deposit" | "full">(
     application.payment_plan === "full" ? "full" : "deposit"
   );
   const [paymentMethod, setPaymentMethod] = useState<string>("InstaPay");
   const [requestingPay, setRequestingPay] = useState(false);
-  // Persist payment request success so refresh doesn't allow re-clicking
   const PAYMENT_PERSIST_KEY = `kinetix_pay_req_${application.id}`;
   const [requestSuccess, setRequestSuccess] = useState(
     typeof window !== "undefined" && localStorage.getItem(PAYMENT_PERSIST_KEY) === "yes"
@@ -158,51 +186,64 @@ export function ApplicationProgressTracker({ application, onDocChange }: Applica
 
   const selectedEur = payOption === "full" ? fullEur : depositEur;
   const selectedEgp = Math.round(selectedEur * EUR_TO_EGP);
-  const depositEgp = Math.round(depositEur * EUR_TO_EGP);
-  const fullEgp = Math.round(fullEur * EUR_TO_EGP);
 
   const paymentMethods = [
     {
       id: "InstaPay",
-      name: ar ? "انستاباي" : "InstaPay",
-      sub: ar ? "تحويل بنكي فوري لجميع البنوك" : "Instant bank transfer",
-      badge: ar ? "تحويل لحظي" : "Instant",
+      nameAr: "انستاباي (InstaPay)",
+      nameEn: "InstaPay",
+      subAr: "تحويل بنكي لحظي لجميع البنوك المصرية",
+      subEn: "Instant bank transfer to all Egyptian banks",
+      badgeAr: "تحويل فوري ⚡",
+      badgeEn: "Instant Transfer",
       LogoComponent: InstaPayLogo,
       accent: "hover:border-purple-500",
       activeBg: "border-purple-600 bg-purple-50 text-purple-950 dark:bg-purple-950/30 dark:text-purple-200 ring-2 ring-purple-500/30 shadow-sm",
     },
     {
       id: "Vodafone Cash",
-      name: ar ? "فودافون كاش" : "Vodafone Cash",
-      sub: ar ? "محفظة فودافون كاش الذكية" : "Vodafone Cash wallet",
-      badge: ar ? "محفظة كاش" : "Mobile Wallet",
+      nameAr: "فودافون كاش",
+      nameEn: "Vodafone Cash",
+      subAr: "محفظة فودافون كاش الذكية",
+      subEn: "Vodafone Cash mobile wallet",
+      badgeAr: "محفظة كاش 📱",
+      badgeEn: "Mobile Wallet",
       LogoComponent: VodafoneLogo,
       accent: "hover:border-red-500",
       activeBg: "border-red-600 bg-red-50 text-red-950 dark:bg-red-950/30 dark:text-red-200 ring-2 ring-red-500/30 shadow-sm",
     },
     {
       id: "Orange Cash",
-      name: ar ? "أورنج كاش" : "Orange Cash",
-      sub: ar ? "محفظة أورنج كاش الذكية" : "Orange Cash wallet",
-      badge: ar ? "محفظة كاش" : "Mobile Wallet",
+      nameAr: "أورنج كاش",
+      nameEn: "Orange Cash",
+      subAr: "محفظة أورنج كاش الذكية",
+      subEn: "Orange Cash mobile wallet",
+      badgeAr: "محفظة كاش 📱",
+      badgeEn: "Mobile Wallet",
       LogoComponent: OrangeLogo,
       accent: "hover:border-orange-500",
       activeBg: "border-orange-600 bg-orange-50 text-orange-950 dark:bg-orange-950/30 dark:text-orange-200 ring-2 ring-orange-500/30 shadow-sm",
     },
     {
       id: "WE Pay",
-      name: ar ? "وي باي" : "WE Pay",
-      sub: ar ? "محفظة المصرية للاتصالات WE" : "WE Pay mobile wallet",
-      badge: ar ? "محفظة كاش" : "Mobile Wallet",
+      nameAr: "وي باي (WE Pay)",
+      nameEn: "WE Pay",
+      subAr: "محفظة المصرية للاتصالات WE",
+      subEn: "WE Pay mobile wallet",
+      badgeAr: "محفظة كاش 📱",
+      badgeEn: "Mobile Wallet",
       LogoComponent: WePayLogo,
       accent: "hover:border-indigo-500",
       activeBg: "border-indigo-600 bg-indigo-50 text-indigo-950 dark:bg-indigo-950/30 dark:text-indigo-200 ring-2 ring-indigo-500/30 shadow-sm",
     },
     {
       id: "Etisalat Cash",
-      name: ar ? "اتصالات كاش (e&)" : "Etisalat Cash (e&)",
-      sub: ar ? "محفظة e& اتصالات كاش" : "e& cash mobile wallet",
-      badge: ar ? "محفظة كاش" : "Mobile Wallet",
+      nameAr: "اتصالات كاش (e&)",
+      nameEn: "Etisalat Cash (e&)",
+      subAr: "محفظة اتصالات كاش الذكية",
+      subEn: "e& cash mobile wallet",
+      badgeAr: "محفظة كاش 📱",
+      badgeEn: "Mobile Wallet",
       LogoComponent: EtisalatLogo,
       accent: "hover:border-red-500",
       activeBg: "border-red-600 bg-red-50 text-red-950 dark:bg-red-950/30 dark:text-red-200 ring-2 ring-red-500/30 shadow-sm",
@@ -217,8 +258,8 @@ export function ApplicationProgressTracker({ application, onDocChange }: Applica
         ? (pr?.title_ar || pr?.titleAr || pr?.title_en || pr?.title || "برنامج سفر")
         : (pr?.title_en || pr?.title || pr?.title_ar || "Program");
       const countryName = ar
-        ? (pr?.countries?.name_ar || pr?.countries?.nameAr || pr?.countries?.name || "")
-        : (pr?.countries?.name_en || pr?.countries?.name || pr?.countries?.name_ar || "");
+        ? (pr?.countries?.name_ar || pr?.countries?.nameAr || pr?.countries?.name || c?.nameAr || "")
+        : (pr?.countries?.name_en || pr?.countries?.name || c?.name || "");
 
       await requestPay({
         data: {
@@ -233,17 +274,19 @@ export function ApplicationProgressTracker({ application, onDocChange }: Applica
           fullName: application.full_name || undefined,
           flightIncluded,
           totalPriceEur: fullEur,
-          remainingEur: payOption === "full" ? 0 : Math.max(0, fullEur - depositEur),
-          installmentsCount: application.installments || 6,
-          track: pr?.track || undefined,
+          remainingEur: payOption === "full" ? 0 : remainingEur,
+          installmentsCount: installmentsCount,
+          track: pr?.track || catProg?.track || undefined,
         },
       });
 
       setRequestSuccess(true);
-      localStorage.setItem(PAYMENT_PERSIST_KEY, "yes");
-      window.dispatchEvent(new CustomEvent("open-kinetix-chat"));
+      if (typeof window !== "undefined") {
+        localStorage.setItem(PAYMENT_PERSIST_KEY, "yes");
+        window.dispatchEvent(new CustomEvent("open-kinetix-chat"));
+      }
     } catch (e: any) {
-      setRequestErr(e.message || "حدث خطأ أثناء إرسال الطلب");
+      setRequestErr(e.message || (ar ? "حدث خطأ أثناء إرسال طلب الدفع" : "Failed to send payment request"));
     } finally {
       setRequestingPay(false);
     }
@@ -264,7 +307,6 @@ export function ApplicationProgressTracker({ application, onDocChange }: Applica
       const { error: storageErr } = await supabase.storage.from("documents").upload(path, file, { contentType: file.type });
       if (storageErr) throw storageErr;
 
-      // Clean up previous non-approved document of this type
       const old = docs.filter((d) => d.doc_type === docType && d.status !== "approved");
       if (old.length) {
         await supabase.from("application_documents").delete().in("id", old.map((d) => d.id));
@@ -296,24 +338,36 @@ export function ApplicationProgressTracker({ application, onDocChange }: Applica
     }
   };
 
-  // Progress percentage for connector line
   const progressPercent = Math.min(100, Math.max(0, (effectiveStage / 5) * 100));
 
   return (
     <div className="space-y-6">
-      {/* ─── 1. TIMELINE TRACKER (CIRCLES & PROGRESS LINE) ─── */}
+      {/* ══════════════════════════════════════════════════════════════ */}
+      {/* 1. FIXED 6 CIRCLES JOURNEY MILESTONES TIMELINE TRACKER        */}
+      {/* ══════════════════════════════════════════════════════════════ */}
       <div className="rounded-3xl border border-border bg-card/60 p-6 shadow-sm backdrop-blur">
-        <div className="mb-4 flex items-center justify-between">
-          <p className="eyebrow flex items-center gap-2 text-beige">
-            <Sparkles className="h-4 w-4" strokeWidth={1.5} />
-            {t("progress")}
-          </p>
-          <span className="rounded-full bg-navy/10 px-3 py-1 text-xs font-semibold text-navy dark:bg-ivory/10 dark:text-ivory">
-            {ar ? `المرحلة ${effectiveStage + 1} من 6` : `Stage ${effectiveStage + 1} of 6`}
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-navy text-beige dark:bg-beige dark:text-navy text-xs font-bold">
+              6
+            </span>
+            <div>
+              <p className="eyebrow text-beige flex items-center gap-1.5 font-bold">
+                <Sparkles className="h-3.5 w-3.5" />
+                {ar ? "مراحل رحلة السفر الرسمية" : "Official Relocation Journey"}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {ar ? "المحطات الست المعتمدة من التقديم وحتى الوصول" : "The 6 verified milestones from application to destination"}
+              </p>
+            </div>
+          </div>
+
+          <span className="rounded-full bg-navy/10 px-3.5 py-1 text-xs font-bold text-navy dark:bg-ivory/10 dark:text-ivory">
+            {ar ? `المرحلة ${effectiveStage + 1} من 6: ${currentMilestone.title}` : `Stage ${effectiveStage + 1} of 6: ${currentMilestone.title}`}
           </span>
         </div>
 
-        {/* The Stepper Container with Horizontal Scroll Support on Mobile */}
+        {/* The 6 Circles Stepper Line */}
         <div className="overflow-x-auto pb-4 pt-2">
           <div className="relative min-w-[620px] px-6">
             {/* Background connecting bar */}
@@ -323,20 +377,19 @@ export function ApplicationProgressTracker({ application, onDocChange }: Applica
             <div
               className="absolute top-6 start-8 h-1 -translate-y-1/2 rounded-full bg-gradient-to-r from-navy via-beige to-emerald-600 transition-all duration-500"
               style={{
-                width: `calc(${progressPercent}% - 3rem)`,
+                width: `calc(${progressPercent}% - 2.5rem)`,
               }}
             />
 
-            {/* 6 Step Circles */}
+            {/* The 6 Nodes */}
             <div className="relative flex justify-between">
-              {steps.map((st) => {
+              {journeyMilestones.map((st) => {
                 const isCompleted = st.id < effectiveStage || (st.id === 1 && depositPaid);
                 const isActive = st.id === effectiveStage;
                 const Icon = st.icon;
 
                 return (
-                  <div key={st.id} className="flex flex-col items-center text-center" style={{ width: "88px" }}>
-                    {/* Circle Node */}
+                  <div key={st.id} className="flex flex-col items-center text-center" style={{ width: "90px" }}>
                     <div
                       className={`relative flex h-12 w-12 items-center justify-center rounded-full transition-all duration-300 ${
                         isCompleted
@@ -354,7 +407,6 @@ export function ApplicationProgressTracker({ application, onDocChange }: Applica
                         <span className="text-xs font-semibold">{st.id + 1}</span>
                       )}
 
-                      {/* Small Active Pulse Indicator */}
                       {isActive && (
                         <span className="absolute -top-1 -end-1 flex h-3 w-3">
                           <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-beige opacity-75" />
@@ -363,9 +415,8 @@ export function ApplicationProgressTracker({ application, onDocChange }: Applica
                       )}
                     </div>
 
-                    {/* Step Title */}
                     <p
-                      className={`mt-3 text-xs leading-snug transition-colors ${
+                      className={`mt-2.5 text-xs leading-snug transition-colors ${
                         isActive
                           ? "font-bold text-foreground"
                           : isCompleted
@@ -376,9 +427,8 @@ export function ApplicationProgressTracker({ application, onDocChange }: Applica
                       {st.title}
                     </p>
 
-                    {/* Step Status Pill */}
                     <span
-                      className={`mt-1.5 inline-block rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                      className={`mt-1 inline-block rounded-full px-2 py-0.5 text-[9px] font-medium ${
                         isCompleted
                           ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-400"
                           : isActive
@@ -386,17 +436,7 @@ export function ApplicationProgressTracker({ application, onDocChange }: Applica
                           : "bg-secondary text-muted-foreground"
                       }`}
                     >
-                      {isCompleted
-                        ? ar
-                          ? "مكتمل ✓"
-                          : "Done ✓"
-                        : isActive
-                        ? ar
-                          ? "جاري الآن"
-                          : "Active"
-                        : ar
-                        ? "قادم"
-                        : "Next"}
+                      {isCompleted ? (ar ? "مكتمل ✓" : "Done ✓") : isActive ? (ar ? "جاري الآن" : "Active") : (ar ? "قادم" : "Next")}
                     </span>
                   </div>
                 );
@@ -405,564 +445,825 @@ export function ApplicationProgressTracker({ application, onDocChange }: Applica
           </div>
         </div>
 
-        {/* ─── 2. ACTIVE STAGE HIGHLIGHT DETAIL CARD ─── */}
-        <div className="mt-6 rounded-2xl border border-beige/40 bg-gradient-to-br from-beige-soft/80 to-background p-5 text-sm">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <p className="flex items-center gap-2 font-display text-base font-semibold text-foreground">
-                <currentStep.icon className="h-5 w-5 text-beige" strokeWidth={1.5} />
-                {ar ? `المرحلة الحالية: ${currentStep.title}` : `Current Stage: ${currentStep.title}`}
-              </p>
-              <p className="mt-1 text-xs text-muted-foreground">{currentStep.desc}</p>
-            </div>
-
-            {/* Stage-specific quick pill */}
-            {effectiveStage === 1 && (
-              <span
-                className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                  depositPaid
-                    ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300"
-                    : "bg-navy text-ivory"
-                }`}
-              >
-                {depositPaid ? (ar ? "تم دفع الديبوزت ✓" : "Deposit Paid ✓") : (ar ? "المقدم مطلوب" : "Deposit Due")}
+        {/* Current Active Stage Description Callout */}
+        <div className="mt-4 rounded-2xl border border-beige/40 bg-gradient-to-br from-beige-soft/60 to-background p-4 text-xs">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <currentMilestone.icon className="h-4 w-4 text-beige" strokeWidth={1.5} />
+              <span className="font-bold text-foreground">
+                {ar ? `المرحلة الجارية: ${currentMilestone.title} (${currentMilestone.sub})` : `Active Milestone: ${currentMilestone.title}`}
               </span>
-            )}
+            </div>
+            <span className="text-[11px] text-muted-foreground">
+              {currentMilestone.desc}
+            </span>
           </div>
-
-          {/* Stage specifics */}
-          {effectiveStage === 0 && !depositPaid && (
-            <div className="mt-3 text-xs text-muted-foreground flex items-center gap-1.5">
-              <span>💡</span>
-              <span>
-                {ar
-                  ? "الخطوة الأولى: يمكنك رفع سيرتك الذاتية وتحديد طريقة سداد الدفعة الأولى أدناه لحجز مكانك وتأكيد المقابلات."
-                  : "Step 1: Upload your CV and choose your payment method below to lock your spot."}
-              </span>
-            </div>
-          )}
-
-          {effectiveStage === 1 && !depositPaid && (
-            <div className="mt-3 text-xs text-muted-foreground flex items-center gap-1.5">
-              <span>⏳</span>
-              <span>
-                {ar
-                  ? "ملفك بانتظار سداد الدفعة الأولى لبدء جدولة المقابلات الرسمية مع أصحاب العمل."
-                  : "Your file is awaiting payment to schedule official employer interviews."}
-              </span>
-            </div>
-          )}
-
-          {/* Stage 2 Pre-interview specifics */}
-          {effectiveStage === 2 && (
-            <div className="mt-3 text-xs text-muted-foreground">
-              {ar
-                ? "💡 نصيحة: تأكد من مراجعة سيرتك الذاتية أدناه وتجهيز نبذة باللغة الإنجليزية عن دراستك وخبرتك السابقة."
-                : "💡 Tip: Make sure your CV is updated below and be ready to introduce yourself in English."}
-            </div>
-          )}
         </div>
-
-        {/* ─── PAYMENT SELECTION & LIVE CHAT REQUEST CARD ─── */}
-        {!depositPaid ? (
-          <div className="mt-6 rounded-3xl border-2 border-beige/60 bg-card p-6 shadow-md transition-all">
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/80 pb-4">
-              <div className="flex items-center gap-3">
-                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-navy text-beige">
-                  <CreditCard className="h-6 w-6" strokeWidth={1.5} />
-                </div>
-                <div>
-                  <h3 className="font-display text-lg font-bold">
-                    {ar ? "سداد الرسوم وتأكيد الحجز" : "Payment & Reservation Confirmation"}
-                  </h3>
-                  <p className="text-xs text-muted-foreground">
-                    {ar
-                      ? "اختر خطة السداد وطريقة الدفع واطلب تواصل خدمة العملاء في الشات فوراً"
-                      : "Choose your plan & payment method, then request immediate support in live chat"}
-                  </p>
-                </div>
-              </div>
-
-              <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-900 dark:bg-amber-950/60 dark:text-amber-300">
-                ⏳ {ar ? "بانتظار سداد الدفعة" : "Payment Pending"}
-              </span>
-            </div>
-
-            {/* Full Financial Calculation Breakdown */}
-            <div className="mt-4 rounded-2xl bg-secondary/40 p-4 border border-border/80 space-y-3">
-              <h4 className="font-bold text-xs uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                <CreditCard className="h-3.5 w-3.5 text-beige" />
-                {ar ? "تفصيل الحساب والتكلفة الإجمالية" : "Financial Breakdown & Calculation"}
-              </h4>
-
-              <div className="divide-y divide-border/60 text-xs">
-                <div className="flex justify-between py-1.5">
-                  <span className="text-muted-foreground">{ar ? "سعر البرنامج الأساسي" : "Base Program Price"}</span>
-                  <span className="font-mono font-medium">
-                    {eur(basePriceEur)} (≈ {Math.round(basePriceEur * EUR_TO_EGP).toLocaleString()} {ar ? "ج.م" : "EGP"})
-                  </span>
-                </div>
-
-                <div className="flex justify-between py-1.5">
-                  <span className="text-muted-foreground flex items-center gap-1">
-                    <Plane className="h-3 w-3 text-beige" />
-                    {ar ? "تذكرة الطيران" : "Flight Ticket"}
-                  </span>
-                  {flightIncluded ? (
-                    <span className="font-mono font-bold text-navy dark:text-beige">
-                      + {eur(catProg?.flightPrice ?? 204)} (≈ {Math.round((catProg?.flightPrice ?? 204) * EUR_TO_EGP).toLocaleString()} {ar ? "ج.م" : "EGP"}) · {ar ? "مشمولة" : "Included"}
-                    </span>
-                  ) : (
-                    <span className="text-muted-foreground font-medium">
-                      {ar ? "غير مشمولة" : "Not included"}
-                    </span>
-                  )}
-                </div>
-
-                <div className="flex justify-between py-1.5 font-bold text-foreground">
-                  <span>{ar ? "إجمالي تكلفة البرنامج" : "Total Program Cost"}</span>
-                  <span className="font-mono text-sm">{eur(fullEur)} (≈ {fullEgp.toLocaleString()} {ar ? "ج.م" : "EGP"})</span>
-                </div>
-
-                <div className="flex justify-between py-2 text-emerald-800 dark:text-emerald-300 font-bold bg-emerald-50/70 dark:bg-emerald-950/30 px-2 rounded-lg my-1">
-                  <span>{ar ? "المقدم (الديبوزيت) المطلوب سداده الآن" : "Initial Deposit Due Now"}</span>
-                  <span className="font-mono">{eur(depositEur)} (≈ {depositEgp.toLocaleString()} {ar ? "ج.م" : "EGP"})</span>
-                </div>
-
-                {payOption === "deposit" && (
-                  <div className="flex justify-between py-1.5">
-                    <span className="text-muted-foreground">{ar ? "المتبقي بالتقسيط بعد الديبوزيت" : "Remaining in Installments"}</span>
-                    <span className="font-mono font-medium">
-                      {eur(Math.max(0, fullEur - depositEur))} ({application.installments || 6}× {eur(Math.ceil(Math.max(0, fullEur - depositEur) / (application.installments || 6)))})
-                    </span>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Step 1: Choose Plan (Deposit vs Full) */}
-            <div className="mt-5">
-              <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                {ar ? "1. حدد خطة السداد المطلوبة:" : "1. Select Payment Plan:"}
-              </label>
-
-              <div className="mt-2.5 grid gap-3 sm:grid-cols-2">
-                {/* Deposit Option */}
-                <button
-                  type="button"
-                  onClick={() => setPayOption("deposit")}
-                  className={`relative rounded-2xl border-2 p-4 text-start transition-all ${
-                    payOption === "deposit"
-                      ? "border-navy bg-navy/5 shadow-sm ring-2 ring-navy/20 dark:border-beige dark:bg-beige/10"
-                      : "border-border bg-card hover:border-beige"
-                  }`}
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <p className="font-semibold text-sm">
-                        {ar ? "المقدم (Deposit)" : "Deposit (Down payment)"}
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        {ar ? "لحجز المكان وبدء المقابلات والتقديم" : "Locks spot & starts interview scheduling"}
-                      </p>
-                    </div>
-                    {payOption === "deposit" && (
-                      <span className="flex h-5 w-5 items-center justify-center rounded-full bg-navy text-white text-[10px]">
-                        ✓
-                      </span>
-                    )}
-                  </div>
-                  <div className="mt-3 flex items-baseline gap-2">
-                    <span className="font-display text-2xl font-bold text-foreground">
-                      {eur(depositEur)}
-                    </span>
-                    <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
-                      ≈ {depositEgp.toLocaleString()} {ar ? "ج.م" : "EGP"}
-                    </span>
-                  </div>
-                </button>
-
-                {/* Full Payment Option */}
-                <button
-                  type="button"
-                  onClick={() => setPayOption("full")}
-                  className={`relative rounded-2xl border-2 p-4 text-start transition-all ${
-                    payOption === "full"
-                      ? "border-navy bg-navy/5 shadow-sm ring-2 ring-navy/20 dark:border-beige dark:bg-beige/10"
-                      : "border-border bg-card hover:border-beige"
-                  }`}
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <p className="font-semibold text-sm">
-                        {ar ? "دفعة واحدة بالكامل (Full Payment)" : "Full Payment (100%)"}
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        {ar ? "سداد إجمالي تكلفة البرنامج كاملة" : "Full program cost in single payment"}
-                      </p>
-                    </div>
-                    {payOption === "full" && (
-                      <span className="flex h-5 w-5 items-center justify-center rounded-full bg-navy text-white text-[10px]">
-                        ✓
-                      </span>
-                    )}
-                  </div>
-                  <div className="mt-3 flex items-baseline gap-2">
-                    <span className="font-display text-2xl font-bold text-foreground">
-                      {eur(fullEur)}
-                    </span>
-                    <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
-                      ≈ {fullEgp.toLocaleString()} {ar ? "ج.م" : "EGP"}
-                    </span>
-                  </div>
-                </button>
-              </div>
-            </div>
-
-            {/* Step 2: Choose Payment Method */}
-            <div className="mt-5">
-              <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                {ar ? "2. اختر طريقة الدفع المفضلة لديك:" : "2. Choose Payment Method:"}
-              </label>
-
-              <div className="mt-2.5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {paymentMethods.map((m) => {
-                  const isSelected = paymentMethod === m.id;
-                  const Logo = m.LogoComponent;
-                  return (
-                    <button
-                      key={m.id}
-                      type="button"
-                      onClick={() => setPaymentMethod(m.id)}
-                      className={`relative flex items-center gap-3.5 rounded-2xl border-2 p-3.5 text-start transition-all ${
-                        isSelected
-                          ? m.activeBg
-                          : `border-border bg-card hover:shadow-sm ${m.accent}`
-                      }`}
-                    >
-                      <Logo className="h-10 w-10 shrink-0" />
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center justify-between gap-1">
-                          <span className="font-bold text-sm text-foreground truncate">{m.name}</span>
-                          <span className="shrink-0 rounded-full bg-secondary/80 px-2 py-0.5 text-[10px] font-semibold text-muted-foreground border border-border">
-                            {m.badge}
-                          </span>
-                        </div>
-                        <p className="mt-0.5 text-xs text-muted-foreground truncate">
-                          {m.sub}
-                        </p>
-                      </div>
-                      {isSelected && (
-                        <span className="absolute -top-1.5 -end-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-navy text-white text-[10px] font-bold shadow-md">
-                          ✓
-                        </span>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Step 3: Total Summary & Request Button */}
-            <div className="mt-6 rounded-2xl bg-secondary/70 p-4 border border-border flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-              <div className="flex items-center gap-3">
-                {(() => {
-                  const cur = paymentMethods.find((p) => p.id === paymentMethod);
-                  if (cur) {
-                    const CurLogo = cur.LogoComponent;
-                    return <CurLogo className="h-10 w-10 shrink-0" />;
-                  }
-                  return null;
-                })()}
-                <div>
-                  <p className="text-xs text-muted-foreground">
-                    {ar ? "المبلغ المحدد للسداد عبر" : "Amount to pay via"}{" "}
-                    <strong className="text-foreground font-semibold">{paymentMethod}</strong>:
-                  </p>
-                  <div className="flex items-baseline gap-2 mt-0.5">
-                    <span className="font-display text-2xl font-bold text-navy dark:text-beige">
-                      {eur(selectedEur)}
-                    </span>
-                    <span className="text-sm font-medium text-slate-500 dark:text-slate-400">
-                      ({selectedEgp.toLocaleString()} {ar ? "جنيه مصري" : "EGP"})
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
-                <button
-                  type="button"
-                  disabled={requestingPay || requestSuccess}
-                  onClick={handlePaymentRequest}
-                  className="inline-flex items-center justify-center gap-2 rounded-full bg-navy px-6 py-3.5 text-sm font-semibold text-ivory shadow-lg hover:opacity-90 disabled:opacity-50 transition-all active:scale-95"
-                >
-                  {requestingPay ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      {ar ? "جاري إرسال الطلب..." : "Sending Request..."}
-                    </>
-                  ) : requestSuccess ? (
-                    <>
-                      <CheckCircle2 className="h-4 w-4 text-beige" />
-                      {ar ? "تم إرسال الطلب ✓" : "Request Sent ✓"}
-                    </>
-                  ) : (
-                    <>
-                      <MessageSquare className="h-4 w-4 text-beige" />
-                      {ar ? "ريكويست تواصل والدفع في الشات" : "Request & Chat with Support"}
-                    </>
-                  )}
-                </button>
-              </div>
-            </div>
-
-            {/* Error Message */}
-            {requestErr && (
-              <p className="mt-3 text-xs text-destructive font-medium text-center">
-                {requestErr}
-              </p>
-            )}
-
-            {/* Success Alert */}
-            {requestSuccess && (
-              <div className="mt-4 rounded-2xl border border-emerald-500/40 bg-emerald-500/10 p-4 text-emerald-950 dark:text-emerald-200 animate-in fade-in">
-                <div className="flex items-start gap-3">
-                  <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0 mt-0.5" />
-                  <div className="text-xs leading-relaxed flex-1">
-                    <p className="font-bold text-sm">
-                      {ar ? "✓ تم إرسال طلب الدفع بنجاح!" : "✓ Payment request sent successfully!"}
-                    </p>
-                    <p className="mt-1">
-                      {ar
-                        ? `تم تسجيل طلبك لدفع (${payOption === "deposit" ? "المقدم" : "دفعة واحدة"}) بمبلغ ${eur(selectedEur)} (~${selectedEgp.toLocaleString()} ج.م) عبر ${paymentMethod}. تم فتح شات الموقع وسيتواصل معك ممثل خدمة العملاء الآن لتزويدك برقم التحويل وتأكيد الحجز.`
-                        : `Your payment request of ${eur(selectedEur)} via ${paymentMethod} has been sent. Live chat is now open for an advisor to assist you.`}
-                    </p>
-                    <div className="mt-2.5">
-                      <button
-                        type="button"
-                        onClick={() => window.dispatchEvent(new CustomEvent("open-kinetix-chat"))}
-                        className="inline-flex items-center gap-1.5 rounded-full bg-emerald-600 px-3.5 py-1.5 text-xs font-semibold text-white shadow hover:bg-emerald-700"
-                      >
-                        <MessageSquare className="h-3.5 w-3.5" />
-                        {ar ? "فتح شات الموقع الآن 💬" : "Open Live Chat Now 💬"}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        ) : (
-          <div className="mt-6 rounded-2xl border border-emerald-500/40 bg-emerald-500/10 p-4 text-emerald-950 dark:text-emerald-200 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <CheckCircle2 className="h-6 w-6 text-emerald-600 shrink-0" />
-              <div>
-                <p className="font-bold text-sm">
-                  {ar ? "تم سداد الدفعة بنجاح ✓" : "Deposit Paid Successfully ✓"}
-                </p>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  {ar ? "ملفك نشط وجاري التجهيز للمقابلات الرسمية وتصاريح السفر." : "Your application is active and moving forward."}
-                </p>
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={() => window.dispatchEvent(new CustomEvent("open-kinetix-chat"))}
-              className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700 dark:text-emerald-300 hover:underline"
-            >
-              <MessageSquare className="h-3.5 w-3.5" />
-              {ar ? "محادثة الدعم" : "Chat Support"}
-            </button>
-          </div>
-        )}
       </div>
 
-      {/* ─── 3. DEDICATED CV & DOCUMENTS SECTION ─── */}
-      <div className="space-y-4">
-        {/* CV SPECIAL CARD */}
-        <div className="rounded-3xl border border-border bg-card p-6 shadow-sm">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <h3 className="flex items-center gap-2 font-display text-lg font-semibold">
-                <FileText className="h-5 w-5 text-beige" strokeWidth={1.5} />
-                {t("cvSectionTitle")}
-              </h3>
-              <p className="text-xs text-muted-foreground">{t("cvSectionSub")}</p>
-            </div>
+      {/* ══════════════════════════════════════════════════════════════ */}
+      {/* 2. THE 4 APPLICATION SECTIONS NAVIGATION BAR                   */}
+      {/* ══════════════════════════════════════════════════════════════ */}
+      <div className="rounded-3xl border border-border bg-card p-4 shadow-sm">
+        <div className="flex items-center justify-between mb-3 px-1">
+          <div>
+            <h4 className="font-display text-sm font-bold text-foreground flex items-center gap-2">
+              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-navy text-ivory text-[10px] font-bold">
+                4
+              </span>
+              {ar ? "أقسام وتفاصيل طلبك (الأربع خطوات)" : "Application Details (The 4 Sections)"}
+            </h4>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {ar ? "انتقل بين الأقسام الأربعة لمراجعة البرنامج والبيانات والأوراق والحساب" : "Switch between the four sections to review program, details, documents and payment"}
+            </p>
+          </div>
 
-            {/* CV Status Badge */}
-            {cvDoc ? (
-              <span
-                className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold ${
-                  cvDoc.status === "approved"
-                    ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-400"
-                    : cvDoc.status === "rejected"
-                    ? "bg-red-100 text-red-800 dark:bg-red-950/60 dark:text-red-400"
-                    : "bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-400"
+          <span className="text-xs font-mono font-bold text-beige">
+            {ar ? `القسم ${activeSection + 1} من 4` : `Section ${activeSection + 1} of 4`}
+          </span>
+        </div>
+
+        {/* 4 Navigation Pills */}
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          {applicationSections.map((sec) => {
+            const isSelected = activeSection === sec.id;
+            const Icon = sec.icon;
+            const isDepositSec = sec.id === 3;
+
+            return (
+              <button
+                key={sec.id}
+                type="button"
+                onClick={() => setActiveSection(sec.id)}
+                className={`relative flex items-center gap-2 rounded-2xl border p-3 text-start transition-all ${
+                  isSelected
+                    ? "border-navy bg-navy text-ivory shadow-md dark:border-beige dark:bg-beige dark:text-navy"
+                    : "border-border bg-secondary/50 text-muted-foreground hover:border-beige/70 hover:text-foreground"
                 }`}
               >
-                {cvDoc.status === "approved" ? (
-                  <CheckCircle2 className="h-3.5 w-3.5" />
-                ) : cvDoc.status === "rejected" ? (
-                  <XCircle className="h-3.5 w-3.5" />
+                <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ${
+                  isSelected ? "bg-white/20 text-inherit" : "bg-card text-foreground"
+                }`}>
+                  <Icon className="h-4 w-4" strokeWidth={1.5} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center justify-between gap-1">
+                    <span className="block text-xs font-bold truncate">
+                      {ar ? sec.titleAr : sec.titleEn}
+                    </span>
+                    {isDepositSec && !depositPaid && (
+                      <span className="relative flex h-2 w-2">
+                        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400 opacity-75" />
+                        <span className="relative inline-flex h-2 w-2 rounded-full bg-amber-500" />
+                      </span>
+                    )}
+                  </div>
+                  <span className={`block text-[10px] truncate ${isSelected ? "opacity-80" : "text-muted-foreground"}`}>
+                    {ar ? `خطوة ${sec.id + 1}` : `Step ${sec.id + 1}`}
+                  </span>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ══════════════════════════════════════════════════════════════ */}
+      {/* SECTION 0: PROGRAM DETAILS & OVERVIEW (NEW DESIGN)             */}
+      {/* ══════════════════════════════════════════════════════════════ */}
+      {activeSection === 0 && (
+        <div className="rounded-3xl border-2 border-beige/40 bg-card p-6 shadow-sm space-y-5 animate-in fade-in duration-200">
+          <div className="flex flex-wrap items-start justify-between gap-4 border-b border-border/80 pb-5">
+            <div className="flex items-center gap-3.5 min-w-0">
+              <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-2xl border border-border shadow-xs">
+                {c?.image ? (
+                  <img src={c.image} alt={c.name} className="h-full w-full object-cover" />
                 ) : (
-                  <Clock className="h-3.5 w-3.5" />
+                  <div className="flex h-full w-full items-center justify-center bg-navy text-2xl">🌍</div>
                 )}
-                {cvDoc.status === "approved"
-                  ? t("docApproved")
-                  : cvDoc.status === "rejected"
-                  ? t("docRejected")
-                  : t("docPending")}
-              </span>
-            ) : (
-              <span className="flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800 dark:bg-amber-950/60 dark:text-amber-400">
-                <AlertCircle className="h-3.5 w-3.5" />
-                {t("cvNotUploaded")}
+              </div>
+              <div>
+                <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <MapPin className="h-3 w-3 text-beige" strokeWidth={1.5} />
+                  {ar ? (pr?.countries?.name_ar || c?.nameAr) : (pr?.countries?.name_en || c?.name)} {c?.flag ?? "🌍"}
+                </span>
+                <h3 className="text-lg sm:text-xl font-bold text-foreground">
+                  {ar ? (pr?.title_ar || catProg?.titleAr || pr?.title_en) : (pr?.title_en || catProg?.title)}
+                </h3>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {c?.taglineAr ? (ar ? c.taglineAr : c.tagline) : (ar ? "برنامج سفر وعمل رسمي معتمد" : "Verified work placement program")}
+                </p>
+              </div>
+            </div>
+
+            <span className="rounded-full bg-navy/10 text-navy dark:bg-beige/10 dark:text-beige px-3 py-1 text-xs font-bold">
+              {ar ? `كود الطلب: #${application.id.slice(0, 8)}` : `App ID: #${application.id.slice(0, 8)}`}
+            </span>
+          </div>
+
+          {/* Badges Row */}
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="rounded-full bg-secondary px-3 py-1 text-xs font-semibold text-foreground">
+              {ar ? (pr?.category_ar || catProg?.categoryAr || "ضيافة وسياحة") : (pr?.category_en || catProg?.category || "Hospitality")}
+            </span>
+
+            <span className="rounded-full bg-secondary px-3 py-1 text-xs font-semibold text-foreground flex items-center gap-1">
+              <Clock className="h-3 w-3 text-muted-foreground" />
+              {notesData["contract_duration"] || catProg?.duration || (pr?.track === "student" ? "3–6 months" : "9–24 months")}
+            </span>
+
+            <span className="inline-flex items-center gap-1 rounded-full bg-navy/10 text-navy dark:bg-beige/10 dark:text-beige px-3 py-1 text-xs font-semibold">
+              {(pr?.track || catProg?.track) === "student" ? (
+                <>
+                  <GraduationCap className="h-3.5 w-3.5" strokeWidth={1.5} />
+                  {ar ? "مسار الطلاب 🎓" : "Student Track 🎓"}
+                </>
+              ) : (
+                <>
+                  <Briefcase className="h-3.5 w-3.5" strokeWidth={1.5} />
+                  {ar ? "مسار الخريجين 💼" : "Graduate Track 💼"}
+                </>
+              )}
+            </span>
+
+            {(catProg?.expectedSalary || catProg?.expectedSalaryAr) && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 border border-emerald-200 px-3 py-1 text-xs font-semibold text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400">
+                <TrendingUp className="h-3.5 w-3.5 stroke-[2]" />
+                {ar ? "الراتب المتوقع:" : "Expected Salary:"} {ar ? (catProg.expectedSalaryAr ?? catProg.expectedSalary) : catProg.expectedSalary}
               </span>
             )}
           </div>
 
-          {/* CV Action Row */}
-          <div className="mt-5 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-border/80 bg-secondary/40 p-4">
-            <div className="flex min-w-0 items-center gap-3">
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-navy text-beige">
-                <FileText className="h-5 w-5" strokeWidth={1.5} />
-              </div>
-              <div className="min-w-0">
-                <p className="truncate text-sm font-semibold">
-                  {cvDoc ? cvDoc.file_name : ar ? "السيرة الذاتية (CV في ملف PDF)" : "Resume / CV (PDF format)"}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {cvDoc
-                    ? ar
-                      ? "ملف مرفوع ومتاح للمراجعة"
-                      : "Uploaded and ready for employer review"
-                    : ar
-                    ? "صيغ مقبولة: PDF, Word, JPG — بحد أقصى 15 ميجا"
-                    : "Accepted: PDF, DOC, DOCX, JPG — Max 15MB"}
-                </p>
-              </div>
+          {/* Specs Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs bg-secondary/40 rounded-2xl p-4 border border-border/70">
+            <div>
+              <span className="font-semibold text-foreground block mb-0.5">
+                {ar ? "ساعات ونظام العمل:" : "Working Hours:"}
+              </span>
+              <span className="text-muted-foreground">
+                {catProg?.workingHours || (ar ? "8 ساعات يومياً · 5 إلى 6 أيام أسبوعياً" : "8 hrs/day · 5-6 days/week")}
+              </span>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2">
-              {cvDoc && (
-                <button
-                  onClick={() => openSignedUrl(cvDoc.file_path)}
-                  className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-4 py-2 text-xs font-medium hover:border-beige"
-                >
-                  <Eye className="h-3.5 w-3.5" strokeWidth={1.5} />
-                  {t("viewCvBtn")}
-                </button>
-              )}
+            <div>
+              <span className="font-semibold text-foreground block mb-0.5">
+                {ar ? "السكن والإعاشة:" : "Accommodation:"}
+              </span>
+              <span className="text-muted-foreground">
+                {ar ? (catProg?.accommodationAr ?? "سكن مؤمن مجاناً من جهة العمل") : (catProg?.accommodation ?? "Provided by employer")}
+              </span>
+            </div>
 
-              <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-full bg-navy px-4 py-2 text-xs font-semibold text-ivory hover:opacity-90">
-                {busy === "CV" ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <Upload className="h-3.5 w-3.5" strokeWidth={1.5} />
-                )}
-                {cvDoc ? t("replaceCvBtn") : t("uploadCvBtn")}
-                <input
-                  type="file"
-                  accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-                  className="hidden"
-                  disabled={busy === "CV"}
-                  onChange={(e) => {
-                    const f = e.target.files?.[0];
-                    if (f) uploadFile("CV in English", f);
-                    e.target.value = "";
-                  }}
-                />
-              </label>
+            <div>
+              <span className="font-semibold text-foreground block mb-0.5">
+                {ar ? "تذكرة الطيران:" : "Flight Ticket:"}
+              </span>
+              <span className={`inline-flex items-center gap-1 font-semibold ${flightIncluded ? "text-navy dark:text-beige" : "text-muted-foreground"}`}>
+                <Plane className="h-3 w-3" />
+                {flightIncluded ? (ar ? "مشمولة في الباقة (+204€)" : "Included in package (+€204)") : (ar ? "غير مشمولة (حجز شخصي)" : "Not included (Self-booked)")}
+              </span>
+            </div>
+
+            <div>
+              <span className="font-semibold text-foreground block mb-0.5">
+                {ar ? "خطة السداد المختارة:" : "Payment Plan:"}
+              </span>
+              <span className="text-muted-foreground">
+                {application.payment_plan === "full"
+                  ? (ar ? "دفعة واحدة بالكامل (Full)" : "Full Payment")
+                  : (ar ? `أقساط شهرية ميسرة على ${application.installments || 6} أشهر` : `Installments over ${application.installments || 6} months`)}
+              </span>
             </div>
           </div>
+
+          {/* Next Button */}
+          <div className="flex justify-end pt-2">
+            <button
+              type="button"
+              onClick={() => setActiveSection(1)}
+              className="inline-flex items-center gap-2 rounded-full bg-navy px-5 py-2.5 text-xs font-bold text-ivory shadow hover:opacity-90 transition-transform active:scale-95"
+            >
+              <span>{ar ? "القسم التالي: البيانات الشخصية" : "Next: Personal Details"}</span>
+              <ArrowRight className="h-3.5 w-3.5 rtl:rotate-180" />
+            </button>
+          </div>
         </div>
+      )}
 
-        {/* OTHER SUPPORTING DOCUMENTS */}
-        <div className="rounded-3xl border border-border bg-card p-6 shadow-sm">
-          <h4 className="font-display text-base font-semibold">{t("supportingDocs")}</h4>
-          <p className="mb-4 text-xs text-muted-foreground">{t("docsHint")}</p>
+      {/* ══════════════════════════════════════════════════════════════ */}
+      {/* SECTION 1: PERSONAL DETAILS (NEW STRUCTURED REVIEW)           */}
+      {/* ══════════════════════════════════════════════════════════════ */}
+      {activeSection === 1 && (
+        <div className="rounded-3xl border border-border bg-card p-6 shadow-sm space-y-5 animate-in fade-in duration-200">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/80 pb-4">
+            <div>
+              <h3 className="font-display text-base font-bold text-foreground flex items-center gap-2">
+                <User className="h-4 w-4 text-beige" strokeWidth={1.5} />
+                {ar ? "بيانات المتقدم الرسمية" : "Candidate Profile & Details"}
+              </h3>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {ar ? "البيانات المسجلة بطلب السفر والمعتمدة لدى كينتيكس والسفارة" : "Official applicant details registered with your travel file"}
+              </p>
+            </div>
 
-          <div className="space-y-2.5">
-            {[
-              ar ? "جواز السفر (سارٍ لأكثر من 12 شهر)" : "Valid passport (12+ months)",
-              ar ? "صورة شخصية حديثة" : "Recent passport photo",
-              ar ? "الشهادة / إثبات القيد الجامعي" : "Degree / University certificate",
-              ar ? "صحيفة الحالة الجنائية (فيش)" : "Police clearance",
-              ar ? "شهادة صحية" : "Medical certificate",
-              ...(isMale ? [ar ? "وثيقة الموقف من التجنيد 🪖" : "Military Service Status Document 🪖"] : []),
-            ].map((dt) => {
-              const doc = docs.find((d) => d.doc_type === dt || d.doc_type.includes(dt.slice(0, 8)));
-              const isApproved = doc?.status === "approved";
-              const isRejected = doc?.status === "rejected";
+            <span className="rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 px-3 py-1 text-xs font-bold">
+              ✓ {ar ? "بيانات موثقة" : "Verified Profile"}
+            </span>
+          </div>
 
-              return (
-                <div
-                  key={dt}
-                  className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-background px-4 py-3"
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 text-xs">
+            <div className="rounded-2xl border border-border bg-secondary/30 p-3.5">
+              <span className="text-muted-foreground block text-[11px] mb-1">{ar ? "الاسم الكامل" : "Full Name"}</span>
+              <p className="font-bold text-foreground text-sm">
+                {application.full_name || `${notesData["first_name"] || ""} ${notesData["second_name"] || ""}`.trim() || "—"}
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-border bg-secondary/30 p-3.5">
+              <span className="text-muted-foreground block text-[11px] mb-1">{ar ? "رقم الهاتف / الواتساب" : "Phone / WhatsApp"}</span>
+              <p className="font-mono font-bold text-foreground text-sm">
+                {application.phone || "—"}
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-border bg-secondary/30 p-3.5">
+              <span className="text-muted-foreground block text-[11px] mb-1">{ar ? "الرقم القومي المصري" : "National ID"}</span>
+              <p className="font-mono font-bold text-foreground text-sm">
+                {notesData["national_id"] || "—"}
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-border bg-secondary/30 p-3.5">
+              <span className="text-muted-foreground block text-[11px] mb-1">{ar ? "النوع وتاريخ الميلاد" : "Gender & Birth Date"}</span>
+              <p className="font-bold text-foreground">
+                {isMale ? (ar ? "ذكر" : "Male") : (ar ? "أنثى" : "Female")} · {notesData["birth_date"] || "—"}
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-border bg-secondary/30 p-3.5">
+              <span className="text-muted-foreground block text-[11px] mb-1">{ar ? "الجامعة والكلية" : "University & Faculty"}</span>
+              <p className="font-bold text-foreground">
+                {notesData["university"] || "—"} {notesData["faculty"] ? `— ${notesData["faculty"]}` : ""}
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-border bg-secondary/30 p-3.5">
+              <span className="text-muted-foreground block text-[11px] mb-1">{ar ? "الموقف الدراسي / الأكاديمي" : "Academic Status"}</span>
+              <p className="font-bold text-foreground">
+                {notesData["academic_year"] || notesData["graduation_year"] || (notesData["education_level"] === "student" ? (ar ? "طالب جامعي" : "Student") : (ar ? "خريج" : "Graduate"))}
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-border bg-secondary/30 p-3.5">
+              <span className="text-muted-foreground block text-[11px] mb-1">{ar ? "المحافظة والعنوان" : "Governorate & Address"}</span>
+              <p className="font-bold text-foreground">
+                {notesData["current_city"] || notesData["city"] || "—"} {notesData["current_address"] ? `— ${notesData["current_address"]}` : ""}
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-border bg-secondary/30 p-3.5">
+              <span className="text-muted-foreground block text-[11px] mb-1">{ar ? "الموقف التجنيدي (للذكور)" : "Military Status"}</span>
+              <p className="font-bold text-foreground">
+                {notesData["military_status"] || (isMale ? (ar ? "مؤجل دراسياً / تصريح سفر سياحي" : "Student deferment") : "—")}
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-border bg-secondary/30 p-3.5">
+              <span className="text-muted-foreground block text-[11px] mb-1">{ar ? "كود الخصم الترويجي" : "Promo Code"}</span>
+              <p className="font-mono font-bold text-foreground">
+                {application.promo_code ? `🏷 ${application.promo_code}` : "—"}
+              </p>
+            </div>
+          </div>
+
+          {/* Navigation Controls */}
+          <div className="flex items-center justify-between pt-2">
+            <button
+              type="button"
+              onClick={() => setActiveSection(0)}
+              className="inline-flex items-center gap-2 rounded-full border border-border px-4 py-2 text-xs font-semibold text-muted-foreground hover:text-foreground"
+            >
+              <ArrowLeft className="h-3.5 w-3.5 rtl:rotate-180" />
+              <span>{ar ? "السابق: تفاصيل البرنامج" : "Previous: Program"}</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveSection(2)}
+              className="inline-flex items-center gap-2 rounded-full bg-navy px-5 py-2.5 text-xs font-bold text-ivory shadow hover:opacity-90"
+            >
+              <span>{ar ? "القسم التالي: المستندات والأوراق" : "Next: Documents"}</span>
+              <ArrowRight className="h-3.5 w-3.5 rtl:rotate-180" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ══════════════════════════════════════════════════════════════ */}
+      {/* SECTION 2: DOCUMENTS & FILES (NEW EXPANDED CHECKLIST)         */}
+      {/* ══════════════════════════════════════════════════════════════ */}
+      {activeSection === 2 && (
+        <div className="space-y-4 animate-in fade-in duration-200">
+          {/* CV SPECIAL CARD */}
+          <div className="rounded-3xl border-2 border-beige/40 bg-card p-6 shadow-sm">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h3 className="flex items-center gap-2 font-display text-lg font-semibold text-foreground">
+                  <FileText className="h-5 w-5 text-beige" strokeWidth={1.5} />
+                  {t("cvSectionTitle")}
+                </h3>
+                <p className="text-xs text-muted-foreground">{t("cvSectionSub")}</p>
+              </div>
+
+              {cvDoc ? (
+                <span
+                  className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold ${
+                    cvDoc.status === "approved"
+                      ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-400"
+                      : cvDoc.status === "rejected"
+                      ? "bg-red-100 text-red-800 dark:bg-red-950/60 dark:text-red-400"
+                      : "bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-400"
+                  }`}
                 >
-                  <div className="flex min-w-0 items-center gap-3">
-                    <FileText className="h-4 w-4 shrink-0 text-muted-foreground" strokeWidth={1.5} />
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-medium">{dt}</p>
-                      {doc ? (
-                        <p
-                          className={`flex items-center gap-1 text-xs ${
-                            isApproved
-                              ? "text-emerald-700 dark:text-emerald-400"
-                              : isRejected
-                              ? "text-destructive"
-                              : "text-muted-foreground"
-                          }`}
+                  {cvDoc.status === "approved" ? <CheckCircle2 className="h-3.5 w-3.5" /> : cvDoc.status === "rejected" ? <XCircle className="h-3.5 w-3.5" /> : <Clock className="h-3.5 w-3.5" />}
+                  {cvDoc.status === "approved" ? t("docApproved") : cvDoc.status === "rejected" ? t("docRejected") : t("docPending")}
+                </span>
+              ) : (
+                <span className="flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800 dark:bg-amber-950/60 dark:text-amber-400">
+                  <AlertCircle className="h-3.5 w-3.5" />
+                  {t("cvNotUploaded")}
+                </span>
+              )}
+            </div>
+
+            <div className="mt-5 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-border/80 bg-secondary/40 p-4">
+              <div className="flex min-w-0 items-center gap-3">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-navy text-beige">
+                  <FileText className="h-5 w-5" strokeWidth={1.5} />
+                </div>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold text-foreground">
+                    {cvDoc ? cvDoc.file_name : (ar ? "السيرة الذاتية (CV باللغة الإنجليزية)" : "English CV / Resume")}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {cvDoc ? (ar ? "تم رفع الملف ومتاح للمعاينة ومراجعة أصحاب العمل" : "Uploaded and ready for employer review") : (ar ? "صيغ مقبولة: PDF, Word — بحد أقصى 15 ميجابايت" : "Accepted: PDF, Word — Max 15MB")}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                {cvDoc && (
+                  <button
+                    type="button"
+                    onClick={() => openSignedUrl(cvDoc.file_path)}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-4 py-2 text-xs font-semibold hover:border-beige transition-colors"
+                  >
+                    <Eye className="h-3.5 w-3.5" strokeWidth={1.5} />
+                    {t("viewCvBtn")}
+                  </button>
+                )}
+
+                <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-full bg-navy px-4 py-2 text-xs font-semibold text-ivory hover:opacity-90">
+                  {busy === "CV" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" strokeWidth={1.5} />}
+                  {cvDoc ? t("replaceCvBtn") : t("uploadCvBtn")}
+                  <input
+                    type="file"
+                    accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                    className="hidden"
+                    disabled={busy === "CV"}
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      if (f) uploadFile("CV in English", f);
+                      e.target.value = "";
+                    }}
+                  />
+                </label>
+              </div>
+            </div>
+          </div>
+
+          {/* OTHER SUPPORTING DOCUMENTS */}
+          <div className="rounded-3xl border border-border bg-card p-6 shadow-sm">
+            <h4 className="font-display text-base font-semibold">{t("supportingDocs")}</h4>
+            <p className="mb-4 text-xs text-muted-foreground">{t("docsHint")}</p>
+
+            <div className="space-y-2.5">
+              {[
+                ar ? "جواز السفر (سارٍ لأكثر من 12 شهر)" : "Valid passport (12+ months)",
+                ar ? "بطاقة الرقم القومي (الوجهان)" : "National ID (Both sides)",
+                ar ? "صورة شخصية حديثة بخلفية بيضاء" : "Recent passport photo",
+                ar ? "الشهادة / إثبات القيد الجامعي" : "Degree / University certificate",
+                ar ? "صحيفة الحالة الجنائية (فيش وتشبيه)" : "Police clearance",
+                ar ? "شهادة صحية / فحص طبي" : "Medical certificate",
+                ...(isMale ? [ar ? "وثيقة الموقف من التجنيد 🪖" : "Military Service Status Document 🪖"] : []),
+              ].map((dt) => {
+                const doc = docs.find((d) => d.doc_type === dt || d.doc_type.includes(dt.slice(0, 8)));
+                const isApproved = doc?.status === "approved";
+                const isRejected = doc?.status === "rejected";
+
+                return (
+                  <div
+                    key={dt}
+                    className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-background px-4 py-3"
+                  >
+                    <div className="flex min-w-0 items-center gap-3">
+                      <FileText className="h-4 w-4 shrink-0 text-muted-foreground" strokeWidth={1.5} />
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium">{dt}</p>
+                        {doc ? (
+                          <p className={`flex items-center gap-1 text-xs ${isApproved ? "text-emerald-700 dark:text-emerald-400" : isRejected ? "text-destructive" : "text-muted-foreground"}`}>
+                            {isApproved ? <Check className="h-3 w-3" /> : isRejected ? <XCircle className="h-3 w-3" /> : null}
+                            {isApproved ? t("docApproved") : isRejected ? t("docRejected") : t("docPending")} ·{" "}
+                            <span className="truncate">{doc.file_name}</span>
+                          </p>
+                        ) : (
+                          <p className="text-xs text-muted-foreground">{t("required")}</p>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      {doc && (
+                        <button
+                          type="button"
+                          onClick={() => openSignedUrl(doc.file_path)}
+                          className="inline-flex items-center gap-1 rounded-full border border-border px-3 py-1.5 text-xs hover:border-beige"
                         >
-                          {isApproved ? <Check className="h-3 w-3" /> : isRejected ? <XCircle className="h-3 w-3" /> : null}
-                          {isApproved ? t("docApproved") : isRejected ? t("docRejected") : t("docPending")} ·{" "}
-                          <span className="truncate">{doc.file_name}</span>
-                        </p>
-                      ) : (
-                        <p className="text-xs text-muted-foreground">{t("required")}</p>
+                          <Eye className="h-3 w-3" />
+                          {ar ? "عرض" : "View"}
+                        </button>
                       )}
+
+                      {!isApproved && (
+                        <label className="inline-flex cursor-pointer items-center gap-1 rounded-full border border-border px-3 py-1.5 text-xs hover:border-beige">
+                          {busy === dt ? <Loader2 className="h-3 w-3 animate-spin" /> : <Upload className="h-3 w-3" />}
+                          {doc ? t("replace") : t("upload")}
+                          <input
+                            type="file"
+                            accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                            className="hidden"
+                            disabled={busy === dt}
+                            onChange={(e) => {
+                              const f = e.target.files?.[0];
+                              if (f) uploadFile(dt, f);
+                              e.target.value = "";
+                            }}
+                          />
+                        </label>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {err && <p className="text-xs font-medium text-destructive">{err}</p>}
+
+          {/* Navigation Controls */}
+          <div className="flex items-center justify-between pt-2">
+            <button
+              type="button"
+              onClick={() => setActiveSection(1)}
+              className="inline-flex items-center gap-2 rounded-full border border-border px-4 py-2 text-xs font-semibold text-muted-foreground hover:text-foreground"
+            >
+              <ArrowLeft className="h-3.5 w-3.5 rtl:rotate-180" />
+              <span>{ar ? "السابق: البيانات الشخصية" : "Previous: Details"}</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveSection(3)}
+              className="inline-flex items-center gap-2 rounded-full bg-navy px-5 py-2.5 text-xs font-bold text-ivory shadow hover:opacity-90"
+            >
+              <span>{ar ? "القسم التالي: سداد الديبوزت والحساب" : "Next: Deposit & Payment"}</span>
+              <ArrowRight className="h-3.5 w-3.5 rtl:rotate-180" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ══════════════════════════════════════════════════════════════ */}
+      {/* SECTION 3: DEPOSIT & PAYMENT (NEW REDESIGNED DEPOSIT CARD)    */}
+      {/* ══════════════════════════════════════════════════════════════ */}
+      {activeSection === 3 && (
+        <div className="space-y-6 animate-in fade-in duration-200">
+          {depositPaid ? (
+            /* PAID CELEBRATION CARD */
+            <div className="rounded-3xl border-2 border-emerald-500/40 bg-gradient-to-br from-emerald-500/10 via-card to-card p-6 shadow-md">
+              <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border/80 pb-5">
+                <div className="flex items-center gap-3.5">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-600 text-white shadow-md">
+                    <CheckCircle2 className="h-6 w-6" strokeWidth={2.5} />
+                  </div>
+                  <div>
+                    <h3 className="font-display text-lg font-bold text-foreground">
+                      {ar ? "تم سداد الديبوزت بنجاح ✓" : "Deposit Paid Successfully ✓"}
+                    </h3>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {ar ? "تم تأكيد حجز مقعدك وبدء جدول المقابلات وتجهيز أوراق السفر" : "Your slot is confirmed and your interview queue is active"}
+                    </p>
+                  </div>
+                </div>
+
+                <span className="rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 px-4 py-1.5 text-xs font-bold">
+                  ✓ {ar ? "مدفوع وموثق" : "Verified Paid"}
+                </span>
+              </div>
+
+              <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                <div className="rounded-2xl bg-secondary/50 p-3.5 border border-border">
+                  <span className="text-muted-foreground block text-[11px] mb-0.5">{ar ? "المبلغ المسدد (الديبوزيت)" : "Paid Deposit"}</span>
+                  <span className="font-mono font-bold text-base text-foreground">{eur(depositEur)} (≈ {depositEgp.toLocaleString()} ج.م)</span>
+                </div>
+                <div className="rounded-2xl bg-secondary/50 p-3.5 border border-border">
+                  <span className="text-muted-foreground block text-[11px] mb-0.5">{ar ? "المتبقي بعد المقابلة" : "Remaining Post-Interview"}</span>
+                  <span className="font-mono font-bold text-base text-foreground">{eur(remainingEur)} ({installmentsCount}× {eur(monthlyEur)})</span>
+                </div>
+                <div className="rounded-2xl bg-secondary/50 p-3.5 border border-border">
+                  <span className="text-muted-foreground block text-[11px] mb-0.5">{ar ? "حالة الملف الحالية" : "Current Milestone"}</span>
+                  <span className="font-bold text-base text-emerald-700 dark:text-emerald-400">{currentMilestone.title}</span>
+                </div>
+              </div>
+
+              <div className="mt-5 flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => window.dispatchEvent(new CustomEvent("open-kinetix-chat"))}
+                  className="inline-flex items-center gap-2 rounded-full bg-navy px-5 py-2.5 text-xs font-bold text-ivory hover:opacity-90 shadow"
+                >
+                  <MessageSquare className="h-4 w-4 text-beige" />
+                  <span>{ar ? "متابعة الملف مع خدمة العملاء في الشات 💬" : "Chat with Advisor in Live Chat 💬"}</span>
+                </button>
+              </div>
+            </div>
+          ) : (
+            /* UNPAID: THE NEW DETAILED DEPOSIT DESIGN */
+            <div className="space-y-6">
+              {/* 1. Full Financial Calculation Card */}
+              <div className="rounded-3xl border-2 border-beige/60 bg-card p-6 shadow-md space-y-4">
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/80 pb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-navy text-beige">
+                      <CreditCard className="h-6 w-6" strokeWidth={1.5} />
+                    </div>
+                    <div>
+                      <h3 className="font-display text-lg font-bold text-foreground">
+                        {ar ? "تفصيل الحساب وسداد الديبوزيت" : "Financial Breakdown & Deposit Payment"}
+                      </h3>
+                      <p className="text-xs text-muted-foreground">
+                        {ar ? "حسبة واضحة ومفصلة بدون أي مصاريف إضافية أو فوائد" : "Transparent pricing with zero hidden fees or interest"}
+                      </p>
+                    </div>
+                  </div>
+
+                  <span className="rounded-full bg-amber-100 text-amber-900 dark:bg-amber-950/60 dark:text-amber-300 px-3.5 py-1 text-xs font-bold">
+                    ⏳ {ar ? "المطلوب سداده الآن: الديبوزيت" : "Due Now: Deposit Only"}
+                  </span>
+                </div>
+
+                {/* Calculation Rows */}
+                <div className="divide-y divide-border/60 text-xs">
+                  <div className="flex justify-between py-2.5">
+                    <span className="text-muted-foreground">{tr("Base Program Price", "سعر البرنامج الأساسي")}</span>
+                    <span className="font-mono font-medium">
+                      {eur(basePriceEur)} (≈ {Math.round(basePriceEur * EUR_TO_EGP).toLocaleString()} {tr("EGP", "ج.م")})
+                    </span>
+                  </div>
+
+                  <div className="flex justify-between py-2.5">
+                    <span className="text-muted-foreground flex items-center gap-1">
+                      <Plane className="h-3.5 w-3.5 text-beige" />
+                      {tr("Flight Ticket Add-on", "تذكرة الطيران")}
+                    </span>
+                    {flightIncluded ? (
+                      <span className="font-mono font-bold text-navy dark:text-beige">
+                        + {eur(catProg?.flightPrice ?? 204)} (≈ {Math.round((catProg?.flightPrice ?? 204) * EUR_TO_EGP).toLocaleString()} {tr("EGP", "ج.م")}) · {tr("Included", "مشمولة")}
+                      </span>
+                    ) : (
+                      <span className="text-muted-foreground font-medium">
+                        {tr("Not included (Self-booked)", "غير مشمولة (حجز شخصي)")}
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex justify-between py-2.5 font-bold text-foreground bg-secondary/30 px-2 rounded-lg">
+                    <span>{tr("Total Program Cost", "إجمالي تكلفة البرنامج بالكامل")}</span>
+                    <span className="font-mono text-base">{eur(fullEur)} (≈ {fullEgp.toLocaleString()} {tr("EGP", "ج.م")})</span>
+                  </div>
+
+                  {/* HIGHLIGHTED DEPOSIT DUE ROW */}
+                  <div className="flex justify-between py-3 text-emerald-800 dark:text-emerald-300 font-bold bg-emerald-50/70 dark:bg-emerald-950/30 px-3 rounded-xl border border-emerald-500/20 my-1">
+                    <div>
+                      <span className="block text-xs font-bold text-emerald-900 dark:text-emerald-200">
+                        {tr("Deposit Due Now (Locks spot & files)", "مبلغ التأمين (الديبوزيت) المطلوب سداده الآن")}
+                      </span>
+                      <span className="text-[11px] font-normal text-emerald-700 dark:text-emerald-400">
+                        {tr("The ONLY amount to pay today to start processing", "المبلغ الوحيد المطلوب سداده اليوم لتأكيد حجز مقعدك وبدء الإجراءات")}
+                      </span>
+                    </div>
+                    <div className="text-end shrink-0">
+                      <span className="font-mono text-lg font-bold block">{eur(depositEur)}</span>
+                      <span className="text-xs font-normal">≈ {depositEgp.toLocaleString()} {tr("EGP", "ج.م")}</span>
+                    </div>
+                  </div>
+
+                  {payOption === "deposit" && (
+                    <div className="flex justify-between py-2.5">
+                      <div>
+                        <span className="text-muted-foreground block">{tr("Remaining Balance", "المبلغ المتبقي بعد الديبوزيت")}</span>
+                        <span className="text-[11px] text-muted-foreground">
+                          {tr(`Scheduled over ${installmentsCount} monthly installments after approval`, `يُسدد على ${installmentsCount} أشهر بعد اجتياز المقابلة وتوقيع العقد`)}
+                        </span>
+                      </div>
+                      <div className="text-end">
+                        <span className="font-mono font-semibold">{eur(remainingEur)}</span>
+                        <span className="text-xs text-muted-foreground block">
+                          ({installmentsCount}× {eur(monthlyEur)} ≈ {Math.round(monthlyEur * EUR_TO_EGP).toLocaleString()} {tr("EGP/mo", "ج.م/شهر")})
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* 2. Transparency & Refund Guarantee Box */}
+                <div className="rounded-2xl border border-beige/40 bg-gradient-to-br from-beige-soft/50 to-background p-4 text-xs space-y-1.5 leading-relaxed text-muted-foreground">
+                  <p className="font-bold text-foreground flex items-center gap-1.5">
+                    <ShieldCheck className="h-4 w-4 text-beige" strokeWidth={1.5} />
+                    {tr("Transparency & Refund Guarantee", "الشفافية وضمان استرداد الديبوزيت")}
+                  </p>
+                  <p>
+                    • {tr("Deposit is the down payment to confirm your interview and start embassy documentation.", "مبلغ الديبوزيت هو الدفعة الأولى لتأكيد حضور المقابلة الأوروبية وتجهيز ملف السفر.")}
+                  </p>
+                  <p>
+                    • {tr("The remaining balance is paid in interest-free monthly installments after officially passing your interview and signing the contract.", "باقي التكلفة لا تُدفع إلا بعد اجتياز المقابلة الرسمية واستلام العقد، وتُسدد بأقساط شهرية ميسرة بدون أي فوائد.")}
+                  </p>
+                  <p>
+                    • {tr("100% refundable according to contract terms if not accepted after professional coaching.", "الديبوزيت محمي ومسترد طبقاً للشروط والأحكام في حال عدم اجتياز المقابلة بعد التدريب التأهيلي.")}
+                  </p>
+                </div>
+              </div>
+
+              {/* 3. Interactive Payment Method Selector */}
+              <div className="rounded-3xl border border-border bg-card p-6 shadow-sm space-y-4">
+                <div>
+                  <h4 className="font-bold text-sm text-foreground flex items-center gap-2">
+                    <CreditCard className="h-4 w-4 text-beige" strokeWidth={1.5} />
+                    {tr("Choose Payment Method", "اختر طريقة الدفع المناسبة لك")}
+                  </h4>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {tr("Select your preferred transfer method to receive details and complete payment in Live Chat.", "حدد وسيلة التحويل المفضلة لاستلام تفاصيل السداد والتواصل المباشر مع الدعم.")}
+                  </p>
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {paymentMethods.map((m) => {
+                    const isSelected = paymentMethod === m.id;
+                    const Logo = m.LogoComponent;
+                    return (
+                      <button
+                        key={m.id}
+                        type="button"
+                        onClick={() => {
+                          setPaymentMethod(m.id);
+                          setRequestSuccess(false);
+                        }}
+                        className={`relative flex items-center gap-3.5 rounded-2xl border-2 p-3.5 text-start transition-all ${
+                          isSelected
+                            ? m.activeBg
+                            : `border-border bg-card hover:border-beige/70 hover:shadow-sm ${m.accent}`
+                        }`}
+                      >
+                        <Logo className="h-10 w-10 shrink-0" />
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center justify-between gap-1">
+                            <span className="font-bold text-sm text-foreground truncate">
+                              {ar ? m.nameAr : m.nameEn}
+                            </span>
+                            <span className="shrink-0 rounded-full bg-secondary px-2 py-0.5 text-[10px] font-semibold text-muted-foreground border border-border">
+                              {ar ? m.badgeAr : m.badgeEn}
+                            </span>
+                          </div>
+                          <p className="mt-0.5 text-xs text-muted-foreground truncate">
+                            {ar ? m.subAr : m.subEn}
+                          </p>
+                        </div>
+                        {isSelected && (
+                          <span className="absolute -top-1.5 -end-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-navy text-white text-[10px] font-bold shadow-md">
+                            ✓
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Selected Method & Amount Banner */}
+                <div className="rounded-2xl bg-secondary/70 p-4 border border-border flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <div>
+                    <span className="text-xs text-muted-foreground block">
+                      {tr("Selected payment amount via", "المبلغ المحدد للسداد عبر")}{" "}
+                      <strong className="text-foreground">{paymentMethod}</strong>:
+                    </span>
+                    <div className="flex items-baseline gap-2 mt-0.5">
+                      <span className="font-display text-2xl font-bold text-navy dark:text-beige">
+                        {eur(selectedEur)}
+                      </span>
+                      <span className="text-xs font-medium text-muted-foreground">
+                        (≈ {selectedEgp.toLocaleString()} {tr("EGP", "جنيه مصري")})
+                      </span>
                     </div>
                   </div>
 
                   <div className="flex items-center gap-2">
-                    {doc && (
-                      <button
-                        onClick={() => openSignedUrl(doc.file_path)}
-                        className="inline-flex items-center gap-1 rounded-full border border-border px-3 py-1.5 text-xs hover:border-beige"
-                      >
-                        <Eye className="h-3 w-3" />
-                        {ar ? "عرض" : "View"}
-                      </button>
-                    )}
-
-                    {!isApproved && (
-                      <label className="inline-flex cursor-pointer items-center gap-1 rounded-full border border-border px-3 py-1.5 text-xs hover:border-beige">
-                        {busy === dt ? <Loader2 className="h-3 w-3 animate-spin" /> : <Upload className="h-3 w-3" />}
-                        {doc ? t("replace") : t("upload")}
-                        <input
-                          type="file"
-                          accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
-                          className="hidden"
-                          disabled={busy === dt}
-                          onChange={(e) => {
-                            const f = e.target.files?.[0];
-                            if (f) uploadFile(dt, f);
-                            e.target.value = "";
-                          }}
-                        />
-                      </label>
-                    )}
+                    <button
+                      type="button"
+                      onClick={() => setPayOption(payOption === "deposit" ? "full" : "deposit")}
+                      className="rounded-full bg-card border border-border px-3 py-1 text-xs font-semibold hover:border-beige"
+                    >
+                      {payOption === "deposit" ? (ar ? "التبديل لسداد كامل" : "Switch to Full") : (ar ? "التبديل للديبوزيت" : "Switch to Deposit")}
+                    </button>
+                    <span className="rounded-full bg-navy/10 dark:bg-ivory/10 text-navy dark:text-ivory px-3 py-1 text-xs font-semibold">
+                      {payOption === "full" ? tr("Full Payment", "سداد كامل") : tr("Deposit Down Payment", "سداد الديبوزيت")}
+                    </span>
                   </div>
                 </div>
-              );
-            })}
+              </div>
+
+              {/* 4. Action Buttons & Live Chat Trigger */}
+              <div className="space-y-3">
+                <button
+                  type="button"
+                  disabled={requestingPay}
+                  onClick={handlePaymentRequest}
+                  className="w-full flex items-center justify-center gap-2 rounded-full border-2 border-beige bg-navy py-4 text-sm font-bold text-ivory hover:opacity-90 shadow-lg disabled:opacity-50 transition-all active:scale-98"
+                >
+                  {requestingPay ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin text-beige" />
+                      <span>{tr("Sending Request to Support...", "جاري إرسال الطلب والتفاصيل للشات...")}</span>
+                    </>
+                  ) : requestSuccess ? (
+                    <>
+                      <CheckCircle2 className="h-4 w-4 text-beige" />
+                      <span>{tr("Request Sent ✓ Open Live Chat", "تم إرسال الطلب بنجاح ✓ - فتح الشات المباشر")}</span>
+                    </>
+                  ) : (
+                    <>
+                      <MessageSquare className="h-4 w-4 text-beige" />
+                      <span>{tr(`Request Payment Details via ${paymentMethod} in Live Chat 💬`, `طلب بيانات التحويل عبر ${paymentMethod} في الشات المباشر 💬`)}</span>
+                    </>
+                  )}
+                </button>
+
+                {requestErr && (
+                  <p className="text-xs text-destructive font-medium text-center">{requestErr}</p>
+                )}
+
+                {requestSuccess && (
+                  <div className="rounded-2xl border border-emerald-500/40 bg-emerald-500/10 p-4 text-emerald-950 dark:text-emerald-200 animate-in fade-in">
+                    <div className="flex items-start gap-3">
+                      <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0 mt-0.5" />
+                      <div className="text-xs leading-relaxed flex-1">
+                        <p className="font-bold text-sm">
+                          {ar ? "✓ تم إرسال طلب الدفع بنجاح!" : "✓ Payment request sent successfully!"}
+                        </p>
+                        <p className="mt-1">
+                          {ar
+                            ? `تم تسجيل طلبك لدفع (${payOption === "deposit" ? "المقدم" : "دفعة واحدة"}) بمبلغ ${eur(selectedEur)} (~${selectedEgp.toLocaleString()} ج.م) عبر ${paymentMethod}. تم فتح شات الموقع وسيتواصل معك ممثل خدمة العملاء الآن لتزويدك برقم التحويل وتأكيد الحجز.`
+                            : `Your payment request of ${eur(selectedEur)} via ${paymentMethod} has been sent. Live chat is now open for an advisor to assist you.`}
+                        </p>
+                        <div className="mt-2.5">
+                          <button
+                            type="button"
+                            onClick={() => window.dispatchEvent(new CustomEvent("open-kinetix-chat"))}
+                            className="inline-flex items-center gap-1.5 rounded-full bg-emerald-600 px-3.5 py-1.5 text-xs font-semibold text-white shadow hover:bg-emerald-700"
+                          >
+                            <MessageSquare className="h-3.5 w-3.5" />
+                            {ar ? "فتح شات الموقع الآن 💬" : "Open Live Chat Now 💬"}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Navigation Controls */}
+          <div className="flex items-center justify-between pt-2">
+            <button
+              type="button"
+              onClick={() => setActiveSection(2)}
+              className="inline-flex items-center gap-2 rounded-full border border-border px-4 py-2 text-xs font-semibold text-muted-foreground hover:text-foreground"
+            >
+              <ArrowLeft className="h-3.5 w-3.5 rtl:rotate-180" />
+              <span>{ar ? "السابق: المستندات والأوراق" : "Previous: Documents"}</span>
+            </button>
           </div>
         </div>
-
-        {err && <p className="text-xs font-medium text-destructive">{err}</p>}
-      </div>
+      )}
     </div>
   );
 }
