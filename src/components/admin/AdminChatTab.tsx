@@ -259,10 +259,14 @@ export function AdminChatTab() {
 
   const isPaymentConv = (c: ChatConversation) =>
     Boolean(
-      c.lastMessage &&
-      (c.lastMessage.includes("طلب سداد") ||
-        c.lastMessage.includes("💳") ||
-        c.lastMessage.includes("طلب دفع"))
+      c.hasPaymentRequest ||
+      (c.lastMessage &&
+        (c.lastMessage.includes("طلب سداد") ||
+          c.lastMessage.includes("💳") ||
+          c.lastMessage.includes("طلب دفع") ||
+          c.lastMessage.includes("ديبوزيت") ||
+          c.lastMessage.includes("سداد الديبوزيت") ||
+          c.lastMessage.toLowerCase().includes("deposit")))
     );
 
   const paymentCount = conversations.filter(isPaymentConv).length;

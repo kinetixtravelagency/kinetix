@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
@@ -16,7 +16,10 @@ import {
   STUDENT_DURATION_OPTIONS, GRADUATE_DURATION_OPTIONS,
   FLIGHT_PRICE_STANDARD, FLIGHT_PRICE_PREMIUM,
 } from "@/lib/catalog";
-import { UNIVERSITIES, getFacultiesForUniversity, EGYPTIAN_CITIES } from "@/lib/universities";
+import {
+  UNIVERSITIES, STANDARD_FACULTIES, EGYPTIAN_GOVERNORATES, getFacultyYears
+} from "@/lib/universities";
+import { SearchableSelect } from "@/components/ui/SearchableSelect";
 import { useLang } from "@/lib/i18n";
 import { Nav, Footer } from "@/components/site/SiteChrome";
 import { DocUploader } from "@/components/site/DocUploader";
@@ -82,7 +85,9 @@ function Apply() {
     gender: "",
     education_level: "student", // "student" | "graduate" | "other"
     university: "",
+    custom_university: "",
     faculty: "",
+    custom_faculty: "",
     academic_year: "",
     graduation_year: "",
     current_city: "",
@@ -200,8 +205,87 @@ function Apply() {
 
   const requiredDocTypes = track === "student" ? studentDocTypes : graduateDocTypes;
 
-  // Available faculties for selected university
-  const availableFaculties = f.university ? getFacultiesForUniversity(f.university) : [];
+  // University options for SearchableSelect
+  const universityOptions = useMemo(() => {
+    return UNIVERSITIES.map((u) => ({
+      value: u.id,
+      label: ar ? u.nameAr : u.nameEn,
+      subLabel: u.id === "other" ? undefined : (ar ? u.nameEn : u.nameAr),
+      badge:
+        u.id === "other"
+          ? (ar ? "يدوي ✍️" : "Manual ✍️")
+          : u.type === "azhar"
+          ? (ar ? "أزهرية" : "Al-Azhar")
+          : u.type === "private"
+          ? (ar ? "خاصة" : "Private")
+          : (ar ? "حكومية" : "Public"),
+    }));
+  }, [ar]);
+
+  // Standard faculties options for SearchableSelect - all faculties accessible to any university
+  const facultyOptions = useMemo(() => {
+    return STANDARD_FACULTIES.map((fac) => {
+      const years = getFacultyYears(fac.id);
+      return {
+        value: fac.id,
+        label: ar ? fac.nameAr : fac.nameEn,
+        subLabel: fac.id === "other" ? undefined : (ar ? fac.nameEn : fac.nameAr),
+        badge:
+          fac.id === "other"
+            ? (ar ? "يدوي ✍️" : "Manual ✍️")
+            : fac.id === "med"
+            ? (ar ? "7 سنوات 🩺" : "7 Years 🩺")
+            : fac.id === "eng" || years === 5
+            ? (ar ? "5 سنوات ⚙️" : "5 Years ⚙️")
+            : (ar ? "4 سنوات 🎓" : "4 Years 🎓"),
+      };
+    });
+  }, [ar]);
+
+  // Governorates options for SearchableSelect
+  const governorateOptions = useMemo(() => {
+    return EGYPTIAN_GOVERNORATES.map((g) => ({
+      value: ar ? g.nameAr : g.nameEn,
+      label: ar ? g.nameAr : g.nameEn,
+      subLabel: ar ? g.nameEn : g.nameAr,
+    }));
+  }, [ar]);
+
+  // Calculate faculty years dynamically: Medicine = 7, Engineering = 5, all others = 4
+  const facultyYears = useMemo(() => {
+    const facKey = f.faculty === "other" ? f.custom_faculty : f.faculty;
+    return getFacultyYears(facKey);
+  }, [f.faculty, f.custom_faculty]);
+
+  // Academic year options based on faculty duration
+  const academicYearOptions = useMemo(() => {
+    if (facultyYears === 7) {
+      return [
+        { val: "1", label: ar ? "الفرقة الأولى (1st Year)" : "First Year (1st)" },
+        { val: "2", label: ar ? "الفرقة الثانية (2nd Year)" : "Second Year (2nd)" },
+        { val: "3", label: ar ? "الفرقة الثالثة (3rd Year)" : "Third Year (3rd)" },
+        { val: "4", label: ar ? "الفرقة الرابعة (4th Year)" : "Fourth Year (4th)" },
+        { val: "5", label: ar ? "الفرقة الخامسة (5th Year)" : "Fifth Year (5th)" },
+        { val: "6", label: ar ? "الفرقة السادسة (6th Year)" : "Sixth Year (6th)" },
+        { val: "7", label: ar ? "الفرقة السابعة / سنة الامتياز" : "Seventh Year / Clinical Internship" },
+      ];
+    }
+    if (facultyYears === 5) {
+      return [
+        { val: "1", label: ar ? "الفرقة الأولى / الإعدادية" : "First Year (Prep / 1st)" },
+        { val: "2", label: ar ? "الفرقة الثانية (2nd Year)" : "Second Year (2nd)" },
+        { val: "3", label: ar ? "الفرقة الثالثة (3rd Year)" : "Third Year (3rd)" },
+        { val: "4", label: ar ? "الفرقة الرابعة (4th Year)" : "Fourth Year (4th)" },
+        { val: "5", label: ar ? "الفرقة الخامسة / البكالوريوس" : "Fifth Year (Final / 5th)" },
+      ];
+    }
+    return [
+      { val: "1", label: ar ? "الفرقة الأولى (1st Year)" : "First Year (1st)" },
+      { val: "2", label: ar ? "الفرقة الثانية (2nd Year)" : "Second Year (2nd)" },
+      { val: "3", label: ar ? "الفرقة الثالثة (3rd Year)" : "Third Year (3rd)" },
+      { val: "4", label: ar ? "الفرقة الرابعة / التخرج" : "Fourth Year (Final / 4th)" },
+    ];
+  }, [facultyYears, ar]);
 
   const validateDetailsForm = () => {
     if (!f.first_name.trim() || f.first_name.trim().length < 2)
@@ -230,8 +314,12 @@ function Apply() {
     if (f.education_level === "student" || f.education_level === "graduate") {
       if (!f.university)
         return tr("Please select your university in Egypt.", "الرجاء اختيار الجامعة المصرية المقيد أو المتخرج منها.");
+      if (f.university === "other" && !f.custom_university.trim())
+        return tr("Please enter your university name.", "الرجاء كتابة اسم الجامعة يدوياً.");
       if (!f.faculty)
         return tr("Please select your faculty / college.", "الرجاء اختيار الكلية.");
+      if (f.faculty === "other" && !f.custom_faculty.trim())
+        return tr("Please enter your faculty name.", "الرجاء كتابة اسم الكلية يدوياً.");
       if (f.education_level === "student" && !f.academic_year)
         return tr("Please select your current academic year.", "الرجاء تحديد السنة الدراسية الحالية.");
       if (f.education_level === "graduate" && !f.graduation_year)
@@ -239,12 +327,12 @@ function Apply() {
     }
 
     if (!f.current_city.trim())
-      return tr("Please enter your current city of residence.", "الرجاء إدخال مدينة الإقامة الحالية.");
+      return tr("Please select your current city / governorate of residence.", "الرجاء اختيار محافظة الإقامة الحالية.");
     if (!f.current_address.trim())
       return tr("Please enter your current address.", "الرجاء إدخال عنوان الإقامة الحالي بالتفصيل.");
 
     if (!f.hometown_city.trim())
-      return tr("Please enter your hometown city / governorate.", "الرجاء إدخال المحافظة أو المدينة الأصلية (محل الميلاد).");
+      return tr("Please select your hometown city / governorate.", "الرجاء اختيار المحافظة الأصلية (محل الميلاد).");
     if (!f.hometown_address.trim())
       return tr("Please enter your hometown address.", "الرجاء إدخال العنوان الأصلي.");
 
@@ -264,7 +352,20 @@ function Apply() {
       const fullName = `${f.first_name.trim()} ${f.second_name.trim()}`;
 
       const selectedUnivObj = UNIVERSITIES.find((u) => u.id === f.university);
-      const univName = selectedUnivObj ? (ar ? selectedUnivObj.nameAr : selectedUnivObj.nameEn) : f.university;
+      const univName =
+        f.university === "other"
+          ? (f.custom_university.trim() || (ar ? "جامعة أخرى" : "Other University"))
+          : selectedUnivObj
+          ? (ar ? selectedUnivObj.nameAr : selectedUnivObj.nameEn)
+          : f.university;
+
+      const selectedFacultyObj = STANDARD_FACULTIES.find((fac) => fac.id === f.faculty);
+      const facultyName =
+        f.faculty === "other"
+          ? (f.custom_faculty.trim() || (ar ? "كلية أخرى" : "Other Faculty"))
+          : selectedFacultyObj
+          ? (ar ? selectedFacultyObj.nameAr : selectedFacultyObj.nameEn)
+          : f.faculty;
 
       const r = await submit({
         data: {
@@ -280,7 +381,7 @@ function Apply() {
           gender: f.gender,
           education_level: f.education_level,
           university: univName,
-          faculty: f.faculty,
+          faculty: facultyName,
           academic_year: f.academic_year,
           graduation_year: f.graduation_year,
           current_city: f.current_city.trim(),
@@ -971,66 +1072,137 @@ function Apply() {
 
                 {(f.education_level === "student" || f.education_level === "graduate") && (
                   <div className="space-y-3 pt-1">
-                    {/* University dropdown */}
+                    {/* University searchable dropdown */}
                     <div>
-                      <label className="block text-xs text-muted-foreground mb-1">
-                        <Building2 className="inline h-3 w-3 text-beige me-1" />
-                        {tr("Egyptian University *", "الجامعة المصرية *")}
-                      </label>
-                      <select
-                        className={inp}
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="text-xs text-muted-foreground flex items-center gap-1">
+                          <Building2 className="h-3 w-3 text-beige" />
+                          {tr("Egyptian University *", "الجامعة المصرية *")}
+                        </label>
+                        <span className="text-[10px] text-muted-foreground">
+                          {tr("Searchable dropdown", "قائمة قابلة للبحث")}
+                        </span>
+                      </div>
+                      <SearchableSelect
+                        options={universityOptions}
                         value={f.university}
-                        onChange={(e) => setF({ ...f, university: e.target.value, faculty: "" })}
-                        required
-                      >
-                        <option value="">{tr("-- Select Egyptian University --", "-- اختر الجامعة المصرية --")}</option>
-                        {UNIVERSITIES.map((u) => (
-                          <option key={u.id} value={u.id}>
-                            {ar ? u.nameAr : u.nameEn}
-                          </option>
-                        ))}
-                      </select>
+                        onChange={(val) => {
+                          setF({
+                            ...f,
+                            university: val,
+                            custom_university: val === "other" ? f.custom_university : "",
+                          });
+                        }}
+                        placeholder={tr("-- Select Egyptian University --", "-- اختر الجامعة المصرية --")}
+                        searchPlaceholder={tr("Search university...", "ابحث عن جامعتك...")}
+                      />
+                      {f.university === "other" && (
+                        <div className="mt-2 animate-in fade-in slide-in-from-top-1">
+                          <label className="block text-[11px] font-semibold text-foreground mb-1">
+                            {tr("Type University / Academy Name *", "اكتب اسم الجامعة أو الأكاديمية بالكامل *")}
+                          </label>
+                          <input
+                            type="text"
+                            className={inp}
+                            placeholder={tr("e.g. Arab International Academy...", "مثال: جامعة الدلتا الخاصة، أكاديمية الشروق...")}
+                            value={f.custom_university}
+                            onChange={(e) => setF({ ...f, custom_university: e.target.value })}
+                            required
+                          />
+                        </div>
+                      )}
                     </div>
 
-                    {/* Faculty dropdown (associated with university) */}
+                    {/* Faculty searchable dropdown */}
                     <div>
-                      <label className="block text-xs text-muted-foreground mb-1">
-                        <BookOpen className="inline h-3 w-3 text-beige me-1" />
-                        {tr("Faculty / College *", "الكلية / المعهد *")}
-                      </label>
-                      <select
-                        className={inp}
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="text-xs text-muted-foreground flex items-center gap-1">
+                          <BookOpen className="h-3 w-3 text-beige" />
+                          {tr("Faculty / College *", "الكلية / المعهد *")}
+                        </label>
+                        <span className="text-[10px] text-muted-foreground">
+                          {tr("All faculties available", "جميع الكليات والمعاهد متاحة")}
+                        </span>
+                      </div>
+                      <SearchableSelect
+                        options={facultyOptions}
                         value={f.faculty}
-                        onChange={(e) => setF({ ...f, faculty: e.target.value })}
                         disabled={!f.university}
-                        required
-                      >
-                        <option value="">{tr("-- Select Faculty --", "-- اختر الكلية --")}</option>
-                        {availableFaculties.map((fac) => (
-                          <option key={fac.id} value={ar ? fac.nameAr : fac.nameEn}>
-                            {ar ? fac.nameAr : fac.nameEn}
-                          </option>
-                        ))}
-                      </select>
+                        onChange={(val) => {
+                          setF((prev) => {
+                            const newYears = getFacultyYears(val === "other" ? prev.custom_faculty : val);
+                            let newAcademicYear = prev.academic_year;
+                            if (Number(newAcademicYear) > newYears) {
+                              newAcademicYear = String(newYears);
+                            }
+                            return {
+                              ...prev,
+                              faculty: val,
+                              academic_year: newAcademicYear,
+                              custom_faculty: val === "other" ? prev.custom_faculty : "",
+                            };
+                          });
+                        }}
+                        placeholder={
+                          !f.university
+                            ? tr("-- Choose University First --", "-- اختر الجامعة أولاً --")
+                            : tr("-- Select Faculty / Institute --", "-- اختر الكلية أو المعهد --")
+                        }
+                        searchPlaceholder={tr("Search faculty...", "ابحث عن كليتك...")}
+                      />
+                      {f.faculty === "other" && (
+                        <div className="mt-2 animate-in fade-in slide-in-from-top-1">
+                          <label className="block text-[11px] font-semibold text-foreground mb-1">
+                            {tr("Type Faculty / Institute Name *", "اكتب اسم الكلية أو المعهد بالكامل *")}
+                          </label>
+                          <input
+                            type="text"
+                            className={inp}
+                            placeholder={tr("e.g. Higher Institute for Applied Languages...", "مثال: معهد عالي للهندسة والتكنولوجيا، كلية اللغات والترجمة...")}
+                            value={f.custom_faculty}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setF((prev) => ({
+                                ...prev,
+                                custom_faculty: val,
+                              }));
+                            }}
+                            required
+                          />
+                        </div>
+                      )}
                     </div>
 
                     {/* Enrollment details */}
                     {f.education_level === "student" ? (
                       <div>
-                        <label className="block text-xs text-muted-foreground mb-1">{tr("Current Academic Year *", "الفرقة الدراسية الحالية *")}</label>
+                        <div className="flex items-center justify-between mb-1">
+                          <label className="text-xs text-muted-foreground">
+                            {tr("Current Academic Year *", "الفرقة الدراسية الحالية *")}
+                          </label>
+                          {f.faculty && (
+                            <span className="text-[10px] font-semibold text-beige">
+                              {facultyYears === 7
+                                ? (ar ? "🩺 كلية 7 سنوات (طب بشري)" : "🩺 7-Year Degree (Medicine)")
+                                : facultyYears === 5
+                                ? (ar ? "⚙️ كلية 5 سنوات (هندسة)" : "⚙️ 5-Year Degree (Engineering)")
+                                : (ar ? "🎓 كلية 4 سنوات" : "🎓 4-Year Degree")}
+                            </span>
+                          )}
+                        </div>
                         <select
                           className={inp}
                           value={f.academic_year}
                           onChange={(e) => setF({ ...f, academic_year: e.target.value })}
+                          disabled={!f.faculty}
                           required
                         >
                           <option value="">{tr("-- Select Academic Year --", "-- اختر الفرقة الدراسية --")}</option>
-                          <option value="1">{tr("First Year (1st)", "الفرقة الأولى")}</option>
-                          <option value="2">{tr("Second Year (2nd)", "الفرقة الثانية")}</option>
-                          <option value="3">{tr("Third Year (3rd)", "الفرقة الثالثة")}</option>
-                          <option value="4">{tr("Fourth Year (4th)", "الفرقة الرابعة")}</option>
-                          <option value="5">{tr("Fifth Year (5th)", "الفرقة الخامسة")}</option>
-                          <option value="internship">{tr("Clinical Internship / Final Year", "سنة الامتياز")}</option>
+                          {academicYearOptions.map((opt) => (
+                            <option key={opt.val} value={opt.val}>
+                              {opt.label}
+                            </option>
+                          ))}
                         </select>
                       </div>
                     ) : (
@@ -1061,13 +1233,15 @@ function Apply() {
                     {tr("Current Residence", "محل الإقامة الحالي")}
                   </p>
                   <div>
-                    <label className="block text-xs text-muted-foreground mb-1">{tr("Current City *", "مدينة الإقامة الحالية *")}</label>
-                    <input
-                      className={inp}
-                      placeholder={tr("e.g. Cairo / New Cairo", "مثال: القاهرة / التجمع")}
+                    <label className="block text-xs text-muted-foreground mb-1">
+                      {tr("Current Governorate *", "محافظة الإقامة الحالية *")}
+                    </label>
+                    <SearchableSelect
+                      options={governorateOptions}
                       value={f.current_city}
-                      onChange={(e) => setF({ ...f, current_city: e.target.value })}
-                      required
+                      onChange={(val) => setF({ ...f, current_city: val })}
+                      placeholder={tr("-- Select Governorate --", "-- اختر المحافظة --")}
+                      searchPlaceholder={tr("Search Egyptian governorate...", "ابحث في المحافظات...")}
                     />
                   </div>
                   <div>
@@ -1089,13 +1263,15 @@ function Apply() {
                     {tr("Hometown (Place of Origin)", "المحافظة والمدينة الأصلية")}
                   </p>
                   <div>
-                    <label className="block text-xs text-muted-foreground mb-1">{tr("Hometown City / Governorate *", "المدينة / المحافظة الأصلية *")}</label>
-                    <input
-                      className={inp}
-                      placeholder={tr("e.g. Mansoura / Dakahlia", "مثال: المنصورة / الدقهلية")}
+                    <label className="block text-xs text-muted-foreground mb-1">
+                      {tr("Hometown Governorate *", "المحافظة الأصلية (محل الميلاد) *")}
+                    </label>
+                    <SearchableSelect
+                      options={governorateOptions}
                       value={f.hometown_city}
-                      onChange={(e) => setF({ ...f, hometown_city: e.target.value })}
-                      required
+                      onChange={(val) => setF({ ...f, hometown_city: val })}
+                      placeholder={tr("-- Select Governorate --", "-- اختر المحافظة الأصلية --")}
+                      searchPlaceholder={tr("Search Egyptian governorate...", "ابحث في المحافظات...")}
                     />
                   </div>
                   <div>

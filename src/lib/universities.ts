@@ -72,154 +72,122 @@ export const UNIVERSITIES: University[] = [
   { id: "canadian_intl", nameAr: "الجامعة الكندية في مصر", nameEn: "Canadian International College", type: "private" },
   { id: "miu", nameAr: "جامعة مصر الدولية (مدينة الشروق)", nameEn: "Modern International University", type: "private" },
   { id: "htu", nameAr: "الجامعة العليا للسياحة والفندقة", nameEn: "Higher Institute for Tourism & Hotels", type: "private" },
+  { id: "other", nameAr: "أخرى (كتابة اسم الجامعة يدوياً)", nameEn: "Other (Type university name manually)", type: "private" },
 ];
 
-/** Faculties map: universityId → Faculty[] */
-export const FACULTIES: Faculty[] = [
-  // Cairo University
-  { id: "cairo_eng", universityId: "cairo", nameAr: "كلية الهندسة", nameEn: "Faculty of Engineering" },
-  { id: "cairo_med", universityId: "cairo", nameAr: "كلية الطب", nameEn: "Faculty of Medicine" },
-  { id: "cairo_pharm", universityId: "cairo", nameAr: "كلية الصيدلة", nameEn: "Faculty of Pharmacy" },
-  { id: "cairo_law", universityId: "cairo", nameAr: "كلية الحقوق", nameEn: "Faculty of Law" },
-  { id: "cairo_econ", universityId: "cairo", nameAr: "كلية الاقتصاد والعلوم السياسية", nameEn: "Faculty of Economics & Political Science" },
-  { id: "cairo_com", universityId: "cairo", nameAr: "كلية التجارة", nameEn: "Faculty of Commerce" },
-  { id: "cairo_arts", universityId: "cairo", nameAr: "كلية الآداب", nameEn: "Faculty of Arts" },
-  { id: "cairo_sci", universityId: "cairo", nameAr: "كلية العلوم", nameEn: "Faculty of Science" },
-  { id: "cairo_cs", universityId: "cairo", nameAr: "كلية الحاسبات والمعلومات", nameEn: "Faculty of Computer Science & Information" },
-  { id: "cairo_agri", universityId: "cairo", nameAr: "كلية الزراعة", nameEn: "Faculty of Agriculture" },
-  { id: "cairo_dent", universityId: "cairo", nameAr: "كلية طب الأسنان", nameEn: "Faculty of Dentistry" },
-  { id: "cairo_vet", universityId: "cairo", nameAr: "كلية الطب البيطري", nameEn: "Faculty of Veterinary Medicine" },
-  { id: "cairo_massCom", universityId: "cairo", nameAr: "كلية الإعلام", nameEn: "Faculty of Mass Communication" },
-  { id: "cairo_arch", universityId: "cairo", nameAr: "كلية الفنون الجميلة", nameEn: "Faculty of Fine Arts" },
-  { id: "cairo_edu", universityId: "cairo", nameAr: "كلية التربية", nameEn: "Faculty of Education" },
-
-  // Ain Shams
-  { id: "as_eng", universityId: "ain_shams", nameAr: "كلية الهندسة", nameEn: "Faculty of Engineering" },
-  { id: "as_med", universityId: "ain_shams", nameAr: "كلية الطب", nameEn: "Faculty of Medicine" },
-  { id: "as_pharm", universityId: "ain_shams", nameAr: "كلية الصيدلة", nameEn: "Faculty of Pharmacy" },
-  { id: "as_com", universityId: "ain_shams", nameAr: "كلية التجارة", nameEn: "Faculty of Commerce" },
-  { id: "as_law", universityId: "ain_shams", nameAr: "كلية الحقوق", nameEn: "Faculty of Law" },
-  { id: "as_arts", universityId: "ain_shams", nameAr: "كلية الآداب", nameEn: "Faculty of Arts" },
-  { id: "as_sci", universityId: "ain_shams", nameAr: "كلية العلوم", nameEn: "Faculty of Science" },
-  { id: "as_cs", universityId: "ain_shams", nameAr: "كلية الحاسبات والمعلومات", nameEn: "Faculty of Computer Science & Information" },
-  { id: "as_edu", universityId: "ain_shams", nameAr: "كلية التربية", nameEn: "Faculty of Education" },
-  { id: "as_dent", universityId: "ain_shams", nameAr: "كلية طب الأسنان", nameEn: "Faculty of Dentistry" },
-  { id: "as_lang", universityId: "ain_shams", nameAr: "كلية الألسن", nameEn: "Faculty of Language Studies" },
-  { id: "as_nursing", universityId: "ain_shams", nameAr: "كلية التمريض", nameEn: "Faculty of Nursing" },
-
-  // Alexandria
-  { id: "alex_eng", universityId: "alexandria", nameAr: "كلية الهندسة", nameEn: "Faculty of Engineering" },
-  { id: "alex_med", universityId: "alexandria", nameAr: "كلية الطب", nameEn: "Faculty of Medicine" },
-  { id: "alex_com", universityId: "alexandria", nameAr: "كلية التجارة", nameEn: "Faculty of Commerce" },
-  { id: "alex_law", universityId: "alexandria", nameAr: "كلية الحقوق", nameEn: "Faculty of Law" },
-  { id: "alex_arts", universityId: "alexandria", nameAr: "كلية الآداب", nameEn: "Faculty of Arts" },
-  { id: "alex_sci", universityId: "alexandria", nameAr: "كلية العلوم", nameEn: "Faculty of Science" },
-  { id: "alex_cs", universityId: "alexandria", nameAr: "كلية الحاسبات والمعلومات", nameEn: "Faculty of Computer Science" },
-  { id: "alex_pharm", universityId: "alexandria", nameAr: "كلية الصيدلة", nameEn: "Faculty of Pharmacy" },
-  { id: "alex_dent", universityId: "alexandria", nameAr: "كلية طب الأسنان", nameEn: "Faculty of Dentistry" },
-  { id: "alex_vet", universityId: "alexandria", nameAr: "كلية الطب البيطري", nameEn: "Faculty of Veterinary Medicine" },
-  { id: "alex_agri", universityId: "alexandria", nameAr: "كلية الزراعة", nameEn: "Faculty of Agriculture" },
-  { id: "alex_tourism", universityId: "alexandria", nameAr: "كلية السياحة والفندقة", nameEn: "Faculty of Tourism & Hotels" },
-
-  // Mansoura
-  { id: "mans_eng", universityId: "mansoura", nameAr: "كلية الهندسة", nameEn: "Faculty of Engineering" },
-  { id: "mans_med", universityId: "mansoura", nameAr: "كلية الطب", nameEn: "Faculty of Medicine" },
-  { id: "mans_pharm", universityId: "mansoura", nameAr: "كلية الصيدلة", nameEn: "Faculty of Pharmacy" },
-  { id: "mans_com", universityId: "mansoura", nameAr: "كلية التجارة", nameEn: "Faculty of Commerce" },
-  { id: "mans_cs", universityId: "mansoura", nameAr: "كلية الحاسبات والمعلومات", nameEn: "Faculty of Computer Science" },
-  { id: "mans_law", universityId: "mansoura", nameAr: "كلية الحقوق", nameEn: "Faculty of Law" },
-  { id: "mans_arts", universityId: "mansoura", nameAr: "كلية الآداب", nameEn: "Faculty of Arts" },
-  { id: "mans_sci", universityId: "mansoura", nameAr: "كلية العلوم", nameEn: "Faculty of Science" },
-  { id: "mans_dent", universityId: "mansoura", nameAr: "كلية طب الأسنان", nameEn: "Faculty of Dentistry" },
-
-  // Zagazig
-  { id: "zag_eng", universityId: "zagazig", nameAr: "كلية الهندسة", nameEn: "Faculty of Engineering" },
-  { id: "zag_med", universityId: "zagazig", nameAr: "كلية الطب", nameEn: "Faculty of Medicine" },
-  { id: "zag_com", universityId: "zagazig", nameAr: "كلية التجارة", nameEn: "Faculty of Commerce" },
-  { id: "zag_agri", universityId: "zagazig", nameAr: "كلية الزراعة", nameEn: "Faculty of Agriculture" },
-  { id: "zag_sci", universityId: "zagazig", nameAr: "كلية العلوم", nameEn: "Faculty of Science" },
-  { id: "zag_cs", universityId: "zagazig", nameAr: "كلية الحاسبات والمعلومات", nameEn: "Faculty of Computer Science" },
-  { id: "zag_pharm", universityId: "zagazig", nameAr: "كلية الصيدلة", nameEn: "Faculty of Pharmacy" },
-
-  // Helwan
-  { id: "helwan_eng", universityId: "helwan", nameAr: "كلية الهندسة", nameEn: "Faculty of Engineering" },
-  { id: "helwan_com", universityId: "helwan", nameAr: "كلية التجارة والأعمال", nameEn: "Faculty of Commerce & Business" },
-  { id: "helwan_arts", universityId: "helwan", nameAr: "كلية الآداب", nameEn: "Faculty of Arts" },
-  { id: "helwan_fineart", universityId: "helwan", nameAr: "كلية الفنون الجميلة", nameEn: "Faculty of Fine Arts" },
-  { id: "helwan_tourism", universityId: "helwan", nameAr: "كلية السياحة والفنادق", nameEn: "Faculty of Tourism & Hotels" },
-  { id: "helwan_music", universityId: "helwan", nameAr: "معهد الموسيقى العربية", nameEn: "Institute of Arabic Music" },
-  { id: "helwan_edu", universityId: "helwan", nameAr: "كلية التربية", nameEn: "Faculty of Education" },
-
-  // Assiut
-  { id: "ass_eng", universityId: "assiut", nameAr: "كلية الهندسة", nameEn: "Faculty of Engineering" },
-  { id: "ass_med", universityId: "assiut", nameAr: "كلية الطب", nameEn: "Faculty of Medicine" },
-  { id: "ass_pharm", universityId: "assiut", nameAr: "كلية الصيدلة", nameEn: "Faculty of Pharmacy" },
-  { id: "ass_com", universityId: "assiut", nameAr: "كلية التجارة", nameEn: "Faculty of Commerce" },
-  { id: "ass_sci", universityId: "assiut", nameAr: "كلية العلوم", nameEn: "Faculty of Science" },
-  { id: "ass_agri", universityId: "assiut", nameAr: "كلية الزراعة", nameEn: "Faculty of Agriculture" },
-
-  // Suez Canal
-  { id: "sc_eng", universityId: "suez_canal", nameAr: "كلية الهندسة", nameEn: "Faculty of Engineering" },
-  { id: "sc_med", universityId: "suez_canal", nameAr: "كلية الطب", nameEn: "Faculty of Medicine" },
-  { id: "sc_com", universityId: "suez_canal", nameAr: "كلية التجارة", nameEn: "Faculty of Commerce" },
-  { id: "sc_tourism", universityId: "suez_canal", nameAr: "كلية السياحة والفنادق", nameEn: "Faculty of Tourism & Hotels" },
-  { id: "sc_cs", universityId: "suez_canal", nameAr: "كلية الحاسبات والمعلومات", nameEn: "Faculty of Computer Science" },
-
-  // GUC
-  { id: "guc_eng", universityId: "guc", nameAr: "كلية الهندسة والمعلوماتية", nameEn: "Faculty of Engineering & IT" },
-  { id: "guc_med", universityId: "guc", nameAr: "كلية الطب والعلوم الصحية", nameEn: "Faculty of Medicine & Health Sciences" },
-  { id: "guc_bus", universityId: "guc", nameAr: "كلية إدارة الأعمال", nameEn: "Faculty of Management Technology" },
-  { id: "guc_arch", universityId: "guc", nameAr: "كلية العمارة والتصميم", nameEn: "Faculty of Architecture & Design" },
-  { id: "guc_pharm", universityId: "guc", nameAr: "كلية الصيدلة والبيوتكنولوجي", nameEn: "Faculty of Pharmacy & Biotechnology" },
-
-  // BUE
-  { id: "bue_eng", universityId: "bue", nameAr: "كلية الهندسة", nameEn: "Faculty of Engineering" },
-  { id: "bue_bus", universityId: "bue", nameAr: "كلية إدارة الأعمال", nameEn: "Faculty of Business" },
-  { id: "bue_it", universityId: "bue", nameAr: "كلية الحوسبة والتكنولوجيا الرقمية", nameEn: "Faculty of Computing & Digital Technology" },
-  { id: "bue_hum", universityId: "bue", nameAr: "كلية الآداب والعلوم الإنسانية", nameEn: "Faculty of Arts & Humanities" },
-
-  // AUC
-  { id: "auc_eng", universityId: "aua", nameAr: "كلية الهندسة والعلوم التطبيقية", nameEn: "School of Engineering & Applied Science" },
-  { id: "auc_bus", universityId: "aua", nameAr: "كلية إدارة الأعمال", nameEn: "School of Business" },
-  { id: "auc_sss", universityId: "aua", nameAr: "كلية العلوم الإنسانية والاجتماعية", nameEn: "School of Humanities & Social Sciences" },
-  { id: "auc_globalAff", universityId: "aua", nameAr: "كلية الشئون العالمية والسياسة العامة", nameEn: "School of Global Affairs & Public Policy" },
-
-  // Other private - generic faculties
-  { id: "mtu_eng", universityId: "mtu", nameAr: "كلية الهندسة", nameEn: "Faculty of Engineering" },
-  { id: "mtu_bus", universityId: "mtu", nameAr: "كلية إدارة الأعمال", nameEn: "Faculty of Business" },
-  { id: "mtu_dent", universityId: "mtu", nameAr: "كلية طب الأسنان", nameEn: "Faculty of Dentistry" },
-  { id: "mtu_pharm", universityId: "mtu", nameAr: "كلية الصيدلة", nameEn: "Faculty of Pharmacy" },
-  { id: "mtu_cs", universityId: "mtu", nameAr: "كلية الحاسبات والمعلومات", nameEn: "Faculty of Computer Science" },
-
-  { id: "future_eng", universityId: "future", nameAr: "كلية الهندسة", nameEn: "Faculty of Engineering" },
-  { id: "future_bus", universityId: "future", nameAr: "كلية إدارة الأعمال", nameEn: "Faculty of Business Administration" },
-  { id: "future_pharm", universityId: "future", nameAr: "كلية الصيدلة", nameEn: "Faculty of Pharmacy" },
-  { id: "future_cs", universityId: "future", nameAr: "كلية الحاسبات والمعلومات", nameEn: "Faculty of Computer Science" },
-  { id: "future_arch", universityId: "future", nameAr: "كلية العمارة", nameEn: "Faculty of Architecture" },
-
-  // Al-Azhar
-  { id: "azhar_sharia", universityId: "azhar_cairo", nameAr: "كلية الشريعة والقانون", nameEn: "Faculty of Sharia & Law" },
-  { id: "azhar_lang", universityId: "azhar_cairo", nameAr: "كلية اللغة العربية", nameEn: "Faculty of Arabic Language" },
-  { id: "azhar_eng", universityId: "azhar_cairo", nameAr: "كلية الهندسة", nameEn: "Faculty of Engineering" },
-  { id: "azhar_med", universityId: "azhar_cairo", nameAr: "كلية الطب", nameEn: "Faculty of Medicine" },
-  { id: "azhar_pharm", universityId: "azhar_cairo", nameAr: "كلية الصيدلة", nameEn: "Faculty of Pharmacy" },
-  { id: "azhar_com", universityId: "azhar_cairo", nameAr: "كلية التجارة", nameEn: "Faculty of Commerce" },
-  { id: "azhar_sci", universityId: "azhar_cairo", nameAr: "كلية العلوم", nameEn: "Faculty of Science" },
-  { id: "azhar_edu", universityId: "azhar_cairo", nameAr: "كلية التربية", nameEn: "Faculty of Education" },
-  { id: "azhar_islamicstud", universityId: "azhar_cairo", nameAr: "كلية الدراسات الإسلامية", nameEn: "Faculty of Islamic Studies" },
-];
-
-/** Get faculties for a given university id */
-export function getFacultiesForUniversity(universityId: string): Faculty[] {
-  return FACULTIES.filter((f) => f.universityId === universityId);
+export interface StandardFaculty {
+  id: string;
+  nameAr: string;
+  nameEn: string;
+  years: number;
 }
 
-export const EGYPTIAN_CITIES = [
-  "القاهرة", "الإسكندرية", "الجيزة", "المنصورة", "الإسماعيلية",
-  "السويس", "بورسعيد", "الزقازيق", "طنطا", "أسيوط",
-  "سوهاج", "الأقصر", "أسوان", "بني سويف", "المنيا",
-  "الفيوم", "دمياط", "كفر الشيخ", "بنها", "شبرا الخيمة",
-  "المحلة الكبرى", "قنا", "مرسى مطروح", "شرم الشيخ", "الغردقة",
-  "العريش", "الأقصر", "دسوق", "أبو زعبل", "10th of Ramadan",
-  "6th of October", "New Cairo", "New Administrative Capital",
+/** Comprehensive list of Egyptian faculties available for all universities */
+export const STANDARD_FACULTIES: StandardFaculty[] = [
+  { id: "eng", nameAr: "كلية الهندسة", nameEn: "Faculty of Engineering", years: 5 },
+  { id: "med", nameAr: "كلية الطب البشري", nameEn: "Faculty of Medicine", years: 7 },
+  { id: "dent", nameAr: "كلية طب جراحة الفم والأسنان", nameEn: "Faculty of Dentistry", years: 5 },
+  { id: "pharm", nameAr: "كلية الصيدلة", nameEn: "Faculty of Pharmacy", years: 5 },
+  { id: "phys_therapy", nameAr: "كلية العلاج الطبيعي", nameEn: "Faculty of Physical Therapy", years: 5 },
+  { id: "cs", nameAr: "كلية الحاسبات والمعلومات والذكاء الاصطناعي", nameEn: "Faculty of Computer Science & AI", years: 4 },
+  { id: "com", nameAr: "كلية التجارة وإدارة الأعمال", nameEn: "Faculty of Commerce & Business", years: 4 },
+  { id: "law", nameAr: "كلية الحقوق والشريعة والقانون", nameEn: "Faculty of Law & Sharia", years: 4 },
+  { id: "arts", nameAr: "كلية الآداب والعلوم الإنسانية", nameEn: "Faculty of Arts & Humanities", years: 4 },
+  { id: "alsun", nameAr: "كلية الألسن واللغات والترجمة", nameEn: "Faculty of Al-Alsun & Languages", years: 4 },
+  { id: "econ", nameAr: "كلية الاقتصاد والعلوم السياسية", nameEn: "Faculty of Economics & Political Science", years: 4 },
+  { id: "mass_comm", nameAr: "كلية الإعلام وتكنولوجيا الاتصال", nameEn: "Faculty of Mass Communication", years: 4 },
+  { id: "sci", nameAr: "كلية العلوم", nameEn: "Faculty of Science", years: 4 },
+  { id: "nursing", nameAr: "كلية التمريض", nameEn: "Faculty of Nursing", years: 4 },
+  { id: "vet", nameAr: "كلية الطب البيطري", nameEn: "Faculty of Veterinary Medicine", years: 5 },
+  { id: "agri", nameAr: "كلية الزراعة", nameEn: "Faculty of Agriculture", years: 4 },
+  { id: "edu", nameAr: "كلية التربية", nameEn: "Faculty of Education", years: 4 },
+  { id: "specific_edu", nameAr: "كلية التربية النوعية", nameEn: "Faculty of Specific Education", years: 4 },
+  { id: "sports_edu", nameAr: "كلية التربية الرياضية", nameEn: "Faculty of Physical Education", years: 4 },
+  { id: "fine_arts", nameAr: "كلية الفنون الجميلة", nameEn: "Faculty of Fine Arts", years: 5 },
+  { id: "applied_arts", nameAr: "كلية الفنون التطبيقية", nameEn: "Faculty of Applied Arts", years: 5 },
+  { id: "tourism", nameAr: "كلية السياحة والفنادق", nameEn: "Faculty of Tourism & Hotels", years: 4 },
+  { id: "archaeology", nameAr: "كلية الآثار", nameEn: "Faculty of Archaeology", years: 4 },
+  { id: "social_work", nameAr: "كلية الخدمة الاجتماعية", nameEn: "Faculty of Social Work", years: 4 },
+  { id: "industrial_tech", nameAr: "كلية التكنولوجيا والتعليم الصناعي", nameEn: "Faculty of Industrial Technology", years: 4 },
+  { id: "applied_health", nameAr: "كلية العلوم الصحية والتطبيقية", nameEn: "Faculty of Applied Health Sciences", years: 4 },
+  { id: "islamic_studies", nameAr: "كلية الدراسات الإسلامية وأصول الدين", nameEn: "Faculty of Islamic Studies", years: 4 },
+  { id: "higher_institute_tech", nameAr: "معهد عالي للهندسة والتكنولوجيا", nameEn: "Higher Institute of Engineering & Technology", years: 5 },
+  { id: "higher_institute_comp", nameAr: "معهد عالي للحاسبات ونظم المعلومات والإدارة", nameEn: "Higher Institute of MIS & Computer Science", years: 4 },
+  { id: "higher_institute_lang", nameAr: "معهد عالي للغات والإعلام والترجمة", nameEn: "Higher Institute of Languages & Media", years: 4 },
+  { id: "other", nameAr: "أخرى (كتابة اسم الكلية أو المعهد يدوياً)", nameEn: "Other (Type Faculty or Institute manually)", years: 4 },
 ];
+
+/**
+ * Calculates academic years based on faculty:
+ * - Medicine: 7 years
+ * - Engineering: 5 years
+ * - All other faculties: 4 years
+ */
+export function getFacultyYears(facultyNameOrId: string): number {
+  if (!facultyNameOrId) return 4;
+  const str = facultyNameOrId.toLowerCase();
+  // Medicine: 7 years (excluding veterinary or dental)
+  if (
+    (facultyNameOrId.includes("الطب") && !facultyNameOrId.includes("البيطري") && !facultyNameOrId.includes("الأسنان")) ||
+    (str.includes("medicine") && !str.includes("veterinary") && !str.includes("dental")) ||
+    facultyNameOrId === "med"
+  ) {
+    return 7;
+  }
+  // Engineering: 5 years
+  if (
+    facultyNameOrId.includes("الهندسة") ||
+    str.includes("engineering") ||
+    facultyNameOrId === "eng" ||
+    facultyNameOrId === "higher_institute_tech"
+  ) {
+    return 5;
+  }
+  // All other faculties: 4 years
+  return 4;
+}
+
+/** Get faculties for a given university id - returns complete standardized list */
+export function getFacultiesForUniversity(universityId: string): StandardFaculty[] {
+  // Always return the rich standardized list so every Egyptian university has all faculties available
+  return STANDARD_FACULTIES;
+}
+
+export interface Governorate {
+  id: string;
+  nameAr: string;
+  nameEn: string;
+}
+
+/** Egypt's 27 official governorates */
+export const EGYPTIAN_GOVERNORATES: Governorate[] = [
+  { id: "cairo", nameAr: "القاهرة", nameEn: "Cairo" },
+  { id: "giza", nameAr: "الجيزة", nameEn: "Giza" },
+  { id: "alexandria", nameAr: "الإسكندرية", nameEn: "Alexandria" },
+  { id: "qalyubia", nameAr: "القليوبية (بنها / شبرا)", nameEn: "Qalyubia (Benha / Shubra)" },
+  { id: "dakahlia", nameAr: "الدقهلية (المنصورة)", nameEn: "Dakahlia (Mansoura)" },
+  { id: "sharqia", nameAr: "الشرقية (الزقازيق / العاشر)", nameEn: "Sharqia (Zagazig / 10th of Ramadan)" },
+  { id: "gharbia", nameAr: "الغربية (طنطا / المحلة الكبرى)", nameEn: "Gharbia (Tanta / Mahalla)" },
+  { id: "menofia", nameAr: "المنوفية (شبين الكوم / السادات)", nameEn: "Menoufia (Shebin El Koum)" },
+  { id: "beheira", nameAr: "البحيرة (دمنهور)", nameEn: "Beheira (Damanhur)" },
+  { id: "kafr_sheikh", nameAr: "كفر الشيخ", nameEn: "Kafr El Sheikh" },
+  { id: "damietta", nameAr: "دمياط", nameEn: "Damietta" },
+  { id: "port_said", nameAr: "بورسعيد", nameEn: "Port Said" },
+  { id: "ismailia", nameAr: "الإسماعيلية", nameEn: "Ismailia" },
+  { id: "suez", nameAr: "السويس", nameEn: "Suez" },
+  { id: "fayoum", nameAr: "الفيوم", nameEn: "Fayoum" },
+  { id: "beni_suef", nameAr: "بني سويف", nameEn: "Beni Suef" },
+  { id: "minya", nameAr: "المنيا", nameEn: "Minya" },
+  { id: "assiut", nameAr: "أسيوط", nameEn: "Assiut" },
+  { id: "sohag", nameAr: "سوهاج", nameEn: "Sohag" },
+  { id: "qena", nameAr: "قنا", nameEn: "Qena" },
+  { id: "luxor", nameAr: "الأقصر", nameEn: "Luxor" },
+  { id: "aswan", nameAr: "أسوان", nameEn: "Aswan" },
+  { id: "red_sea", nameAr: "البحر الأحمر (الغردقة / الجونة)", nameEn: "Red Sea (Hurghada / El Gouna)" },
+  { id: "south_sinai", nameAr: "جنوب سيناء (شرم الشيخ / دهب)", nameEn: "South Sinai (Sharm El Sheikh / Dahab)" },
+  { id: "north_sinai", nameAr: "شمال سيناء (العريش)", nameEn: "North Sinai (Arish)" },
+  { id: "matrouh", nameAr: "مطروح (الساحل الشمالي / العلمين)", nameEn: "Matrouh (North Coast / Alamein)" },
+  { id: "new_valley", nameAr: "الوادي الجديد (الخارجة / الداخلة)", nameEn: "New Valley (Kharga)" },
+];
+
+export const EGYPTIAN_CITIES = EGYPTIAN_GOVERNORATES.map((g) => g.nameAr);

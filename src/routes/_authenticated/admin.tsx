@@ -292,8 +292,25 @@ function ApplicationsTab({ apps, onChange }: { apps: any[]; onChange: () => void
 
   const statuses = ["all", "submitted", "in_review", "documents", "approved", "rejected"];
 
-  const isPaymentApp = (a: any) =>
-    a.notes && (a.notes.includes("طلب دفع") || a.notes.includes("طلب سداد"));
+  const isPaymentApp = (a: any) => {
+    if (!a.notes) return false;
+    if (
+      a.notes.includes("طلب دفع") ||
+      a.notes.includes("طلب سداد") ||
+      a.notes.includes("payment_requested_at") ||
+      a.notes.includes("payment_method") ||
+      a.notes.includes("payment_summary")
+    ) {
+      return true;
+    }
+    try {
+      if (a.notes.startsWith("{")) {
+        const p = JSON.parse(a.notes);
+        return Boolean(p.payment_method || p.payment_requested_at || p.payment_option || p.payment_summary);
+      }
+    } catch {}
+    return false;
+  };
 
   const paymentsCount = apps.filter(isPaymentApp).length;
   const stageCounts   = STAGE_LABELS_EN.map((_, i) => apps.filter(a => (a.stage ?? 0) === i).length);

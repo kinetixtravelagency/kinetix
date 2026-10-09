@@ -14,7 +14,8 @@
       "unreadClientCount": 0,
       "createdAt": "2026-10-07T20:15:58.848Z",
       "updatedAt": "2026-10-09T18:33:45.011Z",
-      "isDeleted": true
+      "isDeleted": false,
+      "hasPaymentRequest": true
     },
     "conv_21m4awet0_1791441897429": {
       "id": "conv_21m4awet0_1791441897429",
@@ -26,11 +27,12 @@
       "status": "active",
       "lastMessage": "💳 طلب سداد جديد (المقدم):\n• البرنامج: Program\n• المبلغ المطلوب: €500 (~27,000 ج.م)\n• وسيلة الدفع المفضلة: Etisalat Cash\n• الاسم: youssef\n• الهاتف: 01032944753\n• كود الطلب: #36b1124b\n\nأرغب في استكمال الدفع، برجاء تزويدي ببيانات التحويل عبر هذه الوسيلة وتأكيد الحجز.",
       "lastMessageAt": "2026-10-08T07:05:32.283Z",
-      "unreadCount": 0,
+      "unreadCount": 1,
       "unreadClientCount": 0,
       "createdAt": "2026-10-08T06:44:57.429Z",
       "updatedAt": "2026-10-09T15:58:31.997Z",
-      "isDeleted": true
+      "isDeleted": false,
+      "hasPaymentRequest": true
     },
     "conv_kvjiyyx2g_1791549305871": {
       "id": "conv_kvjiyyx2g_1791549305871",

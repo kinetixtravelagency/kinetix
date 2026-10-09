@@ -23,6 +23,7 @@ export type ChatConversation = {
   flag?: "important" | "urgent" | "follow_up" | "resolved" | null | undefined;
   groupName?: string | null | undefined;
   isDeleted?: boolean | undefined;
+  hasPaymentRequest?: boolean | undefined;
   lastMessage: string;
   lastMessageAt: string;
   unreadCount: number; // unread by admin
@@ -162,12 +163,17 @@ export const getClientChat = createServerFn({ method: "POST" })
     const store = await getStore();
     let conv: ChatConversation | undefined;
 
-    if (data.conversationId && store.conversations[data.conversationId]) {
-      conv = store.conversations[data.conversationId];
-    } else if (data.userId) {
+    // Prioritize userId if provided
+    if (data.userId) {
       conv = Object.values(store.conversations).find((c) => c.userId === data.userId);
-    } else if (data.visitorId) {
+    }
+
+    if (!conv && data.conversationId && store.conversations[data.conversationId]) {
+      conv = store.conversations[data.conversationId];
+      if (conv && data.userId && !conv.userId) conv.userId = data.userId;
+    } else if (!conv && data.visitorId) {
       conv = Object.values(store.conversations).find((c) => c.visitorId === data.visitorId);
+      if (conv && data.userId && !conv.userId) conv.userId = data.userId;
     }
 
     if (!conv) {
@@ -194,6 +200,110 @@ export const getClientChat = createServerFn({ method: "POST" })
     };
   });
 
+export async function postClientMessageInternal(data: {
+  conversationId?: string | undefined;
+  visitorId?: string | undefined;
+  userId?: string | undefined;
+  clientName?: string | undefined;
+  clientEmail?: string | undefined;
+  clientPhone?: string | undefined;
+  text: string;
+}) {
+  const text = (data.text || "").trim();
+  if (!text) throw new Error("Message text is required");
+
+  const store = await getStore();
+  let conv: ChatConversation | undefined;
+
+  // 1. Look by userId first if provided
+  if (data.userId) {
+    conv = Object.values(store.conversations).find((c) => c.userId === data.userId);
+  }
+
+  // 2. Or look by explicit conversationId
+  if (!conv && data.conversationId && store.conversations[data.conversationId]) {
+    conv = store.conversations[data.conversationId];
+    if (conv && data.userId && !conv.userId) conv.userId = data.userId;
+  } else if (!conv && data.visitorId) {
+    // 3. Or look by visitorId
+    conv = Object.values(store.conversations).find((c) => c.visitorId === data.visitorId);
+    if (conv && data.userId && !conv.userId) conv.userId = data.userId;
+  }
+
+  const now = new Date().toISOString();
+  const isPaymentText =
+    text.includes("طلب سداد") ||
+    text.includes("💳") ||
+    text.includes("طلب دفع") ||
+    text.includes("ديبوزيت") ||
+    text.includes("سداد الديبوزيت") ||
+    text.toLowerCase().includes("deposit");
+
+  if (!conv) {
+    const convId = "conv_" + Math.random().toString(36).substring(2, 11) + "_" + Date.now();
+    conv = {
+      id: convId,
+      userId: data.userId ?? null,
+      visitorId: data.visitorId ?? null,
+      clientName: (data.clientName || "").trim() || "عميل كينتيكس",
+      clientEmail: (data.clientEmail || "").trim() || null,
+      clientPhone: (data.clientPhone || "").trim() || null,
+      status: "active",
+      lastMessage: text,
+      lastMessageAt: now,
+      unreadCount: 1,
+      unreadClientCount: 0,
+      createdAt: now,
+      updatedAt: now,
+      isDeleted: false,
+      hasPaymentRequest: isPaymentText,
+      flag: isPaymentText ? "important" : undefined,
+    };
+    store.conversations[conv.id] = conv;
+    store.messages[conv.id] = [];
+  } else {
+    conv.lastMessage = text;
+    conv.lastMessageAt = now;
+    conv.status = "active";
+    conv.unreadCount = (conv.unreadCount || 0) + 1;
+    conv.updatedAt = now;
+    // CRITICAL: Always un-delete conversation whenever a new message or deposit request is posted!
+    conv.isDeleted = false;
+    if (isPaymentText) {
+      conv.hasPaymentRequest = true;
+      if (!conv.flag) conv.flag = "important";
+    }
+    if (data.clientName && (!conv.clientName || conv.clientName.includes("Visitor") || conv.clientName.includes("زائر"))) {
+      conv.clientName = data.clientName;
+    }
+    if (data.clientEmail && !conv.clientEmail) conv.clientEmail = data.clientEmail;
+    if (data.clientPhone && (!conv.clientPhone || conv.clientPhone === "—")) {
+      conv.clientPhone = data.clientPhone;
+    }
+    if (data.userId && !conv.userId) conv.userId = data.userId;
+  }
+
+  const newMsg: ChatMessage = {
+    id: "msg_" + Math.random().toString(36).substring(2, 11) + "_" + Date.now(),
+    conversationId: conv.id,
+    sender: "client",
+    senderName: conv.clientName || "Client",
+    text,
+    isRead: false,
+    createdAt: now,
+  };
+
+  const clientMsgList = store.messages[conv.id] ?? [];
+  clientMsgList.push(newMsg);
+  store.messages[conv.id] = clientMsgList;
+  await saveStore(store);
+
+  return {
+    conversationId: conv.id,
+    message: newMsg,
+  };
+}
+
 export const sendClientMessage = createServerFn({ method: "POST" })
   .inputValidator(
     (d: {
@@ -207,71 +317,7 @@ export const sendClientMessage = createServerFn({ method: "POST" })
     }) => d
   )
   .handler(async ({ data }) => {
-    const text = (data.text || "").trim();
-    if (!text) throw new Error("Message text is required");
-
-    const store = await getStore();
-    let conv: ChatConversation | undefined;
-
-    if (data.conversationId && store.conversations[data.conversationId]) {
-      conv = store.conversations[data.conversationId];
-    } else if (data.userId) {
-      conv = Object.values(store.conversations).find((c) => c.userId === data.userId);
-    } else if (data.visitorId) {
-      conv = Object.values(store.conversations).find((c) => c.visitorId === data.visitorId);
-    }
-
-    const now = new Date().toISOString();
-
-    if (!conv) {
-      const convId = "conv_" + Math.random().toString(36).substring(2, 11) + "_" + Date.now();
-      conv = {
-        id: convId,
-        userId: data.userId ?? null,
-        visitorId: data.visitorId ?? null,
-        clientName: (data.clientName || "").trim() || "Visitor / زائر",
-        clientEmail: (data.clientEmail || "").trim() || null,
-        clientPhone: (data.clientPhone || "").trim() || null,
-        status: "active",
-        lastMessage: text,
-        lastMessageAt: now,
-        unreadCount: 1,
-        unreadClientCount: 0,
-        createdAt: now,
-        updatedAt: now,
-      };
-      store.conversations[conv.id] = conv;
-      store.messages[conv.id] = [];
-    } else {
-      conv.lastMessage = text;
-      conv.lastMessageAt = now;
-      conv.status = "active";
-      conv.unreadCount = (conv.unreadCount || 0) + 1;
-      conv.updatedAt = now;
-      if (data.clientName && !conv.clientName) conv.clientName = data.clientName;
-      if (data.clientEmail) conv.clientEmail = data.clientEmail;
-      if (data.clientPhone) conv.clientPhone = data.clientPhone;
-    }
-
-    const newMsg: ChatMessage = {
-      id: "msg_" + Math.random().toString(36).substring(2, 11) + "_" + Date.now(),
-      conversationId: conv.id,
-      sender: "client",
-      senderName: conv.clientName || "Client",
-      text,
-      isRead: false,
-      createdAt: now,
-    };
-
-    const clientMsgList = store.messages[conv.id] ?? [];
-    clientMsgList.push(newMsg);
-    store.messages[conv.id] = clientMsgList;
-    await saveStore(store);
-
-    return {
-      conversationId: conv.id,
-      message: newMsg,
-    };
+    return await postClientMessageInternal(data);
   });
 
 // ─────────────────────────────────────────────────────────────
@@ -281,8 +327,36 @@ export const sendClientMessage = createServerFn({ method: "POST" })
 export const getAdminChats = createServerFn({ method: "GET" })
   .handler(async () => {
     const store = await getStore();
+    
+    // Automatically inspect all conversations for payment requests
+    for (const conv of Object.values(store.conversations)) {
+      const msgs = store.messages[conv.id] || [];
+      const hasPaymentInMsgs = msgs.some(
+        (m) =>
+          m.text.includes("طلب سداد") ||
+          m.text.includes("💳") ||
+          m.text.includes("طلب دفع") ||
+          m.text.includes("ديبوزيت") ||
+          m.text.toLowerCase().includes("deposit")
+      );
+      const hasPaymentInLast = Boolean(
+        conv.lastMessage &&
+          (conv.lastMessage.includes("طلب سداد") ||
+            conv.lastMessage.includes("💳") ||
+            conv.lastMessage.includes("طلب دفع") ||
+            conv.lastMessage.includes("ديبوزيت") ||
+            conv.lastMessage.toLowerCase().includes("deposit"))
+      );
+
+      if (hasPaymentInMsgs || hasPaymentInLast) {
+        conv.hasPaymentRequest = true;
+        // Never hide active deposit requests from the admin even if marked deleted in past testing
+        conv.isDeleted = false;
+      }
+    }
+
     const list = Object.values(store.conversations)
-      .filter((c) => !c.isDeleted)
+      .filter((c) => !c.isDeleted || c.hasPaymentRequest)
       .sort((a, b) => new Date(b.lastMessageAt).getTime() - new Date(a.lastMessageAt).getTime());
     return {
       conversations: list,

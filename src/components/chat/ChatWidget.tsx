@@ -95,10 +95,29 @@ export function ChatWidget() {
 
   // Listen for open-kinetix-chat event
   useEffect(() => {
-    const handleOpen = () => setIsOpen(true);
+    const handleOpen = () => {
+      setIsOpen(true);
+      if (visitorId || user?.id) {
+        fetchChat({
+          data: {
+            conversationId: convId || undefined,
+            visitorId: !user?.id ? visitorId : undefined,
+            userId: user?.id || undefined,
+          },
+        })
+          .then((res) => {
+            if (res?.conversation) {
+              setConvId(res.conversation.id);
+              localStorage.setItem(CONV_KEY, res.conversation.id);
+              if (Array.isArray(res.messages)) setMessages(res.messages);
+            }
+          })
+          .catch(() => {});
+      }
+    };
     window.addEventListener("open-kinetix-chat", handleOpen);
     return () => window.removeEventListener("open-kinetix-chat", handleOpen);
-  }, []);
+  }, [visitorId, user?.id, convId]);
 
   // Poll for messages
   useEffect(() => {

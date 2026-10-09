@@ -869,9 +869,15 @@ export const requestPaymentSupport = createServerFn({ method: "POST" })
     // Fetch existing application notes, name, and phone to preserve JSON metadata and ensure complete details
     const { data: existingApp } = await supabaseAdmin
       .from("applications")
-      .select("notes, payment_plan, full_name, phone")
+      .select("notes, payment_plan, full_name, phone, user_id")
       .eq("id", data.applicationId)
       .maybeSingle();
+
+    let resolvedEmail: string | undefined;
+    try {
+      const { data: u } = await supabaseAdmin.auth.admin.getUserById(userId);
+      resolvedEmail = u?.user?.email;
+    } catch {}
 
     let updatedNotes = existingApp?.notes || "";
     try {
@@ -880,13 +886,14 @@ export const requestPaymentSupport = createServerFn({ method: "POST" })
         parsed.payment_method = data.paymentMethod;
         parsed.payment_option = data.paymentOption;
         parsed.payment_requested_at = new Date().toISOString();
+        parsed.payment_summary = `طلب سداد ${data.paymentOption === "deposit" ? "الديبوزيت" : "كامل"} بمبلغ €${data.amountEur} عبر ${data.paymentMethod}`;
         if (data.flightIncluded !== undefined) parsed.flight_included = data.flightIncluded;
         updatedNotes = JSON.stringify(parsed);
       } else {
-        updatedNotes = `[طلب دفع عبر الشات] ${data.paymentOption === "deposit" ? "المقدم" : "سداد كامل"} بمبلغ €${data.amountEur} (~${data.amountEgp.toLocaleString()} EGP) بطريقة ${data.paymentMethod} - ${new Date().toLocaleString("ar-EG")}`;
+        updatedNotes = `[طلب سداد عبر الشات] ${data.paymentOption === "deposit" ? "المقدم / الديبوزيت" : "سداد كامل"} بمبلغ €${data.amountEur} (~${data.amountEgp.toLocaleString()} EGP) بطريقة ${data.paymentMethod} - ${new Date().toLocaleString("ar-EG")}`;
       }
     } catch {
-      updatedNotes = `[طلب دفع عبر الشات] ${data.paymentOption === "deposit" ? "المقدم" : "سداد كامل"} بمبلغ €${data.amountEur} (~${data.amountEgp.toLocaleString()} EGP) بطريقة ${data.paymentMethod} - ${new Date().toLocaleString("ar-EG")}`;
+      updatedNotes = `[طلب سداد عبر الشات] ${data.paymentOption === "deposit" ? "المقدم / الديبوزيت" : "سداد كامل"} بمبلغ €${data.amountEur} (~${data.amountEgp.toLocaleString()} EGP) بطريقة ${data.paymentMethod} - ${new Date().toLocaleString("ar-EG")}`;
     }
 
     await supabaseAdmin.from("applications").update({
@@ -914,14 +921,13 @@ ${data.paymentOption === "deposit" && data.remainingEur && data.remainingEur > 0
 
 أرغب في استكمال الدفع، برجاء تزويدي ببيانات التحويل عبر هذه الوسيلة وتأكيد الحجز.`;
 
-    const { sendClientMessage } = await import("./chat.functions");
-    await sendClientMessage({
-      data: {
-        userId,
-        clientName: resolvedName !== "عميل كينتيكس" ? resolvedName : undefined,
-        clientPhone: resolvedPhone !== "—" ? resolvedPhone : undefined,
-        text: msgText,
-      },
+    const { postClientMessageInternal } = await import("./chat.functions");
+    await postClientMessageInternal({
+      userId,
+      clientName: resolvedName !== "عميل كينتيكس" ? resolvedName : undefined,
+      clientPhone: resolvedPhone !== "—" ? resolvedPhone : undefined,
+      clientEmail: resolvedEmail,
+      text: msgText,
     });
 
     return { ok: true, message: msgText };
