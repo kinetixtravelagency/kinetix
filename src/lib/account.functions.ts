@@ -56,13 +56,19 @@ export const updateMyProfile = createServerFn({ method: "POST" })
     birth_date?: string | undefined;
     education?: string | undefined;
     city?: string | undefined;
+    governorate?: string | undefined;
+    academic_status?: string | undefined;
+    university?: string | undefined;
+    faculty?: string | undefined;
+    english_level?: string | undefined;
+    national_id?: string | undefined;
   }) => data)
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     if (data.full_name || data.phone) {
       const { error } = await supabase
         .from("profiles")
-        .update({ ...(data.full_name ? { full_name: data.full_name } : {}), ...(data.phone ? { phone: data.phone } : {}) })
+        .update({ ...(data.full_name ? { full_name: data.full_name.trim() } : {}), ...(data.phone ? { phone: data.phone.trim() } : {}) })
         .eq("id", userId);
       if (error) throw new Error(error.message);
     }
@@ -72,12 +78,18 @@ export const updateMyProfile = createServerFn({ method: "POST" })
     await supabaseAdmin.auth.admin.updateUserById(userId, {
       user_metadata: {
         ...existing,
-        ...(data.full_name ? { full_name: data.full_name } : {}),
-        ...(data.phone ? { phone: data.phone } : {}),
+        ...(data.full_name ? { full_name: data.full_name.trim() } : {}),
+        ...(data.phone ? { phone: data.phone.trim() } : {}),
         ...(data.gender ? { gender: data.gender } : {}),
         ...(data.birth_date ? { birth_date: data.birth_date } : {}),
         ...(data.education ? { education: data.education } : {}),
         ...(data.city ? { city: data.city } : {}),
+        ...(data.governorate ? { governorate: data.governorate } : {}),
+        ...(data.academic_status ? { academic_status: data.academic_status } : {}),
+        ...(data.university ? { university: data.university } : {}),
+        ...(data.faculty ? { faculty: data.faculty } : {}),
+        ...(data.english_level ? { english_level: data.english_level } : {}),
+        ...(data.national_id ? { national_id: data.national_id } : {}),
       },
     });
     return { ok: true };

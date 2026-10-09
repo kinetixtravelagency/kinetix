@@ -64,6 +64,7 @@ function Admin() {
   const { t } = useLang();
   const qc = useQueryClient();
   const fetchAdmin = useServerFn(getAdminFull);
+  const setComm = useServerFn(adminSetCommission);
   const { data, isLoading, error } = useQuery({ queryKey: ["admin-full"], queryFn: fetchAdmin, retry: false });
   const [tab, setTab] = useState<Tab>("overview");
   const refetch = () => qc.invalidateQueries({ queryKey: ["admin-full"] });
@@ -145,6 +146,63 @@ function Admin() {
                 </div>
               ))}
             </div>
+
+            {/* Payout Requests from Partners */}
+            {(() => {
+              const payoutReqs = d.commissions.filter((c: any) =>
+                (c.note?.includes("[🚨 طلب سحب") || c.note?.includes("طلب سحب")) &&
+                (c.status === "pending" || c.status === "approved")
+              );
+              if (payoutReqs.length === 0) return null;
+              return (
+                <div className="rounded-3xl border-2 border-amber-500/50 bg-amber-500/10 p-6 shadow-sm space-y-4 animate-in fade-in">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <AlertCircle className="h-6 w-6 text-amber-600 animate-pulse" />
+                      <div>
+                        <h2 className="font-display text-lg font-bold text-amber-950 dark:text-amber-200">
+                          🚨 طلبات سحب أرباح جديدة من الشركاء ({payoutReqs.length})
+                        </h2>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          شركاء مبيعات طلبوا سحب عمولاتهم — يرجى التحويل ثم تأكيد العملية
+                        </p>
+                      </div>
+                    </div>
+                    <button onClick={() => setTab("commissions")} className="text-xs font-semibold text-amber-800 dark:text-amber-300 underline">
+                      عرض جدول العمولات ←
+                    </button>
+                  </div>
+
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {payoutReqs.map((c: any) => (
+                      <div key={c.id} className="rounded-2xl border border-amber-400/60 bg-card p-4 space-y-2 shadow-xs">
+                        <div className="flex items-center justify-between">
+                          <span className="font-bold text-sm">{(c.partners as any)?.profiles?.full_name ?? "Partner"}</span>
+                          <span className="font-mono text-base font-bold text-beige">{egp(c.amount)}</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground whitespace-pre-wrap font-mono bg-secondary/50 p-2.5 rounded-xl border border-border">
+                          {c.note}
+                        </p>
+                        <div className="flex items-center justify-between pt-2">
+                          <span className="text-[11px] text-muted-foreground">{new Date(c.created_at).toLocaleDateString()}</span>
+                          <button
+                            onClick={async () => {
+                              await setComm({ data: { id: c.id, status: "paid" } });
+                              refetch();
+                            }}
+                            className="inline-flex items-center gap-1 rounded-full bg-emerald-600 hover:bg-emerald-700 px-3.5 py-1.5 text-xs font-bold text-white shadow-sm transition-all"
+                          >
+                            <Check className="h-3.5 w-3.5" />
+                            تم التحويل (Mark Paid)
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
+
             {/* Application statuses breakdown */}
             <div className="rounded-3xl border border-border bg-card p-6">
               <h2 className="mb-4 font-display text-lg font-semibold">Applications by Status</h2>
@@ -1970,56 +2028,126 @@ function LevelsTab({ levels, onChange }: { levels: any[]; onChange: () => void }
 function CommissionsTab({ commissions, onChange }: { commissions: any[]; onChange: () => void }) {
   const setComm = useServerFn(adminSetCommission);
   const [filter, setFilter] = useState("all");
-  const filtered = commissions.filter((c: any) => filter === "all" || c.status === filter);
+  const filtered = commissions.filter((c: any) => {
+    if (filter === "all") return true;
+    if (filter === "payout_requests") return Boolean(c.note?.includes("طلب سحب"));
+    return c.status === filter;
+  });
   const total = (s: string) => commissions.filter((c: any) => c.status === s).reduce((a: number, c: any) => a + c.amount, 0);
+  const payoutReqCount = commissions.filter((c: any) => c.note?.includes("طلب سحب") && (c.status === "pending" || c.status === "approved")).length;
 
   return (
     <div className="space-y-4">
       {/* Summary cards */}
       <div className="grid gap-3 sm:grid-cols-4">
-        {[["All", commissions.length + " records", "bg-secondary/60"], ["Pending", egp(total("pending")), "bg-amber-50"], ["Approved", egp(total("approved")), "bg-blue-50"], ["Paid", egp(total("paid")), "bg-emerald-50"]].map(([l, v, cls]) => (
+        {[
+          ["All Records", commissions.length + " records", "bg-secondary/60"],
+          ["Pending", egp(total("pending")), "bg-amber-50"],
+          ["Approved", egp(total("approved")), "bg-blue-50"],
+          ["Paid", egp(total("paid")), "bg-emerald-50"],
+        ].map(([l, v, cls]) => (
           <div key={l} className={`rounded-2xl p-4 ${cls}`}>
             <p className="text-xs text-muted-foreground">{l}</p>
             <p className="mt-1 font-display text-xl font-semibold">{v}</p>
           </div>
         ))}
       </div>
+
       {/* Filter */}
-      <div className="flex gap-1">
-        {["all", "pending", "approved", "paid", "cancelled"].map(s => (
-          <button key={s} onClick={() => setFilter(s)}
-            className={`rounded-full border px-3 py-1.5 text-xs ${filter === s ? "border-navy bg-navy text-ivory" : "border-border hover:border-beige"}`}>{s}</button>
+      <div className="flex flex-wrap gap-1.5 items-center">
+        {(
+          [
+            ["all", "All"],
+            ["payout_requests", `🚨 Payout Requests (${payoutReqCount})`],
+            ["pending", "Pending"],
+            ["approved", "Approved"],
+            ["paid", "Paid"],
+            ["cancelled", "Cancelled"],
+          ] as [string, string][]
+        ).map(([s, label]) => (
+          <button
+            key={s}
+            onClick={() => setFilter(s)}
+            className={`rounded-full border px-3.5 py-1.5 text-xs font-medium transition-all ${
+              filter === s
+                ? s === "payout_requests" ? "border-amber-500 bg-amber-500 text-white font-bold shadow-sm" : "border-navy bg-navy text-ivory"
+                : s === "payout_requests" ? "border-amber-400 text-amber-700 bg-amber-50 dark:bg-amber-950/30 dark:text-amber-300 font-semibold" : "border-border hover:border-beige"
+            }`}
+          >
+            {label}
+          </button>
         ))}
       </div>
+
       {/* Table */}
       <div className="overflow-x-auto rounded-3xl border border-border bg-card">
         <table className="w-full text-sm">
-          <thead><tr className="border-b border-border text-xs text-muted-foreground">
-            <th className="p-4 text-start font-medium">Partner</th>
-            <th className="p-4 text-start font-medium">Code</th>
-            <th className="p-4 text-start font-medium">Amount</th>
-            <th className="p-4 text-start font-medium">Note</th>
-            <th className="p-4 text-start font-medium">Date</th>
-            <th className="p-4 text-start font-medium">Status</th>
-            <th className="p-4" />
-          </tr></thead>
+          <thead>
+            <tr className="border-b border-border text-xs text-muted-foreground">
+              <th className="p-4 text-start font-medium">Partner</th>
+              <th className="p-4 text-start font-medium">Code</th>
+              <th className="p-4 text-start font-medium">Amount</th>
+              <th className="p-4 text-start font-medium">Note / Payout Details</th>
+              <th className="p-4 text-start font-medium">Date</th>
+              <th className="p-4 text-start font-medium">Status</th>
+              <th className="p-4" />
+            </tr>
+          </thead>
           <tbody>
-            {filtered.map((c: any) => (
-              <tr key={c.id} className="border-b border-border last:border-0 hover:bg-secondary/30">
-                <td className="p-4 font-medium">{(c.partners as any)?.profiles?.full_name ?? "—"}</td>
-                <td className="p-4 font-mono text-xs text-muted-foreground">{(c.partners as any)?.promo_code}</td>
-                <td className="p-4 font-semibold text-beige">{egp(c.amount)}</td>
-                <td className="p-4 text-muted-foreground">{c.note ?? "—"}</td>
-                <td className="p-4 text-xs text-muted-foreground">{new Date(c.created_at).toLocaleDateString()}</td>
-                <td className="p-4"><span className={`${pill} ${statusColor(c.status)}`}>{c.status}</span></td>
-                <td className="p-4">
-                  <select value={c.status} onChange={async e => { await setComm({ data: { id: c.id, status: e.target.value as any } }); onChange(); }}
-                    className="rounded-full border border-input bg-background px-2 py-1 text-xs">
-                    {["pending", "approved", "paid", "cancelled"].map(s => <option key={s} value={s}>{s}</option>)}
-                  </select>
-                </td>
-              </tr>
-            ))}
+            {filtered.map((c: any) => {
+              const isPayoutReq = c.note?.includes("طلب سحب");
+              return (
+                <tr
+                  key={c.id}
+                  className={`border-b border-border last:border-0 hover:bg-secondary/30 transition-colors ${
+                    isPayoutReq ? "bg-amber-500/5 border-s-4 border-s-amber-500" : ""
+                  }`}
+                >
+                  <td className="p-4 font-medium">{(c.partners as any)?.profiles?.full_name ?? "—"}</td>
+                  <td className="p-4 font-mono text-xs text-muted-foreground">{(c.partners as any)?.promo_code}</td>
+                  <td className="p-4 font-semibold text-beige text-base">{egp(c.amount)}</td>
+                  <td className="p-4 text-xs">
+                    {isPayoutReq && (
+                      <span className="mb-1 inline-block rounded-md bg-amber-500/20 px-2 py-0.5 text-[10px] font-bold text-amber-800 dark:text-amber-300">
+                        🚨 طلب سحب أرباح
+                      </span>
+                    )}
+                    <p className="text-muted-foreground font-mono whitespace-pre-wrap">{c.note ?? "—"}</p>
+                  </td>
+                  <td className="p-4 text-xs text-muted-foreground">{new Date(c.created_at).toLocaleDateString()}</td>
+                  <td className="p-4">
+                    <span className={`${pill} ${statusColor(c.status)}`}>{c.status}</span>
+                  </td>
+                  <td className="p-4">
+                    <div className="flex items-center gap-2 justify-end">
+                      {isPayoutReq && c.status !== "paid" && (
+                        <button
+                          onClick={async () => {
+                            await setComm({ data: { id: c.id, status: "paid" } });
+                            onChange();
+                          }}
+                          className="rounded-full bg-emerald-600 hover:bg-emerald-700 px-3 py-1 text-xs font-bold text-white shadow-xs transition-colors shrink-0"
+                        >
+                          ✓ تم التحويل
+                        </button>
+                      )}
+                      <select
+                        value={c.status}
+                        onChange={async (e) => {
+                          await setComm({ data: { id: c.id, status: e.target.value as any } });
+                          onChange();
+                        }}
+                        className="rounded-full border border-input bg-background px-2 py-1 text-xs outline-none"
+                      >
+                        {["pending", "approved", "paid", "cancelled"].map((s) => (
+                          <option key={s} value={s}>{s}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
         {filtered.length === 0 && <p className="py-8 text-center text-sm text-muted-foreground">No commissions found</p>}

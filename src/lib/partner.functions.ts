@@ -161,6 +161,62 @@ export const updatePartnerProfile = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+export const requestPartnerPayout = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: {
+    amount: number;
+    payout_method: string;
+    payout_details: string;
+    notes?: string | undefined;
+  }) => {
+    if (!(d.amount > 0)) throw new Error("المبلغ المطلوب يجب أن يكون أكبر من صفر");
+    if (!d.payout_method?.trim() || !d.payout_details?.trim()) throw new Error("يرجى تحديد طريقة السحب وبيانات الحساب");
+    return {
+      amount: Math.round(d.amount),
+      payout_method: clip(d.payout_method, 80),
+      payout_details: clip(d.payout_details, 200),
+      notes: clip(d.notes, 300),
+    };
+  })
+  .handler(async ({ data, context }) => {
+    const { userId } = context;
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    // 1. Get partner record
+    const { data: partner } = await supabaseAdmin.from("partners").select("id, status").eq("user_id", userId).maybeSingle();
+    if (!partner) throw new Error("حساب الشريك غير موجود");
+    if (partner.status !== "active") throw new Error("حساب الشريك غير مفعل أو قيد المراجعة حالياً");
+
+    // 2. Fetch pending / approved commissions
+    const { data: comms } = await supabaseAdmin.from("commissions").select("id, amount, status, note").eq("partner_id", partner.id);
+    const available = (comms ?? []).filter((c) => c.status === "pending" || c.status === "approved").reduce((a, c) => a + c.amount, 0);
+
+    if (available <= 0) {
+      throw new Error("لا يوجد رصيد متاح للسحب حالياً (الرصيد المتاح 0 ج.م)");
+    }
+    if (data.amount > available) {
+      throw new Error(`المبلغ المطلوب (${data.amount.toLocaleString()} ج.م) يتجاوز الرصيد المتاح (${available.toLocaleString()} ج.م)`);
+    }
+
+    // 3. Mark pending commissions with the payout request tag
+    const pendingComms = (comms ?? []).filter((c) => c.status === "pending" || c.status === "approved");
+    const payoutTag = `[🚨 طلب سحب أرباح | ${data.payout_method}: ${data.payout_details}${data.notes ? ` | ملاحظة: ${data.notes}` : ""}]`;
+
+    for (const c of pendingComms) {
+      const prev = c.note || "";
+      const updatedNote = prev.includes("[🚨 طلب سحب") ? `${payoutTag} ${prev.replace(/\[🚨 طلب سحب[^\]]+\]\s*/g, "")}` : `${payoutTag} ${prev}`;
+      await supabaseAdmin.from("commissions").update({ note: updatedNote.trim() }).eq("id", c.id);
+    }
+
+    // 4. Update partner's saved payout preference
+    await supabaseAdmin.from("partners").update({
+      payout_method: data.payout_method,
+      payout_details: data.payout_details,
+    }).eq("id", partner.id);
+
+    return { ok: true, amount: data.amount };
+  });
+
 /* ---------- Admin ---------- */
 
 export const getAdminSales = createServerFn({ method: "GET" })

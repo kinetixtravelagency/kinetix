@@ -9,7 +9,7 @@ import {
   CheckCircle2, ShieldCheck, Building2, Sparkles, AlertCircle, ChevronUp
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { getPartnerPortal, registerPartner, addLead, setLeadStatus, updatePartnerProfile } from "@/lib/partner.functions";
+import { getPartnerPortal, registerPartner, addLead, setLeadStatus, updatePartnerProfile, requestPartnerPayout } from "@/lib/partner.functions";
 import { updateMyPayout } from "@/lib/account.functions";
 import { levelFor, egp, type Level } from "@/lib/levels";
 import { countries } from "@/lib/catalog";
@@ -340,6 +340,7 @@ function PartnerPortal() {
   const add = useServerFn(addLead);
   const setStatus = useServerFn(setLeadStatus);
   const saveProfile = useServerFn(updatePartnerProfile);
+  const doRequestPayout = useServerFn(requestPartnerPayout);
 
   const { data, isLoading, refetch } = useQuery({ queryKey: ["partner"], queryFn: fetchPortal });
   const tried = useRef(false);
@@ -358,6 +359,16 @@ function PartnerPortal() {
   const [savingProfile, setSavingProfile] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [profileErr, setProfileErr] = useState<string | null>(null);
+
+  // Withdrawal Request Modal state
+  const [showWithdrawModal, setShowWithdrawModal] = useState(false);
+  const [withdrawAmount, setWithdrawAmount] = useState<string>("");
+  const [withdrawMethod, setWithdrawMethod] = useState<string>("InstaPay");
+  const [withdrawDetail, setWithdrawDetail] = useState<string>("");
+  const [withdrawNotes, setWithdrawNotes] = useState<string>("");
+  const [withdrawing, setWithdrawing] = useState(false);
+  const [withdrawErr, setWithdrawErr] = useState<string | null>(null);
+  const [withdrawSuccessMsg, setWithdrawSuccessMsg] = useState<string | null>(null);
 
   // Sync profile state when data loads
   useEffect(() => {
@@ -562,6 +573,73 @@ function PartnerPortal() {
     setPayoutItems(next);
   };
 
+  // Withdraw handlers
+  const handleOpenWithdraw = () => {
+    if (pending <= 0) {
+      setWithdrawErr(tr("No available balance to withdraw (Available is 0 EGP)", "عفواً، لا يوجد رصيد متاح للسحب حالياً (رصيدك القابل للصرف 0 ج.م)"));
+      setTimeout(() => setWithdrawErr(null), 5000);
+      return;
+    }
+    const saved = payoutItems.find((p) => p.method && p.detail);
+    if (saved) {
+      setWithdrawMethod(saved.method);
+      setWithdrawDetail(saved.detail);
+    } else {
+      setWithdrawMethod("InstaPay");
+      setWithdrawDetail("");
+    }
+    setWithdrawAmount(String(pending));
+    setWithdrawErr(null);
+    setWithdrawSuccessMsg(null);
+    setShowWithdrawModal(true);
+  };
+
+  const handleConfirmWithdraw = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const amt = Number(withdrawAmount);
+    if (!amt || amt <= 0) {
+      setWithdrawErr(tr("Please enter a valid withdrawal amount", "يرجى كتابة مبلغ سحب صحيح أكبر من صفر"));
+      return;
+    }
+    if (amt > pending) {
+      setWithdrawErr(tr(`Requested amount exceeds available balance (${egp(pending)})`, `المبلغ المطلوب يتجاوز الرصيد المتاح (${egp(pending)})`));
+      return;
+    }
+    if (!withdrawDetail.trim()) {
+      setWithdrawErr(tr("Please enter your account / wallet details", "يرجى إدخال بيانات الحساب أو رقم المحفظة لاستلام السحب"));
+      return;
+    }
+
+    setWithdrawing(true);
+    setWithdrawErr(null);
+    try {
+      await doRequestPayout({
+        data: {
+          amount: amt,
+          payout_method: withdrawMethod,
+          payout_details: withdrawDetail.trim(),
+          notes: withdrawNotes.trim() || undefined,
+        },
+      });
+
+      setWithdrawSuccessMsg(tr("Payout request submitted successfully to admin!", "تم إرسال طلب السحب بنجاح إلى الإدارة وسيتم التحويل فوراً!"));
+      await refetch();
+      setTimeout(() => {
+        setShowWithdrawModal(false);
+        setWithdrawSuccessMsg(null);
+      }, 2500);
+    } catch (err: any) {
+      setWithdrawErr(err.message || tr("Failed to submit payout request", "فشل إرسال طلب السحب"));
+    } finally {
+      setWithdrawing(false);
+    }
+  };
+
+  // Dual-line progress bar calculations
+  const nextTargetGoal = next ? (next.min_leads * (next.commission_amount ?? 10250)) : Math.max(totalBalance, 25000);
+  const confirmedWidthPct = Math.min(100, nextTargetGoal > 0 ? (paid / nextTargetGoal) * 100 : 0);
+  const combinedWidthPct = Math.min(100, nextTargetGoal > 0 ? ((paid + pending) / nextTargetGoal) * 100 : progressPct);
+
   return (
     <div className="flex min-h-screen flex-col bg-background">
       {header}
@@ -606,21 +684,78 @@ function PartnerPortal() {
               </div>
             )}
 
-            {/* Next Level Progression Bar */}
+            {/* Next Level Progression Bar with Dual Lines (Thick confirmed + Light pending) */}
             <div className="mt-6 rounded-2xl bg-navy-soft p-5 border border-white/5">
-              <p className="flex items-center gap-2 text-sm text-ivory/70"><Target className="h-4 w-4 text-beige" strokeWidth={1.5} />{tr("Next Level", "المستوى التالي")}</p>
-              {next ? (
-                <>
-                  <p className="mt-2 font-display text-2xl">{score} / {next.min_leads} {tr("Leads", "عميل")}</p>
-                  <div className="mt-3 h-2 overflow-hidden rounded-full bg-navy"><div className="h-full rounded-full bg-beige transition-all duration-500" style={{ width: `${progressPct}%` }} /></div>
-                  <p className="mt-2 text-sm text-ivory/70">{tr(`${next.min_leads - score} more leads to unlock ${next.name} (${egp(next.commission_amount ?? 10250)} fixed commission + ${next.client_discount}% client discount)`, `باقي ${next.min_leads - score} عميل وتوصل لمستوى ${lvName(next)} (عمولة ${egp(next.commission_amount ?? 10250)} + خصم ${next.client_discount}% لعملائك)`)}</p>
-                </>
-              ) : <p className="mt-2 font-display text-2xl text-beige">{tr("Top level reached! VIP Partner", "وصلت لأعلى مستوى! شريك ماسي VIP")}</p>}
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="flex items-center gap-2 text-sm text-ivory/70">
+                  <Target className="h-4 w-4 text-beige" strokeWidth={1.5} />
+                  {tr("Level Progress & Commission Targets", "متابعة المستوى والعمولات المستهدفة")}
+                </p>
+                {next && (
+                  <span className="text-xs font-semibold text-beige">
+                    {score} / {next.min_leads} {tr("Leads", "عميل")}
+                  </span>
+                )}
+              </div>
+
+              {/* Dual-layer Progress Bar: Light line for Pending commissions, Heavy line for Confirmed commissions */}
+              <div className="relative mt-3 h-4 w-full overflow-hidden rounded-full bg-navy/90 border border-white/10 p-0.5">
+                {/* 1. Light Line (الخط الخفيف): Pending commissions extending combined total */}
+                <div
+                  className="absolute top-0 bottom-0 start-0 rounded-full bg-beige/35 transition-all duration-700 ease-out border-e-2 border-beige/60"
+                  style={{ width: `${Math.max(combinedWidthPct, 4)}%` }}
+                  title={`${tr("Pending Commissions", "العمولات المعلقة")}: ${egp(pending)}`}
+                />
+                {/* 2. Heavy Line (الخط الثقيل): Confirmed / Paid commissions */}
+                <div
+                  className="absolute top-0 bottom-0 start-0 rounded-full bg-beige shadow-md transition-all duration-700 ease-out z-10"
+                  style={{ width: `${Math.max(confirmedWidthPct, paid > 0 ? 3 : 0)}%` }}
+                  title={`${tr("Confirmed Commissions", "العمولات المؤكدة")}: ${egp(paid)}`}
+                />
+              </div>
+
+              {/* Dual Progress Legend */}
+              <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-xs">
+                <div className="flex flex-wrap items-center gap-4">
+                  {/* Heavy Confirmed Indicator */}
+                  <span className="flex items-center gap-2 font-medium text-ivory">
+                    <span className="h-3 w-6 rounded-full bg-beige inline-block shadow-sm" />
+                    <span className="text-beige font-semibold">{tr("Confirmed (Paid):", "الخط الثقيل (المؤكدة):")}</span>
+                    <strong className="text-ivory font-bold">{egp(paid)}</strong>
+                  </span>
+
+                  {/* Light Pending Indicator */}
+                  <span className="flex items-center gap-2 font-medium text-ivory/80">
+                    <span className="h-3 w-6 rounded-full bg-beige/35 inline-block border border-beige/60" />
+                    <span className="text-ivory/90">{tr("Pending (Under Review):", "الخط الخفيف (المعلقة):")}</span>
+                    <strong className="text-amber-300 font-bold">{egp(pending)}</strong>
+                  </span>
+                </div>
+
+                {next ? (
+                  <p className="text-xs text-ivory/70">
+                    {tr(`Remaining: ${next.min_leads - score} leads to unlock ${next.name} (${egp(next.commission_amount ?? 10250)} fixed commission)`, `باقي ${next.min_leads - score} عميل وتوصل لمستوى ${lvName(next)} (عمولة ${egp(next.commission_amount ?? 10250)})`)}
+                  </p>
+                ) : (
+                  <span className="text-xs text-beige font-bold">{tr("Top level reached! VIP Partner", "أعلى مستوى ماسي VIP")}</span>
+                )}
+              </div>
             </div>
           </div>
         </section>
 
         <div className="mx-auto max-w-6xl space-y-6 px-5 py-8">
+          {/* Global error banner when withdraw attempted with 0 balance */}
+          {withdrawErr && !showWithdrawModal && (
+            <div className="rounded-2xl border border-destructive/40 bg-destructive/10 p-4 text-xs font-semibold text-destructive flex items-center justify-between animate-in fade-in">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="h-4 w-4 shrink-0" />
+                <span>{withdrawErr}</span>
+              </div>
+              <button onClick={() => setWithdrawErr(null)} className="text-muted-foreground hover:text-foreground">✕</button>
+            </div>
+          )}
+
           {/* ========================================================= */}
           {/* 1. FINANCIAL BALANCE SECTION (بلانس شريك المبيعات) */}
           {/* ========================================================= */}
@@ -640,11 +775,21 @@ function PartnerPortal() {
                 </div>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
+                {/* Withdraw Payout Request Button */}
+                <button
+                  type="button"
+                  onClick={handleOpenWithdraw}
+                  className="inline-flex items-center gap-2 rounded-full bg-emerald-600 hover:bg-emerald-700 px-5 py-2.5 text-xs font-bold text-white transition-all shadow-md active:scale-95"
+                >
+                  <ArrowUpRight className="h-4 w-4" />
+                  {tr("Request Payout / Withdraw", "طلب سحب الأرباح")}
+                </button>
+
                 <button
                   type="button"
                   onClick={() => setShowProfileModal(true)}
-                  className="inline-flex items-center gap-1.5 rounded-full bg-navy px-4 py-2 text-xs font-semibold text-ivory hover:opacity-90 transition-all shadow-sm"
+                  className="inline-flex items-center gap-1.5 rounded-full bg-navy px-4 py-2.5 text-xs font-semibold text-ivory hover:opacity-90 transition-all shadow-sm"
                 >
                   <CreditCard className="h-3.5 w-3.5" />
                   {tr("Manage Payout Methods", "إدارة طرق استلام الأرباح")}
@@ -1379,6 +1524,171 @@ function PartnerPortal() {
                 {savingProfile ? tr("Saving...", "جاري الحفظ...") : tr("Save Changes", "حفظ التغييرات")}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Payout Withdrawal Request Modal */}
+      {showWithdrawModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-in fade-in">
+          <div className="relative w-full max-w-lg rounded-3xl border border-border bg-card p-6 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-border pb-4">
+              <div className="flex items-center gap-2.5">
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-600 text-white shadow-md">
+                  <ArrowUpRight className="h-6 w-6" />
+                </div>
+                <div>
+                  <h3 className="font-display text-lg font-bold text-foreground">
+                    {tr("Request Payout / Withdrawal", "طلب سحب الأرباح")}
+                  </h3>
+                  <p className="text-xs text-muted-foreground">
+                    {tr("Submit a withdrawal request to the finance team", "إرسال طلب السحب لفريق الحسابات للتحويل فوراً")}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowWithdrawModal(false)}
+                className="rounded-full p-2 text-muted-foreground hover:bg-secondary hover:text-foreground"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleConfirmWithdraw} className="mt-5 space-y-4">
+              {/* Available balance highlight */}
+              <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-3.5 flex items-center justify-between">
+                <div>
+                  <span className="text-[11px] font-semibold text-amber-800 dark:text-amber-300 block">
+                    {tr("Available Balance for Payout", "الرصيد المتاح للسحب حالياً")}
+                  </span>
+                  <span className="font-display text-xl font-bold text-amber-700 dark:text-amber-400">
+                    {egp(pending)}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setWithdrawAmount(String(pending))}
+                  className="rounded-full bg-amber-500/20 px-3 py-1 text-xs font-bold text-amber-800 dark:text-amber-300 hover:bg-amber-500/30 transition-colors"
+                >
+                  {tr("Full Balance", "كامل الرصيد")}
+                </button>
+              </div>
+
+              {/* Amount input */}
+              <div>
+                <label className="text-xs font-semibold text-foreground mb-1 block">
+                  {tr("Withdrawal Amount (EGP) *", "المبلغ المطلوب سحبه (بالجنيه المصري) *")}
+                </label>
+                <input
+                  type="number"
+                  required
+                  min={1}
+                  max={pending}
+                  className={`${input} font-semibold`}
+                  value={withdrawAmount}
+                  onChange={(e) => setWithdrawAmount(e.target.value)}
+                  placeholder={String(pending)}
+                />
+              </div>
+
+              {/* Payout Method Dropdown */}
+              <div>
+                <label className="text-xs font-semibold text-foreground mb-1 block">
+                  {tr("Payout Method *", "طريقة الاستلام المفضلة *")}
+                </label>
+                <select
+                  className={input}
+                  value={withdrawMethod}
+                  onChange={(e) => {
+                    const chosen = e.target.value;
+                    setWithdrawMethod(chosen);
+                    const saved = payoutItems.find((p) => p.method === chosen);
+                    if (saved?.detail) {
+                      setWithdrawDetail(saved.detail);
+                    }
+                  }}
+                >
+                  {DEPOSIT_PAYOUT_OPTIONS.map((opt) => (
+                    <option key={opt.id} value={opt.id}>
+                      {ar ? `${opt.nameAr} (${opt.subAr})` : `${opt.nameEn} (${opt.subEn})`}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Payout Details / Account / Wallet number */}
+              <div>
+                <label className="text-xs font-semibold text-foreground mb-1 block">
+                  {tr("Account / Wallet Details *", "بيانات الحساب / رقم المحفظة *")}
+                </label>
+                <input
+                  required
+                  className={input}
+                  value={withdrawDetail}
+                  onChange={(e) => setWithdrawDetail(e.target.value)}
+                  placeholder={
+                    ar
+                      ? DEPOSIT_PAYOUT_OPTIONS.find((o) => o.id === withdrawMethod)?.placeholderAr || "رقم المحفظة أو الحساب"
+                      : DEPOSIT_PAYOUT_OPTIONS.find((o) => o.id === withdrawMethod)?.placeholderEn || "Account or wallet details"
+                  }
+                />
+              </div>
+
+              {/* Notes */}
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">
+                  {tr("Additional Notes (Optional)", "ملاحظات إضافية (اختياري)")}
+                </label>
+                <input
+                  className={input}
+                  value={withdrawNotes}
+                  onChange={(e) => setWithdrawNotes(e.target.value)}
+                  placeholder={tr("e.g. Please transfer before 5 PM", "مثال: يرجى التحويل على نفس الرقم المسجل في واتساب")}
+                />
+              </div>
+
+              {withdrawErr && (
+                <div className="rounded-xl bg-destructive/10 border border-destructive/30 p-2.5 text-xs font-semibold text-destructive flex items-center gap-2">
+                  <AlertCircle className="h-4 w-4 shrink-0" />
+                  <span>{withdrawErr}</span>
+                </div>
+              )}
+
+              {withdrawSuccessMsg && (
+                <div className="rounded-xl bg-emerald-500/10 border border-emerald-500/30 p-2.5 text-xs font-semibold text-emerald-700 dark:text-emerald-400 flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 shrink-0" />
+                  <span>{withdrawSuccessMsg}</span>
+                </div>
+              )}
+
+              <div className="mt-5 flex items-center justify-end gap-2.5 pt-3 border-t border-border">
+                <button
+                  type="button"
+                  onClick={() => setShowWithdrawModal(false)}
+                  className="rounded-full px-4 py-2.5 text-xs text-muted-foreground hover:bg-secondary"
+                >
+                  {tr("Cancel", "إلغاء")}
+                </button>
+                <button
+                  type="submit"
+                  disabled={withdrawing || Boolean(withdrawSuccessMsg)}
+                  className="inline-flex items-center gap-2 rounded-full bg-emerald-600 hover:bg-emerald-700 px-6 py-2.5 text-xs font-bold text-white transition-all shadow-md disabled:opacity-50"
+                >
+                  {withdrawing ? (
+                    <>
+                      <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                      {tr("Submitting...", "جاري الإرسال...")}
+                    </>
+                  ) : (
+                    <>
+                      <Check className="h-3.5 w-3.5" />
+                      {tr("Submit Payout Request", "تأكيد طلب السحب")}
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
