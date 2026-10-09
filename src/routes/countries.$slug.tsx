@@ -1,6 +1,6 @@
 import { createFileRoute, notFound, Link } from "@tanstack/react-router";
 import { useState } from "react";
-import { ArrowLeft, ArrowRight, Check, ChevronDown, Clock, FileText, Globe, TrendingUp, Clock3, Home, ListChecks } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, ChevronDown, Clock, FileText, Globe, TrendingUp, Clock3, Home, ListChecks, GraduationCap, Briefcase, Plane } from "lucide-react";
 import { Nav, Footer } from "@/components/site/SiteChrome";
 import { Reveal } from "@/components/site/Reveal";
 import { getCountry, eur, type Program } from "@/lib/catalog";
@@ -53,8 +53,29 @@ function ProgramCard({ p, ar, t }: { p: Program; ar: boolean; t: (k: any) => str
       <div className="p-7">
         <div className="flex items-start justify-between gap-4">
           <div className="flex-1 min-w-0">
-            <p className="text-xs text-muted-foreground">{p.duration}</p>
-            <h2 className="mt-2 text-xl font-semibold leading-snug">{title}</h2>
+            <div className="flex flex-wrap items-center gap-2 mb-1.5">
+              <span className="text-xs text-muted-foreground">{p.duration}</span>
+              <span className="inline-flex items-center gap-1 rounded-full border border-border bg-secondary/60 px-2 py-0.5 text-[11px] font-medium text-foreground">
+                {p.track === "student" ? (
+                  <>
+                    <GraduationCap className="h-3 w-3 text-muted-foreground" strokeWidth={1.5} />
+                    <span>{ar ? "طلاب جامعيون" : "Students"}</span>
+                  </>
+                ) : (
+                  <>
+                    <Briefcase className="h-3 w-3 text-muted-foreground" strokeWidth={1.5} />
+                    <span>{ar ? "خريجون" : "Graduates"}</span>
+                  </>
+                )}
+              </span>
+              {p.flightPrice && p.flightPrice > 0 ? (
+                <span className="inline-flex items-center gap-1 rounded-full border border-border bg-secondary/40 px-2 py-0.5 text-[11px] text-muted-foreground">
+                  <Plane className="h-3 w-3" strokeWidth={1.5} />
+                  <span>{ar ? "شامل خيار الطيران" : "Flight option"}</span>
+                </span>
+              ) : null}
+            </div>
+            <h2 className="mt-1 text-xl font-semibold leading-snug">{title}</h2>
             <p className="mt-1 text-sm text-muted-foreground">{category}</p>
           </div>
           <div className="text-end shrink-0">

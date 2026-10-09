@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import {
   Sparkles, ArrowRight, ArrowUpRight, MapPin, Search, ShieldCheck, Briefcase,
-  Building2, PlaneTakeoff, Filter, Globe,
+  Building2, PlaneTakeoff, Filter, Globe, GraduationCap,
 } from "lucide-react";
 import { Nav, Footer } from "@/components/site/SiteChrome";
 import { Reveal } from "@/components/site/Reveal";
@@ -258,14 +258,29 @@ export function CountriesPage() {
                   className="rounded-2xl border border-border bg-card p-5 shadow-sm flex flex-col justify-between hover:border-beige/60 transition-colors"
                 >
                   <div>
-                    <div className="flex items-center justify-between text-xs text-muted-foreground mb-2">
+                    <div className="flex items-center justify-between text-xs text-muted-foreground mb-2 flex-wrap gap-1">
                       <span className="flex items-center gap-1 font-medium">
                         <MapPin className="h-3.5 w-3.5 text-beige" />
                         {ar ? p.country.nameAr : p.country.name}
                       </span>
-                      <span className="rounded-full bg-secondary px-2.5 py-0.5 text-[11px] font-medium">
-                        {ar ? p.categoryAr : p.category}
-                      </span>
+                      <div className="flex items-center gap-1">
+                        <span className="inline-flex items-center gap-1 rounded-full border border-border bg-secondary/60 px-2 py-0.5 text-[10px] font-medium text-foreground">
+                          {p.track === "student" ? (
+                            <>
+                              <GraduationCap className="h-3 w-3 text-muted-foreground" strokeWidth={1.5} />
+                              <span>{ar ? "طلاب" : "Students"}</span>
+                            </>
+                          ) : (
+                            <>
+                              <Briefcase className="h-3 w-3 text-muted-foreground" strokeWidth={1.5} />
+                              <span>{ar ? "خريجون" : "Graduates"}</span>
+                            </>
+                          )}
+                        </span>
+                        <span className="rounded-full bg-secondary px-2 py-0.5 text-[10px] font-medium">
+                          {ar ? p.categoryAr : p.category}
+                        </span>
+                      </div>
                     </div>
                     <h4 className="font-display text-lg font-semibold text-foreground">
                       {ar ? p.titleAr : p.title}

@@ -128,8 +128,18 @@ export function ApplicationProgressTracker({ application, onDocChange }: Applica
 
   const pr = application.programs;
   const catProg = pr?.slug ? getProgram(pr.slug)?.program : undefined;
-  const depositEur = catProg?.deposit ?? (pr?.deposit && pr.deposit <= 250 ? pr.deposit : 196);
-  const fullEur = catProg?.price ?? pr?.price ?? 2400;
+  let flightIncluded = false;
+  try {
+    if (application.notes) {
+      const parsed = typeof application.notes === "string" ? JSON.parse(application.notes) : application.notes;
+      flightIncluded = Boolean(parsed.flight_included);
+    }
+  } catch {
+    // ignore parse errors
+  }
+  const depositEur = pr?.deposit ?? catProg?.deposit ?? 196;
+  const basePriceEur = pr?.price ?? catProg?.price ?? 640;
+  const fullEur = basePriceEur + (flightIncluded ? (catProg?.flightPrice ?? 204) : 0);
   const EUR_TO_EGP = 54;
 
   const [payOption, setPayOption] = useState<"deposit" | "full">(
@@ -221,6 +231,11 @@ export function ApplicationProgressTracker({ application, onDocChange }: Applica
           countryName: countryName || undefined,
           phone: application.phone || undefined,
           fullName: application.full_name || undefined,
+          flightIncluded,
+          totalPriceEur: fullEur,
+          remainingEur: payOption === "full" ? 0 : Math.max(0, fullEur - depositEur),
+          installmentsCount: application.installments || 6,
+          track: pr?.track || undefined,
         },
       });
 
@@ -471,6 +486,58 @@ export function ApplicationProgressTracker({ application, onDocChange }: Applica
               <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-900 dark:bg-amber-950/60 dark:text-amber-300">
                 ⏳ {ar ? "بانتظار سداد الدفعة" : "Payment Pending"}
               </span>
+            </div>
+
+            {/* Full Financial Calculation Breakdown */}
+            <div className="mt-4 rounded-2xl bg-secondary/40 p-4 border border-border/80 space-y-3">
+              <h4 className="font-bold text-xs uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                <CreditCard className="h-3.5 w-3.5 text-beige" />
+                {ar ? "تفصيل الحساب والتكلفة الإجمالية" : "Financial Breakdown & Calculation"}
+              </h4>
+
+              <div className="divide-y divide-border/60 text-xs">
+                <div className="flex justify-between py-1.5">
+                  <span className="text-muted-foreground">{ar ? "سعر البرنامج الأساسي" : "Base Program Price"}</span>
+                  <span className="font-mono font-medium">
+                    {eur(basePriceEur)} (≈ {Math.round(basePriceEur * EUR_TO_EGP).toLocaleString()} {ar ? "ج.م" : "EGP"})
+                  </span>
+                </div>
+
+                <div className="flex justify-between py-1.5">
+                  <span className="text-muted-foreground flex items-center gap-1">
+                    <Plane className="h-3 w-3 text-beige" />
+                    {ar ? "تذكرة الطيران" : "Flight Ticket"}
+                  </span>
+                  {flightIncluded ? (
+                    <span className="font-mono font-bold text-navy dark:text-beige">
+                      + {eur(catProg?.flightPrice ?? 204)} (≈ {Math.round((catProg?.flightPrice ?? 204) * EUR_TO_EGP).toLocaleString()} {ar ? "ج.م" : "EGP"}) · {ar ? "مشمولة" : "Included"}
+                    </span>
+                  ) : (
+                    <span className="text-muted-foreground font-medium">
+                      {ar ? "غير مشمولة" : "Not included"}
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex justify-between py-1.5 font-bold text-foreground">
+                  <span>{ar ? "إجمالي تكلفة البرنامج" : "Total Program Cost"}</span>
+                  <span className="font-mono text-sm">{eur(fullEur)} (≈ {fullEgp.toLocaleString()} {ar ? "ج.م" : "EGP"})</span>
+                </div>
+
+                <div className="flex justify-between py-2 text-emerald-800 dark:text-emerald-300 font-bold bg-emerald-50/70 dark:bg-emerald-950/30 px-2 rounded-lg my-1">
+                  <span>{ar ? "المقدم (الديبوزيت) المطلوب سداده الآن" : "Initial Deposit Due Now"}</span>
+                  <span className="font-mono">{eur(depositEur)} (≈ {depositEgp.toLocaleString()} {ar ? "ج.م" : "EGP"})</span>
+                </div>
+
+                {payOption === "deposit" && (
+                  <div className="flex justify-between py-1.5">
+                    <span className="text-muted-foreground">{ar ? "المتبقي بالتقسيط بعد الديبوزيت" : "Remaining in Installments"}</span>
+                    <span className="font-mono font-medium">
+                      {eur(Math.max(0, fullEur - depositEur))} ({application.installments || 6}× {eur(Math.ceil(Math.max(0, fullEur - depositEur) / (application.installments || 6)))})
+                    </span>
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Step 1: Choose Plan (Deposit vs Full) */}

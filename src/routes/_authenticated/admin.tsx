@@ -6,6 +6,7 @@ import {
   getAdminFull, adminUpdateApplicationStatus, adminUpdateProgramPrice,
   adminCreateProgram, adminUpdateProgram, adminDeleteProgram, adminSyncCatalogPrograms,
   adminUpdateApplication, adminSetDocumentStatus,
+  deleteApplication,
   adminManagePartner, adminAddCommission, adminSetCommission,
   adminUpdateLevel, adminUpdateCountry,
 } from "@/lib/account.functions";
@@ -275,6 +276,7 @@ function ApplicationsTab({ apps, onChange }: { apps: any[]; onChange: () => void
   const setStatus   = useServerFn(adminUpdateApplicationStatus);
   const upd         = useServerFn(adminUpdateApplication);
   const setDoc      = useServerFn(adminSetDocumentStatus);
+  const delApp      = useServerFn(deleteApplication);
 
   const [search,      setSearch]      = useState("");
   const [filter,      setFilter]      = useState("all");
@@ -356,6 +358,21 @@ function ApplicationsTab({ apps, onChange }: { apps: any[]; onChange: () => void
     try { await upd({ data: { id: appId, deposit_paid: next } }); onChange(); }
     catch (e: any) { alert(e?.message); rollback(appId, "deposit_paid"); }
     finally { setUpdatingId(null); }
+  };
+
+  const doDeleteApp = async (appId: string, applicantName: string) => {
+    if (!confirm(`Are you sure you want to permanently delete the application for "${applicantName}"? This action cannot be undone.`)) {
+      return;
+    }
+    setUpdatingId(appId);
+    try {
+      await delApp({ data: { id: appId } });
+      onChange();
+    } catch (e: any) {
+      alert(e?.message || "Failed to delete application");
+    } finally {
+      setUpdatingId(null);
+    }
   };
 
   const doNotes = async (appId: string) => {
@@ -546,7 +563,19 @@ function ApplicationsTab({ apps, onChange }: { apps: any[]; onChange: () => void
                         <div className="rounded-2xl border border-border bg-card p-4 space-y-4">
                           <div className="flex items-center justify-between gap-2 border-b border-border/60 pb-3">
                             <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Status & Workflow</p>
-                            {isBusy && <Loader2 className="h-4 w-4 animate-spin text-beige" />}
+                            <div className="flex items-center gap-2">
+                              {isBusy && <Loader2 className="h-4 w-4 animate-spin text-beige" />}
+                              <button
+                                type="button"
+                                onClick={() => doDeleteApp(a.id, a.full_name || a.profiles?.full_name || "Applicant")}
+                                disabled={isBusy}
+                                className="inline-flex items-center gap-1 text-xs text-red-600 hover:text-red-700 font-semibold px-2.5 py-1 rounded-lg border border-red-200 bg-red-50 hover:bg-red-100 dark:bg-red-950/20 dark:border-red-900/40 transition-colors disabled:opacity-50"
+                                title="Permanently Delete Application"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                                <span>Delete Application</span>
+                              </button>
+                            </div>
                           </div>
 
                           {/* Status + Deposit row */}

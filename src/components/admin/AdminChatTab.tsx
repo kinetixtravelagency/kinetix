@@ -39,6 +39,7 @@ import {
   type ChatConversation,
   type ChatMessage,
 } from "@/lib/chat.functions";
+import { ApplicationChatCard } from "@/components/chat/ApplicationChatCard";
 
 const PRESET_GROUPS = [
   "Important Customers",
@@ -624,32 +625,7 @@ export function AdminChatTab() {
                 if (isPayment) {
                   return (
                     <div key={m.id} className="flex justify-start my-2">
-                      <div className="w-full max-w-[92%] sm:max-w-[80%] rounded-2xl border-2 border-amber-400 bg-card p-4 shadow-md text-foreground">
-                        <div className="flex items-center justify-between border-b border-amber-200 dark:border-amber-800/50 pb-2.5 mb-3">
-                          <div className="flex items-center gap-2">
-                            <span className="flex h-7 w-7 items-center justify-center rounded-xl bg-amber-500 text-white shadow-xs">
-                              <CreditCard className="h-4 w-4" />
-                            </span>
-                            <div>
-                              <p className="font-bold text-xs text-amber-800 dark:text-amber-300">
-                                طلب سداد جديد معتمد عبر النظام
-                              </p>
-                              <span className="text-[10px] text-muted-foreground">
-                                {new Date(m.createdAt).toLocaleString([], {
-                                  month: "short",
-                                  day: "numeric",
-                                  hour: "2-digit",
-                                  minute: "2-digit",
-                                })}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="text-xs whitespace-pre-line leading-relaxed text-foreground font-mono bg-secondary/40 p-3 rounded-xl border border-border">
-                          {m.text}
-                        </div>
-                      </div>
+                      <ApplicationChatCard isAdmin text={m.text} createdAt={m.createdAt} />
                     </div>
                   );
                 }

@@ -53,3 +53,16 @@ export function EtisalatLogo({ className = "h-11 w-11" }: { className?: string }
     </div>
   );
 }
+
+export function PaymentBrandLogos() {
+  return (
+    <div className="flex flex-wrap items-center gap-2.5">
+      <InstaPayLogo className="h-9 w-9" />
+      <VodafoneLogo className="h-9 w-9" />
+      <OrangeLogo className="h-9 w-9" />
+      <EtisalatLogo className="h-9 w-9" />
+      <WePayLogo className="h-9 w-9" />
+    </div>
+  );
+}
+

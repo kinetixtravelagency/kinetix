@@ -276,15 +276,15 @@ export function HowPage() {
                   <div className="space-y-2 text-xs">
                     <div className="flex justify-between py-1.5 border-b border-border">
                       <span className="text-muted-foreground">{tr("Work Permit Issuance", "إصدار تصريح العمل")}</span>
-                      <span className="font-semibold">{c.timeline.find((t) => t.step.toLowerCase().includes("permit"))?.time ?? "4–8 weeks"}</span>
+                      <span className="font-semibold">{c.timeline.find((t) => t.step.toLowerCase().includes("permit"))?.time ?? "2–4 weeks"}</span>
                     </div>
                     <div className="flex justify-between py-1.5 border-b border-border">
                       <span className="text-muted-foreground">{tr("Visa Appointment & Stamp", "موعد وتأشيرة السفارة")}</span>
-                      <span className="font-semibold">{c.timeline.find((t) => t.step.toLowerCase().includes("visa"))?.time ?? "2–4 weeks"}</span>
+                      <span className="font-semibold">{c.timeline.find((t) => t.step.toLowerCase().includes("visa"))?.time ?? "1–2 weeks"}</span>
                     </div>
                     <div className="flex justify-between py-1.5 pt-2">
                       <span className="text-muted-foreground">{tr("Total Estimated Time", "إجمالي الوقت المقدر")}</span>
-                      <span className="font-bold text-navy dark:text-beige">{c.programs[0]?.duration ?? "2-4 months"}</span>
+                      <span className="font-bold text-navy dark:text-beige">{tr("30–45 days (max 1.5 months)", "٣٠–٤٥ يوماً (شهر ونصف كحد أقصى)")}</span>
                     </div>
                   </div>
                 </div>

@@ -3,6 +3,7 @@ import { useState } from "react";
 import {
   Wallet, ShieldCheck, CheckCircle2, ArrowRight, ArrowUpRight,
   CreditCard, Landmark, CircleDollarSign, Calculator, Percent, Sparkles,
+  GraduationCap, Briefcase,
 } from "lucide-react";
 import { Nav, Footer } from "@/components/site/SiteChrome";
 import { Reveal } from "@/components/site/Reveal";
@@ -327,9 +328,22 @@ export function PricingPage() {
                   {allPrograms.map((p) => (
                     <tr key={`${p.countrySlug}-${p.slug}`} className="hover:bg-secondary/30 transition-colors">
                       <td className="py-4 px-5">
-                        <div className="font-semibold text-foreground flex items-center gap-2">
+                        <div className="font-semibold text-foreground flex items-center gap-2 flex-wrap">
                           <span>{p.countryFlag}</span>
                           <span>{ar ? p.titleAr : p.title}</span>
+                          <span className="inline-flex items-center gap-1 rounded-full border border-border bg-secondary/50 px-2 py-0.2 text-[10px] font-medium text-muted-foreground">
+                            {p.track === "student" ? (
+                              <>
+                                <GraduationCap className="h-3 w-3" strokeWidth={1.5} />
+                                <span>{ar ? "طلاب" : "Students"}</span>
+                              </>
+                            ) : (
+                              <>
+                                <Briefcase className="h-3 w-3" strokeWidth={1.5} />
+                                <span>{ar ? "خريجون" : "Graduates"}</span>
+                              </>
+                            )}
+                          </span>
                         </div>
                         <span className="text-[11px] text-muted-foreground">{p.countryName} · {p.duration}</span>
                       </td>

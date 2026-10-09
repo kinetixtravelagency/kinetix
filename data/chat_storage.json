@@ -8,12 +8,13 @@
       "clientEmail": "kinetix.travel.agency@gmail.com",
       "clientPhone": "24242342342342342342",
       "status": "active",
-      "lastMessage": "💳 طلب سداد جديد (دفعة واحدة بالكامل):\n• البرنامج: Seasonal Hospitality & Hotel Services · Bulgaria\n• المبلغ المطلوب: €١٬٤٥٠ (~٧٨٬٣٠٠ ج.م)\n• وسيلة الدفع المفضلة: Vodafone Cash\n• الاسم: يسيسي يسبيسبيس\n• الهاتف: 24242342342342342342\n• كود الطلب: #e5411ace\n\nأرغب في استكمال الدفع، برجاء تزويدي ببيانات التحويل عبر هذه الوسيلة وتأكيد الحجز.",
-      "lastMessageAt": "2026-10-09T11:40:51.897Z",
-      "unreadCount": 0,
+      "lastMessage": "💳 طلب سداد جديد (سداد الديبوزيت / حجز المقعد):\n• البرنامج: Seasonal Agriculture & Harvest Work · Bulgaria · Bulgaria\n• المسار: مسار الطلاب 🎓\n• تذكرة الطيران: غير مشمولة\n• إجمالي تكلفة البرنامج: €٤٨٩ (~٢٦٬٤٠٦ ج.م)\n• المبلغ المطلوب سداده الآن: €١٨٥ (~٩٬٩٩٠ ج.م)\n• المتبقي بالتقسيط: €٣٠٤ (~١٦٬٤١٦ ج.م) على 6 شهور\n• وسيلة الدفع المفضلة: InstaPay\n• الاسم: عميل كينتيكس\n• الهاتف: —\n• كود الطلب: #af8a00e2\n\nأرغب في استكمال الدفع، برجاء تزويدي ببيانات التحويل عبر هذه الوسيلة وتأكيد الحجز.",
+      "lastMessageAt": "2026-10-09T18:33:45.011Z",
+      "unreadCount": 3,
       "unreadClientCount": 0,
       "createdAt": "2026-10-07T20:15:58.848Z",
-      "updatedAt": "2026-10-09T11:40:51.897Z"
+      "updatedAt": "2026-10-09T18:33:45.011Z",
+      "isDeleted": true
     },
     "conv_21m4awet0_1791441897429": {
       "id": "conv_21m4awet0_1791441897429",
@@ -28,7 +29,8 @@
       "unreadCount": 0,
       "unreadClientCount": 0,
       "createdAt": "2026-10-08T06:44:57.429Z",
-      "updatedAt": "2026-10-08T07:05:32.283Z"
+      "updatedAt": "2026-10-09T15:58:31.997Z",
+      "isDeleted": true
     },
     "conv_kvjiyyx2g_1791549305871": {
       "id": "conv_kvjiyyx2g_1791549305871",
@@ -43,7 +45,8 @@
       "unreadCount": 0,
       "unreadClientCount": 0,
       "createdAt": "2026-10-09T12:35:05.871Z",
-      "updatedAt": "2026-10-09T12:35:35.107Z"
+      "updatedAt": "2026-10-09T15:58:24.388Z",
+      "isDeleted": true
     },
     "conv_78sufobdl_1791555314078": {
       "id": "conv_78sufobdl_1791555314078",
@@ -53,12 +56,13 @@
       "clientEmail": "ah01066912117@gmail.com",
       "clientPhone": "+201097454870",
       "status": "active",
-      "lastMessage": "hey , with you kinetix admin \nhow can i help you today?",
-      "lastMessageAt": "2026-10-09T14:19:25.873Z",
+      "lastMessage": "أهلاً بك! معك فريق كينتيكس للاستشارات، كيف يمكننا مساعدتك اليوم؟",
+      "lastMessageAt": "2026-10-09T14:43:31.394Z",
       "unreadCount": 0,
-      "unreadClientCount": 1,
+      "unreadClientCount": 0,
       "createdAt": "2026-10-09T14:15:14.078Z",
-      "updatedAt": "2026-10-09T14:19:25.873Z"
+      "updatedAt": "2026-10-09T15:34:23.211Z",
+      "flag": "important"
     }
   },
   "messages": {
@@ -125,6 +129,33 @@
         "text": "💳 طلب سداد جديد (دفعة واحدة بالكامل):\n• البرنامج: Seasonal Hospitality & Hotel Services · Bulgaria\n• المبلغ المطلوب: €١٬٤٥٠ (~٧٨٬٣٠٠ ج.م)\n• وسيلة الدفع المفضلة: Vodafone Cash\n• الاسم: يسيسي يسبيسبيس\n• الهاتف: 24242342342342342342\n• كود الطلب: #e5411ace\n\nأرغب في استكمال الدفع، برجاء تزويدي ببيانات التحويل عبر هذه الوسيلة وتأكيد الحجز.",
         "isRead": true,
         "createdAt": "2026-10-09T11:40:51.897Z"
+      },
+      {
+        "id": "msg_yuiihh4nv_1791565816066",
+        "conversationId": "conv_yv8dco035_1791404158848",
+        "sender": "client",
+        "senderName": "admin",
+        "text": "💳 طلب سداد جديد (المقدم):\n• البرنامج: Student Seasonal Hospitality · Bulgaria\n• المبلغ المطلوب: €١٩٦ (~١٠٬٥٨٤ ج.م)\n• وسيلة الدفع المفضلة: InstaPay\n• الاسم: يسبسي يسببس\n• الهاتف: 123123123213213123\n• كود الطلب: #130f0253\n\nأرغب في استكمال الدفع، برجاء تزويدي ببيانات التحويل عبر هذه الوسيلة وتأكيد الحجز.",
+        "isRead": false,
+        "createdAt": "2026-10-09T17:10:16.066Z"
+      },
+      {
+        "id": "msg_fhj5pd1tz_1791565849941",
+        "conversationId": "conv_yv8dco035_1791404158848",
+        "sender": "client",
+        "senderName": "admin",
+        "text": "💳 طلب سداد جديد (المقدم):\n• البرنامج: Student Seasonal Hospitality · Bulgaria\n• المبلغ المطلوب: €١٩٦ (~١٠٬٥٨٤ ج.م)\n• وسيلة الدفع المفضلة: Vodafone Cash\n• الاسم: يسيسي يسبيسبيس\n• الهاتف: 24242342342342342342\n• كود الطلب: #e5411ace\n\nأرغب في استكمال الدفع، برجاء تزويدي ببيانات التحويل عبر هذه الوسيلة وتأكيد الحجز.",
+        "isRead": false,
+        "createdAt": "2026-10-09T17:10:49.941Z"
+      },
+      {
+        "id": "msg_67to0xfsi_1791570825011",
+        "conversationId": "conv_yv8dco035_1791404158848",
+        "sender": "client",
+        "senderName": "admin",
+        "text": "💳 طلب سداد جديد (سداد الديبوزيت / حجز المقعد):\n• البرنامج: Seasonal Agriculture & Harvest Work · Bulgaria · Bulgaria\n• المسار: مسار الطلاب 🎓\n• تذكرة الطيران: غير مشمولة\n• إجمالي تكلفة البرنامج: €٤٨٩ (~٢٦٬٤٠٦ ج.م)\n• المبلغ المطلوب سداده الآن: €١٨٥ (~٩٬٩٩٠ ج.م)\n• المتبقي بالتقسيط: €٣٠٤ (~١٦٬٤١٦ ج.م) على 6 شهور\n• وسيلة الدفع المفضلة: InstaPay\n• الاسم: عميل كينتيكس\n• الهاتف: —\n• كود الطلب: #af8a00e2\n\nأرغب في استكمال الدفع، برجاء تزويدي ببيانات التحويل عبر هذه الوسيلة وتأكيد الحجز.",
+        "isRead": false,
+        "createdAt": "2026-10-09T18:33:45.011Z"
       }
     ],
     "conv_21m4awet0_1791441897429": [
@@ -192,8 +223,35 @@
         "sender": "admin",
         "senderName": "Kinetix Admin",
         "text": "hey , with you kinetix admin \nhow can i help you today?",
-        "isRead": false,
+        "isRead": true,
         "createdAt": "2026-10-09T14:19:25.873Z"
+      },
+      {
+        "id": "msg_6b6g83fpz_1791556121600",
+        "conversationId": "conv_78sufobdl_1791555314078",
+        "sender": "client",
+        "senderName": "Ahmed Hassan Soliman Abdallah",
+        "text": "Is there a duration of work",
+        "isRead": true,
+        "createdAt": "2026-10-09T14:28:41.600Z"
+      },
+      {
+        "id": "msg_ln033nxa5_1791557009252",
+        "conversationId": "conv_78sufobdl_1791555314078",
+        "sender": "admin",
+        "senderName": "Kinetix Admin",
+        "text": "أهلاً بك! معك فريق كينتيكس للاستشارات، كيف يمكننا مساعدتك اليوم؟",
+        "isRead": true,
+        "createdAt": "2026-10-09T14:43:29.252Z"
+      },
+      {
+        "id": "msg_kxrh1q1wt_1791557011394",
+        "conversationId": "conv_78sufobdl_1791555314078",
+        "sender": "admin",
+        "senderName": "Kinetix Admin",
+        "text": "أهلاً بك! معك فريق كينتيكس للاستشارات، كيف يمكننا مساعدتك اليوم؟",
+        "isRead": true,
+        "createdAt": "2026-10-09T14:43:31.394Z"
       }
     ]
   }

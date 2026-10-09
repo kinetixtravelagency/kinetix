@@ -29,9 +29,10 @@ export const getMyAccount = createServerFn({ method: "GET" })
       return catProg ? {
         ...app,
         programs: {
+          ...catProg,
           ...app.programs,
-          deposit: catProg.deposit,
-          price: catProg.price,
+          deposit: app.programs?.deposit ?? catProg.deposit,
+          price: app.programs?.price ?? catProg.price,
         },
       } : app;
     });
@@ -331,20 +332,132 @@ export const adminSyncCatalogPrograms = createServerFn({ method: "POST" })
     return { ok: true, count };
   });
 
+export const deleteApplication = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { id: string }) => {
+    if (!d.id) throw new Error("Application ID is required");
+    return d;
+  })
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: isAdmin } = await supabase.rpc("has_role", { _user_id: userId, _role: "admin" });
+
+    // Verify application exists and ownership
+    const { data: app, error: appErr } = await supabaseAdmin
+      .from("applications")
+      .select("id, user_id")
+      .eq("id", data.id)
+      .maybeSingle();
+
+    if (appErr) throw new Error(appErr.message);
+    if (!app) return { ok: true, deleted: false };
+
+    if (!isAdmin && app.user_id !== userId) {
+      throw new Error("Forbidden: You cannot delete another user's application");
+    }
+
+    // Clean up related documents first
+    await supabaseAdmin.from("application_documents").delete().eq("application_id", data.id);
+    // Delete any pending commission associated with this application
+    await supabaseAdmin.from("commissions").delete().eq("application_id", data.id).eq("status", "pending");
+    // Delete application
+    const { error: delErr } = await supabaseAdmin.from("applications").delete().eq("id", data.id);
+    if (delErr) throw new Error(delErr.message);
+
+    return { ok: true, deleted: true };
+  });
+
+export const getApplication = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { id: string }) => d)
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { data: app, error } = await supabase
+      .from("applications")
+      .select("*, programs(slug, track, title_en, title_ar, price, deposit, countries(slug, name_en, name_ar)), application_documents(*)")
+      .eq("id", data.id)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    return app;
+  });
+
 export const createApplication = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: {
-    program: string; payment_plan: "full" | "installments"; installments: number;
-    full_name: string; phone: string; passport_number: string; birth_date?: string | undefined; education?: string | undefined; promo_code?: string | undefined; gender?: string | undefined; city?: string | undefined;
+    program: string;
+    payment_plan: "full" | "installments";
+    installments: number;
+    full_name?: string | undefined;
+    first_name?: string | undefined;
+    second_name?: string | undefined;
+    phone: string;
+    national_id?: string | undefined;
+    passport_number?: string | undefined;
+    birth_date?: string | undefined;
+    education?: string | undefined;
+    education_level?: string | undefined;
+    university?: string | undefined;
+    faculty?: string | undefined;
+    academic_year?: string | undefined;
+    graduation_year?: string | undefined;
+    current_city?: string | undefined;
+    current_address?: string | undefined;
+    hometown_city?: string | undefined;
+    hometown_address?: string | undefined;
+    gender?: string | undefined;
+    military_status?: string | undefined;
+    flight_included?: boolean | undefined;
+    contract_duration?: string | undefined;
+    promo_code?: string | undefined;
+    city?: string | undefined;
   }) => {
     if (!d.program || d.program.length > 80) throw new Error("Invalid program");
     if (d.payment_plan !== "full" && d.payment_plan !== "installments") throw new Error("Invalid plan");
     const inst = d.payment_plan === "full" ? 1 : Math.round(d.installments);
     if (inst < 1 || inst > 6) throw new Error("Invalid installments");
     const clip = (v: string | undefined, n: number) => (v ?? "").trim().slice(0, n);
-    if (!clip(d.full_name, 120) || !clip(d.phone, 40)) throw new Error("Name and phone are required");
-    return { ...d, installments: inst, full_name: clip(d.full_name, 120), phone: clip(d.phone, 40), passport_number: clip(d.passport_number, 40),
-      education: clip(d.education, 200), promo_code: clip(d.promo_code, 40).toUpperCase(), birth_date: d.birth_date || undefined, gender: d.gender ? clip(d.gender, 10) : undefined, city: d.city ? clip(d.city, 80) : undefined };
+
+    const firstName = clip(d.first_name, 60);
+    const secondName = clip(d.second_name, 60);
+    const resolvedName = clip(d.full_name || `${firstName} ${secondName}`, 120);
+    const phone = clip(d.phone, 40);
+
+    if (!resolvedName || !phone) throw new Error("Name and phone are required");
+
+    // Egyptian National ID format validation (14 digits)
+    const nid = clip(d.national_id, 20);
+    if (nid && !/^\d{14}$/.test(nid)) {
+      throw new Error("Invalid Egyptian National ID: must be exactly 14 digits");
+    }
+
+    return {
+      ...d,
+      installments: inst,
+      full_name: resolvedName,
+      first_name: firstName,
+      second_name: secondName,
+      phone,
+      national_id: nid || undefined,
+      passport_number: clip(d.passport_number, 40),
+      education: clip(d.education, 200),
+      education_level: clip(d.education_level, 40),
+      university: clip(d.university, 100),
+      faculty: clip(d.faculty, 100),
+      academic_year: clip(d.academic_year, 40),
+      graduation_year: clip(d.graduation_year, 20),
+      current_city: clip(d.current_city || d.city, 80),
+      current_address: clip(d.current_address, 150),
+      hometown_city: clip(d.hometown_city, 80),
+      hometown_address: clip(d.hometown_address, 150),
+      promo_code: clip(d.promo_code, 40).toUpperCase(),
+      birth_date: d.birth_date || undefined,
+      gender: d.gender ? clip(d.gender, 10) : undefined,
+      military_status: d.military_status ? clip(d.military_status, 40) : undefined,
+      flight_included: Boolean(d.flight_included),
+      contract_duration: clip(d.contract_duration, 50),
+      city: clip(d.current_city || d.city, 80),
+    };
   })
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
@@ -416,13 +529,34 @@ export const createApplication = createServerFn({ method: "POST" })
         discount = Number(levelFor((lv ?? []) as any, (lc ?? 0) + (ac ?? 0)).current?.client_discount ?? 0);
       }
     }
+
+    // Build structured metadata JSON inside notes
+    const metadataNotes = JSON.stringify({
+      first_name: data.first_name || null,
+      second_name: data.second_name || null,
+      national_id: data.national_id || null,
+      education_level: data.education_level || null,
+      university: data.university || null,
+      faculty: data.faculty || null,
+      academic_year: data.academic_year || null,
+      graduation_year: data.graduation_year || null,
+      current_city: data.current_city || null,
+      current_address: data.current_address || null,
+      hometown_city: data.hometown_city || null,
+      hometown_address: data.hometown_address || null,
+      gender: data.gender || "male",
+      military_status: data.military_status || null,
+      flight_included: Boolean(data.flight_included),
+      contract_duration: data.contract_duration || null,
+    });
+
     const genderTag = data.gender ? `[GENDER:${data.gender}]` : "[GENDER:male]";
     const { data: app, error } = await supabase.from("applications").insert({
       user_id: userId, program_id: prog.id, partner_id, promo_code: data.promo_code || null,
       payment_plan: data.payment_plan, installments: data.installments, discount_percent: discount,
       full_name: data.full_name, phone: data.phone, passport_number: data.passport_number || null,
-      birth_date: data.birth_date ?? null, education: data.education || null,
-      notes: genderTag,
+      birth_date: data.birth_date ?? null, education: data.education || data.university || null,
+      notes: `${genderTag} ${metadataNotes}`,
     }).select("id").single();
     if (error) throw new Error(error.message);
     await supabase.from("profiles").update({ full_name: data.full_name, phone: data.phone }).eq("id", userId);
@@ -721,24 +855,58 @@ export const requestPaymentSupport = createServerFn({ method: "POST" })
       countryName?: string | undefined;
       phone?: string | undefined;
       fullName?: string | undefined;
+      flightIncluded?: boolean | undefined;
+      totalPriceEur?: number | undefined;
+      remainingEur?: number | undefined;
+      installmentsCount?: number | undefined;
+      track?: string | undefined;
     }) => d
   )
   .handler(async ({ data, context }) => {
     const { userId } = context;
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-    const noteText = `[طلب دفع عبر الشات] ${data.paymentOption === "deposit" ? "المقدم" : "دفعة واحدة بالكامل"} بمبلغ €${data.amountEur} (~${data.amountEgp.toLocaleString()} EGP) بطريقة ${data.paymentMethod} - ${new Date().toLocaleString("ar-EG")}`;
+    // Fetch existing application notes to preserve JSON metadata
+    const { data: existingApp } = await supabaseAdmin
+      .from("applications")
+      .select("notes, payment_plan")
+      .eq("id", data.applicationId)
+      .maybeSingle();
+
+    let updatedNotes = existingApp?.notes || "";
+    try {
+      if (existingApp?.notes && existingApp.notes.startsWith("{")) {
+        const parsed = JSON.parse(existingApp.notes);
+        parsed.payment_method = data.paymentMethod;
+        parsed.payment_option = data.paymentOption;
+        parsed.payment_requested_at = new Date().toISOString();
+        if (data.flightIncluded !== undefined) parsed.flight_included = data.flightIncluded;
+        updatedNotes = JSON.stringify(parsed);
+      } else {
+        updatedNotes = `[طلب دفع عبر الشات] ${data.paymentOption === "deposit" ? "المقدم" : "سداد كامل"} بمبلغ €${data.amountEur} (~${data.amountEgp.toLocaleString()} EGP) بطريقة ${data.paymentMethod} - ${new Date().toLocaleString("ar-EG")}`;
+      }
+    } catch {
+      updatedNotes = `[طلب دفع عبر الشات] ${data.paymentOption === "deposit" ? "المقدم" : "سداد كامل"} بمبلغ €${data.amountEur} (~${data.amountEgp.toLocaleString()} EGP) بطريقة ${data.paymentMethod} - ${new Date().toLocaleString("ar-EG")}`;
+    }
 
     await supabaseAdmin.from("applications").update({
       payment_plan: data.paymentOption === "full" ? "full" : "installments",
-      notes: noteText,
+      notes: updatedNotes,
     }).eq("id", data.applicationId);
 
-    const msgText = `💳 طلب سداد جديد (${data.paymentOption === "deposit" ? "المقدم" : "دفعة واحدة بالكامل"}):
+    const totalEur = data.totalPriceEur || (data.paymentOption === "deposit" && data.remainingEur ? data.amountEur + data.remainingEur : data.amountEur);
+    const totalEgp = Math.round(totalEur * 54);
+    const trackLabel = data.track === "student" ? "مسار الطلاب 🎓" : "مسار الخريجين 💼";
+    const flightLabel = data.flightIncluded ? "مشمولة ضمن البرنامج ✈️" : "غير مشمولة";
+
+    const msgText = `💳 طلب سداد جديد (${data.paymentOption === "deposit" ? "سداد الديبوزيت / حجز المقعد" : "سداد كامل بالكامل"}):
 • البرنامج: ${data.programTitle}${data.countryName ? ` · ${data.countryName}` : ""}
-• المبلغ المطلوب: €${data.amountEur.toLocaleString()} (~${data.amountEgp.toLocaleString()} ج.م)
-• وسيلة الدفع المفضلة: ${data.paymentMethod}
-• الاسم: ${data.fullName || "عميل"}
+• المسار: ${trackLabel}
+• تذكرة الطيران: ${flightLabel}
+• إجمالي تكلفة البرنامج: €${totalEur.toLocaleString("en-US")} (~${totalEgp.toLocaleString("en-US")} ج.م)
+• المبلغ المطلوب سداده الآن: €${data.amountEur.toLocaleString("en-US")} (~${data.amountEgp.toLocaleString("en-US")} ج.م)
+${data.paymentOption === "deposit" && data.remainingEur && data.remainingEur > 0 ? `• المتبقي بالتقسيط: €${data.remainingEur.toLocaleString("en-US")} (~${Math.round(data.remainingEur * 54).toLocaleString("en-US")} ج.م) على ${data.installmentsCount || 6} شهور\n` : ""}• وسيلة الدفع المفضلة: ${data.paymentMethod}
+• الاسم: ${data.fullName || "عميل كينتيكس"}
 • الهاتف: ${data.phone || "—"}
 • كود الطلب: #${data.applicationId.slice(0, 8)}
 

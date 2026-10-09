@@ -13,6 +13,7 @@ import {
   CreditCard,
 } from "lucide-react";
 import { getClientChat, sendClientMessage, type ChatMessage } from "@/lib/chat.functions";
+import { ApplicationChatCard } from "@/components/chat/ApplicationChatCard";
 import { useSession } from "@/lib/useSession";
 import { useLang } from "@/lib/i18n";
 import logoImg from "@/assets/pics/logo.png";
@@ -442,23 +443,7 @@ export function ChatWidget() {
                   if (isPayment) {
                     return (
                       <div key={m.id} className="flex justify-start my-2">
-                        <div className="w-full rounded-2xl border-2 border-amber-400 bg-card p-4 text-xs shadow-md text-foreground">
-                          <div className="flex items-center gap-2 mb-2 font-bold text-amber-800 dark:text-amber-300">
-                            <CreditCard className="h-4 w-4 text-amber-600" />
-                            <span>{ar ? "💳 طلب سداد معتمد مسجل" : "💳 Registered Payment Request"}</span>
-                          </div>
-                          <div className="rounded-xl bg-amber-500/10 p-3 text-[11px] font-mono leading-relaxed whitespace-pre-wrap border border-amber-300/60 text-foreground">
-                            {m.text}
-                          </div>
-                          <div className="mt-2.5 flex items-center justify-between text-[10px] text-muted-foreground">
-                            <span className="font-semibold text-amber-700 dark:text-amber-400">
-                              ✓ {ar ? "تم إرسال الطلب لفريق الحسابات" : "Dispatched to accounts team"}
-                            </span>
-                            <span>
-                              {new Date(m.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                            </span>
-                          </div>
-                        </div>
+                        <ApplicationChatCard text={m.text} createdAt={m.createdAt} />
                       </div>
                     );
                   }

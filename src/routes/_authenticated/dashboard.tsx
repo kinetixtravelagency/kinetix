@@ -6,10 +6,10 @@ import {
   Award, Copy, Check, LogOut, Wallet, Mail, Phone, MapPin, Link2,
   User, Calendar, GraduationCap, Building2, BookOpen, ShieldCheck,
   CheckCircle2, Clock, FileText, Sparkles, CreditCard, ArrowRight,
-  Settings, ExternalLink, Globe, Layers, AlertCircle
+  Settings, ExternalLink, Globe, Layers, AlertCircle, Trash2,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { getMyAccount, updateMyProfile, updateMyPayout } from "@/lib/account.functions";
+import { getMyAccount, updateMyProfile, updateMyPayout, deleteApplication } from "@/lib/account.functions";
 import { useLang } from "@/lib/i18n";
 import { useSession } from "@/lib/useSession";
 import { Nav, Footer } from "@/components/site/SiteChrome";
@@ -118,6 +118,24 @@ function Dashboard() {
       setProfileErr(err.message || tr("Failed to update profile", "حدث خطأ أثناء حفظ الملف الشخصي"));
     } finally {
       setSavingProfile(false);
+    }
+  };
+
+  const deleteApp = useServerFn(deleteApplication);
+  const handleCancelApp = async (appId: string) => {
+    if (!confirm(ar ? "هل أنت متأكد من رغبتك في إلغاء هذا الطلب وحذفه نهائياً؟" : "Are you sure you want to cancel and delete this application?")) return;
+    try {
+      await deleteApp({ data: { id: appId } });
+      if (typeof window !== "undefined") {
+        Object.keys(localStorage).forEach((k) => {
+          if (k.startsWith("kinetix_app_submitted_") && localStorage.getItem(k) === appId) {
+            localStorage.removeItem(k);
+          }
+        });
+      }
+      queryClient.invalidateQueries({ queryKey: ["account"] });
+    } catch (e: any) {
+      alert(e?.message || (ar ? "حدث خطأ أثناء إلغاء الطلب" : "Failed to cancel application"));
     }
   };
 
@@ -232,8 +250,18 @@ function Dashboard() {
                     const catEntry = pr?.slug ? getProgram(pr.slug) : undefined;
                     const catProg = catEntry?.program;
                     const c = getCountry(pr?.countries?.slug ?? catEntry?.country?.slug ?? "");
-                    const effectiveDeposit = catProg?.deposit ?? (pr?.deposit && pr.deposit <= 250 ? pr.deposit : 196);
-                    const effectivePrice = catProg?.price ?? pr?.price ?? 2400;
+                    let flightIncluded = false;
+                    try {
+                      if (a.notes) {
+                        const parsed = typeof a.notes === "string" ? JSON.parse(a.notes) : a.notes;
+                        flightIncluded = Boolean(parsed.flight_included);
+                      }
+                    } catch {
+                      // ignore parse errors
+                    }
+                    const effectiveDeposit = pr?.deposit ?? catProg?.deposit ?? 196;
+                    const basePrice = pr?.price ?? catProg?.price ?? 640;
+                    const effectivePrice = basePrice + (flightIncluded ? (catProg?.flightPrice ?? 204) : 0);
                     const due = a.payment_plan === "full" ? effectivePrice : effectiveDeposit;
                     const progTitle = ar ? pr?.title_ar || catProg?.titleAr || pr?.title_en : pr?.title_en || catProg?.title;
                     const countryTitle = ar ? pr?.countries?.name_ar || c?.nameAr : pr?.countries?.name_en || c?.name;
@@ -261,9 +289,20 @@ function Dashboard() {
                                 ✓ {t("depositPaid")}
                               </span>
                             ) : (
-                              <span className="rounded-full bg-amber-100 px-3.5 py-1 text-xs font-semibold text-amber-800 dark:bg-amber-950/60 dark:text-amber-300">
-                                ⏳ {t("depositAwait")} ({eur(due ?? 0)})
-                              </span>
+                              <>
+                                <span className="rounded-full bg-amber-100 px-3.5 py-1 text-xs font-semibold text-amber-800 dark:bg-amber-950/60 dark:text-amber-300">
+                                  ⏳ {t("depositAwait")} ({eur(due ?? 0)})
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => handleCancelApp(a.id)}
+                                  className="inline-flex items-center gap-1 rounded-full border border-red-200 bg-red-50 px-3 py-1 text-xs font-semibold text-red-600 hover:bg-red-100 dark:bg-red-950/30 dark:border-red-900/40 transition-colors"
+                                  title={ar ? "إلغاء الطلب وحذفه" : "Cancel Application"}
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                  <span>{ar ? "إلغاء وحذف" : "Cancel"}</span>
+                                </button>
+                              </>
                             )}
                           </div>
                         </div>
