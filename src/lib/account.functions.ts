@@ -132,7 +132,8 @@ export const adminUpdateApplicationStatus = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { data: isAdmin } = await context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" });
     if (!isAdmin) throw new Error("Forbidden");
-    const { error } = await context.supabase.from("applications").update({ status: data.status }).eq("id", data.id);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin.from("applications").update({ status: data.status }).eq("id", data.id);
     if (error) throw new Error(error.message);
     return { ok: true };
   });
@@ -408,7 +409,8 @@ export const adminUpdateApplication = createServerFn({ method: "POST" })
       patch.deposit_paid_at = data.deposit_paid ? new Date().toISOString() : null;
       if (data.deposit_paid && data.stage === undefined) patch.stage = 1;
     }
-    const { error } = await context.supabase.from("applications").update(patch).eq("id", data.id);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin.from("applications").update(patch).eq("id", data.id);
     if (error) throw new Error(error.message);
     return { ok: true };
   });
@@ -419,7 +421,8 @@ export const adminSetDocumentStatus = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { data: isAdmin } = await context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" });
     if (!isAdmin) throw new Error("Forbidden");
-    const { error } = await context.supabase.from("application_documents").update({ status: data.status }).eq("id", data.id);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin.from("application_documents").update({ status: data.status }).eq("id", data.id);
     if (error) throw new Error(error.message);
     return { ok: true };
   });

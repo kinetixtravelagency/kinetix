@@ -40,13 +40,58 @@ let memoryCache: ChatStore | null = null;
 let lastFetchTime = 0;
 const CACHE_TTL = 1500; // 1.5s cache for responsive polling without spamming storage
 
+function mergeStores(base: ChatStore, incoming: ChatStore): ChatStore {
+  const mergedConversations: Record<string, ChatConversation> = { ...(base.conversations || {}) };
+  for (const [id, inc] of Object.entries(incoming.conversations || {})) {
+    const existing = mergedConversations[id];
+    if (!existing) {
+      mergedConversations[id] = inc;
+    } else {
+      const baseTime = new Date(existing.updatedAt || existing.lastMessageAt || 0).getTime();
+      const incTime = new Date(inc.updatedAt || inc.lastMessageAt || 0).getTime();
+      mergedConversations[id] = incTime >= baseTime ? inc : existing;
+    }
+  }
+
+  const mergedMessages: Record<string, ChatMessage[]> = { ...(base.messages || {}) };
+  for (const [convId, incMsgs] of Object.entries(incoming.messages || {})) {
+    const curMsgs = mergedMessages[convId] || [];
+    const msgMap = new Map<string, ChatMessage>();
+    for (const m of curMsgs) msgMap.set(m.id, m);
+    for (const m of incMsgs) msgMap.set(m.id, m);
+    mergedMessages[convId] = Array.from(msgMap.values()).sort(
+      (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+    );
+  }
+
+  return { conversations: mergedConversations, messages: mergedMessages };
+}
+
 async function getStore(): Promise<ChatStore> {
   const now = Date.now();
   if (memoryCache && now - lastFetchTime < CACHE_TTL) {
     return memoryCache;
   }
 
-  // 1. Primary: Cloud Supabase Storage (Persistent across all Vercel Lambdas)
+  let currentStore: ChatStore = memoryCache ? { ...memoryCache } : { conversations: {}, messages: {} };
+
+  // 1. Local filesystem read (immediate & reliable on Node)
+  try {
+    const fs = await import("node:fs");
+    const path = await import("node:path");
+    const dataFile = path.resolve(process.cwd(), "data", "chat_storage.json");
+    if (fs.existsSync(dataFile)) {
+      const raw = fs.readFileSync(dataFile, "utf-8");
+      const parsed = JSON.parse(raw) as ChatStore;
+      if (parsed && typeof parsed === "object" && parsed.conversations) {
+        currentStore = mergeStores(currentStore, parsed);
+      }
+    }
+  } catch {
+    // ignore
+  }
+
+  // 2. Cloud Supabase Storage sync (persistent on Vercel)
   try {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data, error } = await supabaseAdmin.storage
@@ -57,33 +102,15 @@ async function getStore(): Promise<ChatStore> {
       const text = await data.text();
       const parsed = JSON.parse(text) as ChatStore;
       if (parsed && typeof parsed === "object" && parsed.conversations) {
-        memoryCache = parsed;
-        lastFetchTime = now;
-        return memoryCache;
+        currentStore = mergeStores(currentStore, parsed);
       }
     }
   } catch (err) {
     console.error("[ChatStore] Supabase storage download error:", err);
   }
 
-  // 2. Fallback: Local filesystem (for offline / local dev)
-  try {
-    const fs = await import("node:fs");
-    const path = await import("node:path");
-    const dataFile = path.resolve(process.cwd(), "data", "chat_storage.json");
-    if (fs.existsSync(dataFile)) {
-      const raw = fs.readFileSync(dataFile, "utf-8");
-      memoryCache = JSON.parse(raw) as ChatStore;
-      lastFetchTime = now;
-      return memoryCache;
-    }
-  } catch {
-    // Expected on Vercel read-only filesystem
-  }
-
-  if (!memoryCache) {
-    memoryCache = { conversations: {}, messages: {} };
-  }
+  memoryCache = currentStore;
+  lastFetchTime = now;
   return memoryCache;
 }
 
@@ -93,23 +120,7 @@ async function saveStore(store: ChatStore): Promise<void> {
 
   const payload = JSON.stringify(store, null, 2);
 
-  // 1. Primary: Cloud Supabase Storage (Persistent on Vercel)
-  try {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { error } = await supabaseAdmin.storage
-      .from("documents")
-      .upload("_system/chat_storage.json", Buffer.from(payload), {
-        upsert: true,
-        contentType: "application/json",
-      });
-    if (error) {
-      console.error("[ChatStore] Supabase storage upload error:", error);
-    }
-  } catch (err) {
-    console.error("[ChatStore] Supabase storage save failure:", err);
-  }
-
-  // 2. Best-effort local file write
+  // 1. Write to local filesystem immediately
   try {
     const fs = await import("node:fs");
     const path = await import("node:path");
@@ -118,7 +129,24 @@ async function saveStore(store: ChatStore): Promise<void> {
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
     fs.writeFileSync(dataFile, payload, "utf-8");
   } catch {
-    // Expected on Vercel serverless read-only filesystem
+    // Expected on Vercel read-only filesystem
+  }
+
+  // 2. Write to Supabase Storage with no-cache so cloud reflects instantly
+  try {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin.storage
+      .from("documents")
+      .upload("_system/chat_storage.json", Buffer.from(payload), {
+        upsert: true,
+        contentType: "application/json;charset=utf-8",
+        cacheControl: "0",
+      });
+    if (error) {
+      console.error("[ChatStore] Supabase storage upload error:", error);
+    }
+  } catch (err) {
+    console.error("[ChatStore] Supabase storage save failure:", err);
   }
 }
 

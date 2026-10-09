@@ -19,7 +19,7 @@ import {
   ChevronDown, ChevronUp, CheckCircle2, XCircle, Clock,
   TrendingUp, Plus, Pencil, Save, X, Eye, ShieldCheck, Ban, AlertCircle, MessageSquare,
   Mail, Phone, MapPin, Calendar, Copy, Check, ExternalLink, Link2, Trash2, RefreshCw,
-  Sparkles, Filter, Layers, CheckSquare, Loader2, CreditCard, BookOpen, Send,
+  Sparkles, Filter, Layers, CheckSquare, Loader2, CreditCard, BookOpen, Send, User,
 } from "lucide-react";
 import { AdminChatTab } from "@/components/admin/AdminChatTab";
 import { AdminMaterialsTab } from "@/components/admin/AdminMaterialsTab";
@@ -271,6 +271,9 @@ function ApplicationsTab({ apps, onChange }: { apps: any[]; onChange: () => void
   const [filter, setFilter] = useState("all");
   const [search, setSearch] = useState("");
   const [exp, setExp] = useState<string | null>(null);
+  const [optimisticOverrides, setOptimisticOverrides] = useState<Record<string, { status?: string; stage?: number; deposit_paid?: boolean }>>({});
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
+
   const statuses = ["all", "submitted", "in_review", "documents", "approved", "rejected"];
   const stages = [
     "0: تقديم ومستندات (Application & Docs)",
@@ -287,13 +290,15 @@ function ApplicationsTab({ apps, onChange }: { apps: any[]; onChange: () => void
   const paymentsCount = apps.filter(isPaymentApp).length;
 
   const filtered = apps.filter(a => {
+    const effStatus = optimisticOverrides[a.id]?.status ?? a.status;
     if (filter === "payments") {
       if (!isPaymentApp(a)) return false;
-    } else if (filter !== "all" && a.status !== filter) {
+    } else if (filter !== "all" && effStatus !== filter) {
       return false;
     }
     return (!search || (a.full_name ?? "").toLowerCase().includes(search.toLowerCase()) ||
-      (a.phone ?? "").includes(search) || (a.promo_code ?? "").toLowerCase().includes(search.toLowerCase()));
+      (a.phone ?? "").includes(search) || (a.promo_code ?? "").toLowerCase().includes(search.toLowerCase()) ||
+      (a.user_email ?? "").toLowerCase().includes(search.toLowerCase()));
   });
 
   const openDoc = async (path: string) => {
@@ -301,62 +306,134 @@ function ApplicationsTab({ apps, onChange }: { apps: any[]; onChange: () => void
     if (data?.signedUrl) window.open(data.signedUrl, "_blank", "noopener");
   };
 
+  const handleUpdateStatus = async (appId: string, newStatus: string) => {
+    setOptimisticOverrides(prev => ({
+      ...prev,
+      [appId]: { ...(prev[appId] || {}), status: newStatus }
+    }));
+    setUpdatingId(appId);
+    try {
+      await setStatus({ data: { id: appId, status: newStatus } });
+      onChange();
+    } catch (err: any) {
+      alert("حدث خطأ أثناء تحديث الحالة: " + (err?.message || "خطأ غير معروف"));
+      setOptimisticOverrides(prev => {
+        const copy = { ...prev };
+        if (copy[appId]) delete copy[appId].status;
+        return copy;
+      });
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
+  const handleUpdateStage = async (appId: string, newStage: number) => {
+    setOptimisticOverrides(prev => ({
+      ...prev,
+      [appId]: { ...(prev[appId] || {}), stage: newStage }
+    }));
+    setUpdatingId(appId);
+    try {
+      await upd({ data: { id: appId, stage: newStage } });
+      onChange();
+    } catch (err: any) {
+      alert("حدث خطأ أثناء تحديث المرحلة: " + (err?.message || "خطأ غير معروف"));
+      setOptimisticOverrides(prev => {
+        const copy = { ...prev };
+        if (copy[appId]) delete copy[appId].stage;
+        return copy;
+      });
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
+  const handleToggleDeposit = async (appId: string, currentDeposit: boolean) => {
+    const nextVal = !currentDeposit;
+    setOptimisticOverrides(prev => ({
+      ...prev,
+      [appId]: { ...(prev[appId] || {}), deposit_paid: nextVal }
+    }));
+    setUpdatingId(appId);
+    try {
+      await upd({ data: { id: appId, deposit_paid: nextVal } });
+      onChange();
+    } catch (err: any) {
+      alert("حدث خطأ أثناء تحديث حالة الديبوزت: " + (err?.message || "خطأ غير معروف"));
+      setOptimisticOverrides(prev => {
+        const copy = { ...prev };
+        if (copy[appId]) delete copy[appId].deposit_paid;
+        return copy;
+      });
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
   return (
     <div className="space-y-4">
       {/* Filters */}
-      <div className="flex flex-wrap gap-3">
-        <input className={`${inp} max-w-64`} placeholder="Search name, phone, promo…" value={search} onChange={e => setSearch(e.target.value)} />
-        <div className="flex flex-wrap gap-1">
-          {statuses.map(s => (
-            <button key={s} onClick={() => setFilter(s)}
-              className={`rounded-full border px-3 py-1.5 text-xs ${filter === s ? "border-navy bg-navy text-ivory" : "border-border hover:border-beige"}`}>
-              {s}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <input className={`${inp} max-w-64`} placeholder="Search name, phone, promo, email…" value={search} onChange={e => setSearch(e.target.value)} />
+          <div className="flex flex-wrap gap-1">
+            {statuses.map(s => (
+              <button key={s} onClick={() => setFilter(s)}
+                className={`rounded-full border px-3 py-1.5 text-xs transition-colors ${filter === s ? "border-navy bg-navy text-ivory" : "border-border hover:border-beige"}`}>
+                {s}
+              </button>
+            ))}
+            <button
+              onClick={() => setFilter("payments")}
+              className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition-all ${
+                filter === "payments"
+                  ? "bg-amber-500 text-white border-amber-600 shadow-sm"
+                  : "border-amber-400/60 bg-amber-500/10 text-amber-800 dark:text-amber-300 border border-amber-500/30 hover:bg-amber-500/20"
+              }`}
+            >
+              <CreditCard className="h-3.5 w-3.5 text-amber-600" />
+              طلبات الدفع
+              {paymentsCount > 0 && (
+                <span className="rounded-full bg-amber-600 px-1.5 py-0.2 text-[10px] text-white">
+                  {paymentsCount}
+                </span>
+              )}
             </button>
-          ))}
-          <button
-            onClick={() => setFilter("payments")}
-            className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition-all ${
-              filter === "payments"
-                ? "bg-amber-500 text-white border-amber-600 shadow-sm"
-                : "border-amber-400/60 bg-amber-500/10 text-amber-800 dark:text-amber-300 hover:bg-amber-500/20"
-            }`}
-          >
-            <CreditCard className="h-3.5 w-3.5 text-amber-600" />
-            طلبات الدفع
-            {paymentsCount > 0 && (
-              <span className="rounded-full bg-amber-600 px-1.5 py-0.2 text-[10px] text-white">
-                {paymentsCount}
-              </span>
-            )}
-          </button>
+          </div>
         </div>
+        <p className="text-xs text-muted-foreground">{filtered.length} applications registered</p>
       </div>
-      <p className="text-sm text-muted-foreground">{filtered.length} applications</p>
 
       {filtered.map(a => {
         const expanded = exp === a.id;
         const due = a.payment_plan === "full" ? a.programs?.price : a.programs?.deposit;
         const hasPaymentNote = isPaymentApp(a);
+        const effStatus = optimisticOverrides[a.id]?.status ?? a.status;
+        const effStage = optimisticOverrides[a.id]?.stage ?? (a.stage ?? 0);
+        const effDeposit = optimisticOverrides[a.id]?.deposit_paid ?? a.deposit_paid;
+        const isBusy = updatingId === a.id;
+
         return (
-          <div key={a.id} className={`rounded-3xl border bg-card overflow-hidden transition-colors ${
-            hasPaymentNote ? "border-amber-400/80 shadow-xs" : "border-border"
+          <div key={a.id} className={`rounded-3xl border bg-card overflow-hidden transition-all shadow-xs ${
+            hasPaymentNote ? "border-amber-400/80 shadow-md" : "border-border"
           }`}>
             {/* Summary row */}
-            <button className="flex w-full items-start justify-between gap-4 p-5 text-start" onClick={() => setExp(expanded ? null : a.id)}>
-              <div className="min-w-0">
+            <button className="flex w-full items-start justify-between gap-4 p-5 text-start hover:bg-secondary/20 transition-colors" onClick={() => setExp(expanded ? null : a.id)}>
+              <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
-                  <p className="font-display text-base font-semibold">{a.full_name ?? a.profiles?.full_name ?? "—"}</p>
-                  <span className={`${pill} ${statusColor(a.status)}`}>{a.status}</span>
+                  <p className="font-display text-base font-semibold text-foreground">{a.full_name ?? a.profiles?.full_name ?? "—"}</p>
+                  <span className={`${pill} ${statusColor(effStatus)}`}>{effStatus}</span>
                   {hasPaymentNote && (
                     <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 border border-amber-500/40 px-2.5 py-0.5 text-xs font-bold text-amber-800 dark:text-amber-300">
                       <CreditCard className="h-3.5 w-3.5 text-amber-600" />
                       💳 طلب دفع عبر الشات
                     </span>
                   )}
-                  {a.deposit_paid && <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs text-emerald-800">✓ Deposit paid</span>}
+                  {effDeposit && <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-bold text-emerald-800">✓ Deposit paid</span>}
                   <span className="rounded-full bg-secondary px-2.5 py-0.5 text-xs font-medium text-foreground">
-                    Stage {a.stage ?? 0}: {stages[a.stage ?? 0]?.split("(")[0]}
+                    Stage {effStage}: {stages[effStage]?.split("(")[0]}
                   </span>
+                  {isBusy && <span className="text-[10px] text-amber-600 animate-pulse font-bold">جاري الحفظ…</span>}
                 </div>
                 <p className="mt-1 text-xs text-muted-foreground">
                   {a.programs?.countries?.name_en} · {a.programs?.title_en || a.programs?.track} · {eur(a.programs?.price ?? 0)}
@@ -365,73 +442,78 @@ function ApplicationsTab({ apps, onChange }: { apps: any[]; onChange: () => void
                 </p>
                 <p className="mt-0.5 text-xs text-muted-foreground">{a.phone ?? ""} · {a.passport_number ?? ""} · {new Date(a.created_at).toLocaleDateString()}</p>
               </div>
-              {expanded ? <ChevronUp className="h-4 w-4 shrink-0 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />}
+              <div className="shrink-0 flex items-center gap-2 pt-1 text-muted-foreground">
+                <span className="text-xs hidden sm:inline">{expanded ? "Hide details" : "Full dossier"}</span>
+                {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+              </div>
             </button>
 
             {expanded && (
-              <div className="border-t border-border px-5 pb-5 space-y-4">
-                {/* ── Cohesive Application Status & Workflow Box ── */}
-                <div className="mt-4 rounded-2xl border border-border bg-card p-4 space-y-3 shadow-xs">
+              <div className="border-t border-border px-5 pb-6 space-y-5 bg-secondary/10">
+                {/* ── 1. Cohesive Application Status & Workflow Box ── */}
+                <div className="mt-4 rounded-2xl border border-border bg-card p-4 space-y-3.5 shadow-xs">
                   <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 pb-3">
-                    <div className="flex flex-wrap items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2.5">
                       <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Application Status:</span>
                       <select
-                        value={a.status}
-                        onChange={async e => {
-                          await setStatus({ data: { id: a.id, status: e.target.value } });
-                          onChange();
-                        }}
-                        className="rounded-full border border-input bg-background px-3 py-1 text-xs font-semibold"
+                        value={effStatus}
+                        onChange={e => handleUpdateStatus(a.id, e.target.value)}
+                        className="rounded-full border border-input bg-background px-3 py-1 text-xs font-bold outline-none focus:border-beige cursor-pointer"
                       >
                         {["submitted", "in_review", "documents", "approved", "rejected"].map(s => (
                           <option key={s} value={s}>{s}</option>
                         ))}
                       </select>
-                      <span className={`${pill} ${statusColor(a.status)}`}>{a.status}</span>
+                      <span className={`${pill} ${statusColor(effStatus)}`}>{effStatus}</span>
                     </div>
 
                     <button
-                      onClick={async () => {
-                        await upd({ data: { id: a.id, deposit_paid: !a.deposit_paid } });
-                        onChange();
-                      }}
+                      onClick={() => handleToggleDeposit(a.id, Boolean(effDeposit))}
                       className={`${pill} border transition-all ${
-                        a.deposit_paid
-                          ? "bg-emerald-100 text-emerald-800 border-transparent font-bold"
+                        effDeposit
+                          ? "bg-emerald-100 text-emerald-800 border-transparent font-bold hover:bg-emerald-200"
                           : "border-beige text-foreground hover:bg-beige/10"
                       }`}
                     >
-                      {a.deposit_paid ? `✓ Deposit Paid (${eur(due ?? 0)})` : `Mark Deposit Paid (${eur(due ?? 0)})`}
+                      {effDeposit ? `✓ Deposit Paid (${eur(due ?? 0)})` : `Mark Deposit Paid (${eur(due ?? 0)})`}
                     </button>
                   </div>
 
                   <div>
-                    <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">
-                      Application Stage Progression (Click to update):
-                    </p>
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                        Application Stage Progression (Click circle or title to update stage):
+                      </p>
+                      <span className="text-xs font-bold text-beige">
+                        Stage {effStage} of 5
+                      </span>
+                    </div>
+                    <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                       {stages.map((st, i) => {
-                        const isCurrent = (a.stage ?? 0) === i;
-                        const isPassed = (a.stage ?? 0) > i || (i === 1 && a.deposit_paid);
+                        const isCurrent = effStage === i;
+                        const isPassed = effStage > i || (i === 1 && effDeposit);
                         return (
                           <button
                             key={i}
-                            onClick={async () => {
-                              await upd({ data: { id: a.id, stage: i } });
-                              onChange();
-                            }}
-                            className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-xs transition ${
+                            onClick={() => handleUpdateStage(a.id, i)}
+                            className={`flex items-center gap-2 rounded-xl p-2.5 text-xs text-start transition-all border ${
                               isCurrent
-                                ? "bg-beige text-navy font-bold ring-2 ring-navy/30"
+                                ? "bg-navy text-ivory font-bold border-navy shadow-md ring-2 ring-beige/40"
                                 : isPassed
-                                ? "bg-navy text-ivory font-medium"
-                                : "border border-border bg-background text-muted-foreground hover:border-beige"
+                                ? "bg-card text-foreground border-emerald-500/40 hover:border-emerald-500"
+                                : "bg-card text-muted-foreground border-border hover:border-beige hover:text-foreground"
                             }`}
                           >
-                            <span className="flex h-4 w-4 items-center justify-center rounded-full bg-white/20 text-[10px]">
+                            <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${
+                              isCurrent
+                                ? "bg-beige text-navy"
+                                : isPassed
+                                ? "bg-emerald-500 text-white"
+                                : "bg-secondary text-muted-foreground"
+                            }`}>
                               {isPassed && !isCurrent ? "✓" : i}
                             </span>
-                            {st.split("(")[0]?.trim() ?? ""}
+                            <span className="truncate">{st.split("(")[0]?.trim() ?? ""}</span>
                           </button>
                         );
                       })}
@@ -439,44 +521,134 @@ function ApplicationsTab({ apps, onChange }: { apps: any[]; onChange: () => void
                   </div>
                 </div>
 
+                {/* ── 2. Applicant & Program Details Cards ── */}
+                <div className="grid gap-4 sm:grid-cols-2">
+                  {/* Card A: Personal & Contact */}
+                  <div className="rounded-2xl border border-border bg-card p-4 space-y-2.5">
+                    <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                      <User className="h-3.5 w-3.5 text-beige" /> Applicant Dossier & Contact
+                    </p>
+                    <div className="text-xs space-y-2">
+                      <div>
+                        <span className="text-muted-foreground block text-[10px] uppercase font-semibold">Full Name</span>
+                        <span className="font-bold text-foreground text-sm">{a.full_name ?? a.profiles?.full_name ?? "—"}</span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <span className="text-muted-foreground block text-[10px] uppercase font-semibold">Phone / WhatsApp</span>
+                          {a.phone ? (
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-medium font-mono">{a.phone}</span>
+                              <a
+                                href={`https://wa.me/${a.phone.replace(/[^0-9]/g, "")}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="text-[10px] text-emerald-600 underline font-semibold"
+                              >
+                                WA
+                              </a>
+                            </div>
+                          ) : "—"}
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground block text-[10px] uppercase font-semibold">Email</span>
+                          <span className="font-medium truncate block">{a.user_email || a.profiles?.email || "—"}</span>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <span className="text-muted-foreground block text-[10px] uppercase font-semibold">Passport Number</span>
+                          <span className="font-mono font-medium">{a.passport_number || "—"}</span>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground block text-[10px] uppercase font-semibold">Birth Date</span>
+                          <span>{a.birth_date || "—"}</span>
+                        </div>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground block text-[10px] uppercase font-semibold">Education / Major</span>
+                        <span className="font-medium">{a.education || "—"}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Card B: Program & Pathway */}
+                  <div className="rounded-2xl border border-border bg-card p-4 space-y-2.5">
+                    <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                      <Briefcase className="h-3.5 w-3.5 text-beige" /> Selected Program & Pathway
+                    </p>
+                    <div className="text-xs space-y-2">
+                      <div>
+                        <span className="text-muted-foreground block text-[10px] uppercase font-semibold">Target Country</span>
+                        <span className="font-bold text-foreground text-sm">
+                          {a.programs?.countries?.name_en || "General"}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground block text-[10px] uppercase font-semibold">Program Title & Track</span>
+                        <span className="font-medium">
+                          {a.programs?.title_en || a.programs?.track} ({a.programs?.track || "Direct"})
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <span className="text-muted-foreground block text-[10px] uppercase font-semibold">Total Price</span>
+                          <span className="font-bold text-beige text-sm">{eur(a.programs?.price ?? 0)}</span>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground block text-[10px] uppercase font-semibold">Deposit Required</span>
+                          <span className="font-bold text-sm">{eur(a.programs?.deposit ?? 250)}</span>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <span className="text-muted-foreground block text-[10px] uppercase font-semibold">Payment Plan</span>
+                          <span>{a.payment_plan === "full" ? "Full payment" : `${a.installments}× installments`}</span>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground block text-[10px] uppercase font-semibold">Promo Code</span>
+                          <span>{a.promo_code ? `🏷 ${a.promo_code} (${a.discount_percent ?? 0}% off)` : "None"}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
                 {/* Notes & Payment Request info */}
                 {a.notes && (
-                  <div className="rounded-2xl border border-amber-400/60 bg-amber-500/10 p-3.5 text-xs text-foreground">
-                    <p className="font-bold text-amber-800 dark:text-amber-300 flex items-center gap-1.5 mb-1">
-                      <CreditCard className="h-3.5 w-3.5 text-amber-600" />
+                  <div className="rounded-2xl border border-amber-400/60 bg-amber-500/10 p-4 text-xs text-foreground space-y-1">
+                    <p className="font-bold text-amber-800 dark:text-amber-300 flex items-center gap-1.5">
+                      <CreditCard className="h-4 w-4 text-amber-600" />
                       ملاحظات طلب السداد / الحسابات:
                     </p>
                     <p className="leading-relaxed font-mono text-[11px] whitespace-pre-wrap">{a.notes}</p>
                   </div>
                 )}
 
-                {/* Personal info */}
-                <div className="grid gap-2 rounded-2xl bg-secondary/40 p-4 text-sm sm:grid-cols-3">
-                  {[["Name", a.full_name], ["Phone", a.phone], ["Passport", a.passport_number], ["Birth date", a.birth_date], ["Education", a.education], ["Created", new Date(a.created_at).toLocaleString()]].map(([l, v]) => (
-                    <div key={l}><p className="text-xs text-muted-foreground">{l}</p><p className="font-medium">{v ?? "—"}</p></div>
-                  ))}
-                </div>
-
-                {/* Documents */}
+                {/* Documents Table */}
                 {(a.application_documents ?? []).length > 0 && (
-                  <div className="rounded-2xl border border-border overflow-hidden">
-                    <p className="border-b border-border bg-secondary/40 px-4 py-2 text-xs font-medium text-muted-foreground">Documents ({a.application_documents.length})</p>
-                    {a.application_documents.map((d: any) => (
-                      <div key={d.id} className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-2.5 last:border-0 text-sm">
-                        <button onClick={() => openDoc(d.file_path)} className="text-start underline-offset-2 hover:underline">
-                          {d.doc_type} <span className="text-xs text-muted-foreground">({d.file_name})</span>
-                        </button>
-                        <div className="flex items-center gap-2">
-                          <span className={`${pill} ${statusColor(d.status)}`}>{d.status}</span>
-                          {(["approved", "rejected"] as const).map(s => (
-                            <button key={s} onClick={async () => { await setDoc({ data: { id: d.id, status: s } }); onChange(); }}
-                              className={`${pill} border ${d.status === s ? (s === "approved" ? "bg-emerald-100 text-emerald-800 border-transparent" : "bg-red-100 text-red-800 border-transparent") : "border-border hover:border-beige"}`}>
-                              {s === "approved" ? <CheckCircle2 className="inline h-3 w-3" /> : <XCircle className="inline h-3 w-3" />} {s}
-                            </button>
-                          ))}
+                  <div className="rounded-2xl border border-border bg-card overflow-hidden">
+                    <p className="border-b border-border bg-secondary/30 px-4 py-2 text-xs font-semibold text-muted-foreground">
+                      Submitted Documents ({a.application_documents.length})
+                    </p>
+                    <div className="divide-y divide-border">
+                      {a.application_documents.map((d: any) => (
+                        <div key={d.id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 text-xs">
+                          <button onClick={() => openDoc(d.file_path)} className="text-start underline-offset-2 hover:underline font-medium text-foreground">
+                            {d.doc_type} <span className="text-[11px] text-muted-foreground font-normal">({d.file_name})</span>
+                          </button>
+                          <div className="flex items-center gap-2">
+                            <span className={`${pill} ${statusColor(d.status)}`}>{d.status}</span>
+                            {(["approved", "rejected"] as const).map(s => (
+                              <button key={s} onClick={async () => { await setDoc({ data: { id: d.id, status: s } }); onChange(); }}
+                                className={`${pill} border transition-all ${d.status === s ? (s === "approved" ? "bg-emerald-100 text-emerald-800 border-transparent font-bold" : "bg-red-100 text-red-800 border-transparent font-bold") : "border-border hover:border-beige"}`}>
+                                {s === "approved" ? <CheckCircle2 className="inline h-3 w-3" /> : <XCircle className="inline h-3 w-3" />} {s}
+                              </button>
+                            ))}
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>

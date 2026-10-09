@@ -16,7 +16,6 @@ import {
   CreditCard,
   Copy,
   Check,
-  Flame,
   Flag,
   Tag,
   Trash2,
@@ -26,6 +25,8 @@ import {
   Plus,
   X,
   ChevronDown,
+  ArrowLeft,
+  Filter,
 } from "lucide-react";
 import {
   getAdminChats,
@@ -47,7 +48,7 @@ const PRESET_GROUPS = [
   "Resolved Cases",
 ];
 
-const FLAGS: { id: ChatConversation["flag"]; label: string; color: string; badgeCls: string }[] = [
+const FLAGS: { id: "urgent" | "important" | "follow_up" | "resolved"; label: string; color: string; badgeCls: string }[] = [
   { id: "urgent", label: "Urgent", color: "text-red-500", badgeCls: "bg-red-100 text-red-800 dark:bg-red-950/40 dark:text-red-300 border-red-300" },
   { id: "important", label: "Important", color: "text-purple-500", badgeCls: "bg-purple-100 text-purple-800 dark:bg-purple-950/40 dark:text-purple-300 border-purple-300" },
   { id: "follow_up", label: "Follow-up", color: "text-amber-500", badgeCls: "bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300 border-amber-300" },
@@ -72,9 +73,8 @@ export function AdminChatTab() {
   const [selectedGroupFilter, setSelectedGroupFilter] = useState<string>("all");
   const [selectedFlagFilter, setSelectedFlagFilter] = useState<string>("all");
   const [busy, setBusy] = useState(false);
-  const [copiedId, setCopiedId] = useState<string | null>(null);
 
-  // Group modal & delete modal states
+  // Modal states
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showGroupPicker, setShowGroupPicker] = useState(false);
   const [showFlagPicker, setShowFlagPicker] = useState(false);
@@ -84,10 +84,11 @@ export function AdminChatTab() {
 
   // Poll conversations list
   useEffect(() => {
+    let mounted = true;
     const load = async () => {
       try {
         const res = await fetchChats();
-        if (res && Array.isArray(res.conversations)) {
+        if (mounted && res && Array.isArray(res.conversations)) {
           setConversations(res.conversations);
         }
       } catch (err) {
@@ -95,8 +96,11 @@ export function AdminChatTab() {
       }
     };
     load();
-    const iv = setInterval(load, 3500);
-    return () => clearInterval(iv);
+    const iv = setInterval(load, 3000);
+    return () => {
+      mounted = false;
+      clearInterval(iv);
+    };
   }, []);
 
   // Poll messages for selected conversation
@@ -106,11 +110,22 @@ export function AdminChatTab() {
       return;
     }
 
+    let mounted = true;
     const loadMsgs = async () => {
       try {
         const res = await fetchMessages({ data: { conversationId: selectedId } });
-        if (res && Array.isArray(res.messages)) {
-          setMessages(res.messages);
+        if (mounted && res && Array.isArray(res.messages)) {
+          // Merge with any pending messages to avoid flicker
+          setMessages((prev) => {
+            const serverMsgs = res.messages;
+            const tempMsgs = prev.filter((m) => m.id.startsWith("temp_"));
+            const map = new Map<string, ChatMessage>();
+            for (const m of serverMsgs) map.set(m.id, m);
+            for (const m of tempMsgs) map.set(m.id, m);
+            return Array.from(map.values()).sort(
+              (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+            );
+          });
         }
       } catch (err) {
         console.error("Error fetching conversation messages:", err);
@@ -119,10 +134,13 @@ export function AdminChatTab() {
 
     loadMsgs();
     const iv = setInterval(loadMsgs, 2500);
-    return () => clearInterval(iv);
+    return () => {
+      mounted = false;
+      clearInterval(iv);
+    };
   }, [selectedId]);
 
-  // Scroll inner messages container only
+  // Scroll inner messages container to bottom
   useEffect(() => {
     if (messagesContainerRef.current) {
       messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
@@ -131,23 +149,55 @@ export function AdminChatTab() {
 
   const activeConv = conversations.find((c) => c.id === selectedId);
 
+  // Instant optimistic message sending
   const handleSend = async (customText?: string) => {
     const text = (customText ?? replyText).trim();
     if (!selectedId || !text || busy) return;
 
+    const tempId = "temp_" + Date.now();
+    const nowIso = new Date().toISOString();
+    const tempMsg: ChatMessage = {
+      id: tempId,
+      conversationId: selectedId,
+      sender: "admin",
+      senderName: "Kinetix Admin",
+      text,
+      isRead: false,
+      createdAt: nowIso,
+    };
+
+    // 1. Immediately show message in conversation window
+    setMessages((prev) => [...prev, tempMsg]);
+    setReplyText("");
+
+    // 2. Immediately update left sidebar conversation snippet
+    setConversations((prev) =>
+      prev.map((c) =>
+        c.id === selectedId
+          ? { ...c, lastMessage: text, lastMessageAt: nowIso }
+          : c
+      )
+    );
+
     setBusy(true);
     try {
-      const newMsg = await sendReply({
+      const savedMsg = await sendReply({
         data: {
           conversationId: selectedId,
           text,
           senderName: "Kinetix Admin",
         },
       });
-      setMessages((prev) => [...prev, newMsg]);
-      setReplyText("");
-    } catch (err) {
+
+      if (savedMsg && savedMsg.id) {
+        setMessages((prev) =>
+          prev.map((m) => (m.id === tempId ? savedMsg : m))
+        );
+      }
+    } catch (err: any) {
       console.error("Failed to send reply:", err);
+      alert(err?.message || "فشل إرسال الرد، يرجى المحاولة مرة أخرى.");
+      setMessages((prev) => prev.filter((m) => m.id !== tempId));
     } finally {
       setBusy(false);
     }
@@ -156,43 +206,63 @@ export function AdminChatTab() {
   const handleToggleStatus = async () => {
     if (!activeConv) return;
     const newStatus = activeConv.status === "active" ? "resolved" : "active";
-    await setStatus({ data: { conversationId: activeConv.id, status: newStatus } });
     setConversations((prev) =>
       prev.map((c) => (c.id === activeConv.id ? { ...c, status: newStatus } : c))
     );
+    try {
+      await setStatus({ data: { conversationId: activeConv.id, status: newStatus } });
+    } catch (err) {
+      console.error("Failed to set status:", err);
+    }
   };
 
-  const handleSetFlag = async (flagId: ChatConversation["flag"]) => {
-    if (!activeConv) return;
-    await setFlag({ data: { conversationId: activeConv.id, flag: flagId ?? null } });
+  // Immediate optimistic flag update
+  const handleSetFlag = async (convId: string, flagId: ChatConversation["flag"]) => {
     setConversations((prev) =>
-      prev.map((c) => (c.id === activeConv.id ? { ...c, flag: flagId } : c))
+      prev.map((c) => (c.id === convId ? { ...c, flag: flagId } : c))
     );
     setShowFlagPicker(false);
+    try {
+      await setFlag({ data: { conversationId: convId, flag: flagId ?? null } });
+    } catch (err) {
+      console.error("Failed to set flag:", err);
+    }
   };
 
-  const handleSetGroup = async (groupName: string | null) => {
-    if (!activeConv) return;
-    await setGroup({ data: { conversationId: activeConv.id, groupName } });
+  // Immediate optimistic group update
+  const handleSetGroup = async (convId: string, groupName: string | null) => {
     setConversations((prev) =>
-      prev.map((c) => (c.id === activeConv.id ? { ...c, groupName } : c))
+      prev.map((c) => (c.id === convId ? { ...c, groupName: groupName?.trim() || null } : c))
     );
     setShowGroupPicker(false);
     setCustomGroupInput("");
+    try {
+      await setGroup({ data: { conversationId: convId, groupName: groupName?.trim() || null } });
+    } catch (err) {
+      console.error("Failed to set group:", err);
+    }
   };
 
   const handleDeleteConversation = async () => {
     if (!activeConv) return;
-    await deleteConv({ data: { conversationId: activeConv.id } });
-    setConversations((prev) => prev.filter((c) => c.id !== activeConv.id));
+    const targetId = activeConv.id;
+    setConversations((prev) => prev.filter((c) => c.id !== targetId));
     setSelectedId(null);
     setShowDeleteModal(false);
+    try {
+      await deleteConv({ data: { conversationId: targetId } });
+    } catch (err) {
+      console.error("Failed to delete conversation:", err);
+    }
   };
 
   const isPaymentConv = (c: ChatConversation) =>
-    c.lastMessage.includes("طلب سداد") ||
-    c.lastMessage.includes("💳") ||
-    c.lastMessage.includes("طلب دفع");
+    Boolean(
+      c.lastMessage &&
+      (c.lastMessage.includes("طلب سداد") ||
+        c.lastMessage.includes("💳") ||
+        c.lastMessage.includes("طلب دفع"))
+    );
 
   const paymentCount = conversations.filter(isPaymentConv).length;
 
@@ -228,20 +298,24 @@ export function AdminChatTab() {
 
   const cannedTemplates = [
     "أهلاً بك! معك فريق كينتيكس للاستشارات، كيف يمكننا مساعدتك اليوم؟",
-    "🩺 نوفر برامج توظيف معتمدة للأطباء والممرضين ومساعدي الأطباء والمهندسين في أيرلندا وإيطاليا ولوكسمبورغ مع تسهيلات في السداد والتقسيط.",
-    "تم مراجعة استفسارك، يسعدنا تزويدك بكافة تفاصيل البرنامج وعقد العمل.",
+    "🩺 نوفر برامج توظيف معتمدة للأطباء والممرضين ومساعدي الأطباء والمهندسين في أيرلندا وإيطاليا مع تسهيلات وتقسيط.",
+    "تمت مراجعة استفسارك، يسعدنا تزويدك بكافة تفاصيل البرنامج وإجراءات التقديم.",
     "يمكنك سداد الدفعة الأولى الآن وتقسيط الباقي حتى 6 أشهر بكل سهولة.",
-    "يرجى تزويدنا برقم الهاتف / الواتساب للتواصل معك وتنسيق المقابلة.",
-    "💳 بيانات إنستاباي: يرجى التحويل على معرف (kinetix@instapay) وإرسال صورة الإيصال هنا.",
+    "يرجى تزويدنا برقم الهاتف / الواتساب للتواصل معك وتنسيق موعد المقابلة.",
+    "💳 بيانات إنستاباي: يرجى التحويل على معرف (kinetix@instapay) وإرسال إيصال التحويل هنا.",
     "💳 بيانات فودافون كاش: يرجى التحويل على رقم (01000000000) وإرسال سكرين شوت بالعملية.",
   ];
 
   return (
-    <div className="grid h-[740px] overflow-hidden rounded-3xl border border-border bg-card shadow-lg md:grid-cols-[360px_1fr]">
+    <div className="flex flex-col md:flex-row h-[calc(100vh-140px)] min-h-[620px] max-h-[960px] w-full rounded-3xl border border-border bg-card shadow-lg overflow-hidden">
       {/* ── Left Column: Conversations List ── */}
-      <div className="flex flex-col border-b border-border md:border-b-0 md:border-e md:border-border bg-secondary/20">
+      <div
+        className={`w-full md:w-[360px] md:shrink-0 flex flex-col border-b md:border-b-0 md:border-e border-border bg-secondary/15 h-full ${
+          selectedId ? "hidden md:flex" : "flex"
+        }`}
+      >
         {/* Search & Filters Header */}
-        <div className="p-4 border-b border-border space-y-3 bg-card">
+        <div className="p-4 border-b border-border space-y-3 bg-card shrink-0">
           <div className="flex items-center justify-between">
             <h2 className="font-display font-semibold text-base flex items-center gap-2">
               <MessageSquare className="h-4 w-4 text-beige" />
@@ -338,7 +412,7 @@ export function AdminChatTab() {
         </div>
 
         {/* Conversations List Scroll Area */}
-        <div className="flex-1 overflow-y-auto divide-y divide-border">
+        <div className="flex-1 min-h-0 overflow-y-auto divide-y divide-border">
           {filtered.map((c) => {
             const isSelected = c.id === selectedId;
             const hasPayment = isPaymentConv(c);
@@ -422,27 +496,41 @@ export function AdminChatTab() {
       </div>
 
       {/* ── Right Column: Chat History & Actions ── */}
-      <div className="flex flex-col bg-background">
+      <div
+        className={`flex-1 flex flex-col bg-background min-w-0 h-full ${
+          !selectedId ? "hidden md:flex" : "flex"
+        }`}
+      >
         {activeConv ? (
           <>
             {/* Conversation Header */}
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-card p-4">
-              <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-card p-3 sm:p-4 shrink-0">
+              <div className="flex items-center gap-3 min-w-0">
+                {/* Mobile Back Button */}
+                <button
+                  onClick={() => setSelectedId(null)}
+                  className="md:hidden flex items-center gap-1 rounded-xl bg-secondary px-2.5 py-1.5 text-xs font-semibold text-foreground hover:bg-secondary/80 shrink-0"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                  <span>المحادثات</span>
+                </button>
+
                 <div
-                  className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl font-semibold text-sm ${
+                  className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl font-semibold text-sm ${
                     isPaymentConv(activeConv) ? "bg-amber-600 text-white" : "bg-navy text-ivory"
                   }`}
                 >
                   {isPaymentConv(activeConv) ? <CreditCard className="h-5 w-5" /> : activeConv.clientName.slice(0, 2).toUpperCase()}
                 </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-semibold text-sm text-foreground">
+
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="font-semibold text-sm text-foreground truncate">
                       {activeConv.clientName}
                     </h3>
 
                     {activeConv.groupName && (
-                      <span className="text-[10px] rounded-full px-2 py-0.5 bg-secondary border border-border text-muted-foreground">
+                      <span className="text-[10px] rounded-full px-2 py-0.5 bg-secondary border border-border text-muted-foreground truncate">
                         📁 {activeConv.groupName}
                       </span>
                     )}
@@ -454,7 +542,7 @@ export function AdminChatTab() {
                     )}
                   </div>
 
-                  <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground mt-0.5">
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted-foreground mt-0.5">
                     {activeConv.clientPhone && (
                       <span className="flex items-center gap-1 font-mono">
                         <Phone className="h-3 w-3 text-beige" />
@@ -462,7 +550,7 @@ export function AdminChatTab() {
                       </span>
                     )}
                     {activeConv.clientEmail && (
-                      <span className="flex items-center gap-1">
+                      <span className="flex items-center gap-1 truncate">
                         <Mail className="h-3 w-3 text-beige" />
                         {activeConv.clientEmail}
                       </span>
@@ -472,97 +560,24 @@ export function AdminChatTab() {
               </div>
 
               {/* Action Buttons Toolbar */}
-              <div className="flex items-center gap-2">
-                {/* Flag Picker Dropdown */}
-                <div className="relative">
-                  <button
-                    onClick={() => setShowFlagPicker(!showFlagPicker)}
-                    className="inline-flex items-center gap-1 rounded-full border border-border bg-secondary px-3 py-1.5 text-xs font-medium hover:border-beige transition-colors"
-                  >
-                    <Flag className="h-3 w-3 text-amber-500" />
-                    <span>Flag</span>
-                  </button>
+              <div className="flex items-center gap-1.5 sm:gap-2">
+                {/* Flag Picker Button */}
+                <button
+                  onClick={() => setShowFlagPicker(true)}
+                  className="inline-flex items-center gap-1 rounded-full border border-border bg-secondary px-3 py-1.5 text-xs font-semibold hover:border-beige transition-colors"
+                >
+                  <Flag className="h-3.5 w-3.5 text-amber-500" />
+                  <span>Flag</span>
+                </button>
 
-                  {showFlagPicker && (
-                    <div className="absolute end-0 mt-2 w-44 rounded-2xl border border-border bg-card p-1.5 shadow-xl z-50 space-y-1">
-                      {FLAGS.map((f) => (
-                        <button
-                          key={f.id}
-                          onClick={() => handleSetFlag(f.id)}
-                          className="flex w-full items-center gap-2 rounded-xl px-2.5 py-1.5 text-xs text-start hover:bg-secondary transition-colors"
-                        >
-                          <span className={`h-2 w-2 rounded-full ${f.badgeCls}`} />
-                          <span>{f.label}</span>
-                        </button>
-                      ))}
-                      <button
-                        onClick={() => handleSetFlag(null)}
-                        className="flex w-full items-center gap-2 rounded-xl px-2.5 py-1.5 text-xs text-muted-foreground hover:bg-secondary transition-colors border-t border-border mt-1"
-                      >
-                        <X className="h-3 w-3" />
-                        <span>Clear Flag</span>
-                      </button>
-                    </div>
-                  )}
-                </div>
-
-                {/* Group Assignment Dropdown */}
-                <div className="relative">
-                  <button
-                    onClick={() => setShowGroupPicker(!showGroupPicker)}
-                    className="inline-flex items-center gap-1 rounded-full border border-border bg-secondary px-3 py-1.5 text-xs font-medium hover:border-beige transition-colors"
-                  >
-                    <Folder className="h-3 w-3 text-blue-500" />
-                    <span>Group</span>
-                  </button>
-
-                  {showGroupPicker && (
-                    <div className="absolute end-0 mt-2 w-56 rounded-2xl border border-border bg-card p-2 shadow-xl z-50 space-y-1">
-                      <p className="px-2 py-1 text-[10px] font-bold uppercase text-muted-foreground tracking-wider">
-                        Assign to Group
-                      </p>
-                      {existingGroups.map((grp) => (
-                        <button
-                          key={grp}
-                          onClick={() => handleSetGroup(grp)}
-                          className="flex w-full items-center gap-2 rounded-xl px-2 py-1.5 text-xs text-start hover:bg-secondary transition-colors"
-                        >
-                          <Folder className="h-3 w-3 text-muted-foreground" />
-                          <span className="truncate">{grp}</span>
-                        </button>
-                      ))}
-
-                      {/* Custom group input */}
-                      <div className="pt-1 border-t border-border mt-1">
-                        <div className="flex items-center gap-1">
-                          <input
-                            type="text"
-                            value={customGroupInput}
-                            onChange={(e) => setCustomGroupInput(e.target.value)}
-                            placeholder="New group name…"
-                            className="w-full rounded-lg border border-input bg-background px-2 py-1 text-[11px] outline-none"
-                          />
-                          <button
-                            disabled={!customGroupInput.trim()}
-                            onClick={() => handleSetGroup(customGroupInput.trim())}
-                            className="p-1 rounded-lg bg-navy text-ivory disabled:opacity-30"
-                          >
-                            <Plus className="h-3 w-3" />
-                          </button>
-                        </div>
-                      </div>
-
-                      {activeConv.groupName && (
-                        <button
-                          onClick={() => handleSetGroup(null)}
-                          className="flex w-full items-center gap-1 text-[11px] text-red-500 hover:bg-secondary p-1 rounded-lg mt-1"
-                        >
-                          <X className="h-3 w-3" /> Remove from Group
-                        </button>
-                      )}
-                    </div>
-                  )}
-                </div>
+                {/* Group Picker Button */}
+                <button
+                  onClick={() => setShowGroupPicker(true)}
+                  className="inline-flex items-center gap-1 rounded-full border border-border bg-secondary px-3 py-1.5 text-xs font-semibold hover:border-beige transition-colors"
+                >
+                  <Folder className="h-3.5 w-3.5 text-blue-500" />
+                  <span>Group</span>
+                </button>
 
                 {/* WhatsApp */}
                 {activeConv.clientPhone && (
@@ -570,7 +585,7 @@ export function AdminChatTab() {
                     href={`https://wa.me/${activeConv.clientPhone.replace(/[^0-9]/g, "")}`}
                     target="_blank"
                     rel="noreferrer"
-                    className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-xs font-medium text-emerald-700 hover:bg-emerald-500/20 transition-colors"
+                    className="hidden sm:inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-xs font-medium text-emerald-700 hover:bg-emerald-500/20 transition-colors"
                   >
                     WhatsApp
                     <ExternalLink className="h-3 w-3" />
@@ -599,7 +614,7 @@ export function AdminChatTab() {
             {/* Messages Scroll Area */}
             <div
               ref={messagesContainerRef}
-              className="flex-1 overflow-y-auto p-5 space-y-3.5 bg-secondary/15"
+              className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-5 space-y-3.5 bg-secondary/10"
               style={{ overscrollBehavior: "contain" }}
             >
               {messages.map((m) => {
@@ -663,7 +678,7 @@ export function AdminChatTab() {
             </div>
 
             {/* Quick Templates Bar */}
-            <div className="border-t border-border bg-card p-2.5 overflow-x-auto flex items-center gap-2 scrollbar-none">
+            <div className="border-t border-border bg-card p-2.5 overflow-x-auto flex items-center gap-2 scrollbar-none shrink-0">
               <span className="text-[11px] font-semibold text-muted-foreground whitespace-nowrap ps-2">
                 Quick:
               </span>
@@ -679,7 +694,7 @@ export function AdminChatTab() {
             </div>
 
             {/* Reply Input Box */}
-            <div className="p-3 border-t border-border bg-card flex items-center gap-2">
+            <div className="p-3 border-t border-border bg-card flex items-center gap-2 shrink-0">
               <textarea
                 rows={1}
                 value={replyText}
@@ -696,7 +711,7 @@ export function AdminChatTab() {
               <button
                 disabled={!replyText.trim() || busy}
                 onClick={() => handleSend()}
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-navy text-ivory hover:bg-navy/90 disabled:opacity-40 transition-all"
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-navy text-ivory hover:bg-navy/90 disabled:opacity-40 transition-all shadow-xs"
               >
                 <Send className="h-4 w-4" />
               </button>
@@ -712,6 +727,116 @@ export function AdminChatTab() {
           </div>
         )}
       </div>
+
+      {/* Flag Picker Modal */}
+      {showFlagPicker && activeConv && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
+          <div className="w-full max-w-xs rounded-3xl border border-border bg-card p-4 shadow-2xl space-y-3 animate-in zoom-in-95">
+            <div className="flex items-center justify-between border-b border-border pb-2">
+              <p className="font-semibold text-sm flex items-center gap-1.5">
+                <Flag className="h-4 w-4 text-amber-500" />
+                <span>علامات المحادثة (Flags)</span>
+              </p>
+              <button onClick={() => setShowFlagPicker(false)} className="text-muted-foreground hover:text-foreground">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="space-y-1.5">
+              {FLAGS.map((f) => (
+                <button
+                  key={f.id}
+                  onClick={() => handleSetFlag(activeConv.id, f.id)}
+                  className={`flex w-full items-center justify-between rounded-xl p-2.5 text-xs font-semibold transition-colors border ${
+                    activeConv.flag === f.id ? f.badgeCls : "border-border hover:bg-secondary"
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <span className={`h-2.5 w-2.5 rounded-full ${f.badgeCls}`} />
+                    <span>{f.label}</span>
+                  </div>
+                  {activeConv.flag === f.id && <Check className="h-3.5 w-3.5" />}
+                </button>
+              ))}
+              <button
+                onClick={() => handleSetFlag(activeConv.id, null)}
+                className="flex w-full items-center justify-center gap-1 rounded-xl p-2 text-xs text-muted-foreground hover:bg-secondary border border-dashed border-border mt-2"
+              >
+                <X className="h-3 w-3" />
+                <span>إزالة العلامة (Clear Flag)</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Group Picker Modal */}
+      {showGroupPicker && activeConv && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
+          <div className="w-full max-w-sm rounded-3xl border border-border bg-card p-4 shadow-2xl space-y-3 animate-in zoom-in-95">
+            <div className="flex items-center justify-between border-b border-border pb-2">
+              <p className="font-semibold text-sm flex items-center gap-1.5">
+                <Folder className="h-4 w-4 text-blue-500" />
+                <span>تخصيص مجموعة (Group Assignment)</span>
+              </p>
+              <button onClick={() => setShowGroupPicker(false)} className="text-muted-foreground hover:text-foreground">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="space-y-1 max-h-56 overflow-y-auto">
+              {existingGroups.map((grp) => (
+                <button
+                  key={grp}
+                  onClick={() => handleSetGroup(activeConv.id, grp)}
+                  className={`flex w-full items-center justify-between rounded-xl p-2.5 text-xs font-medium transition-colors ${
+                    activeConv.groupName === grp
+                      ? "bg-navy text-ivory font-bold"
+                      : "hover:bg-secondary text-foreground"
+                  }`}
+                >
+                  <span className="flex items-center gap-2">
+                    <Folder className="h-3.5 w-3.5 opacity-60" />
+                    <span>{grp}</span>
+                  </span>
+                  {activeConv.groupName === grp && <Check className="h-3.5 w-3.5 text-beige" />}
+                </button>
+              ))}
+            </div>
+
+            <div className="border-t border-border pt-2 space-y-2">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                إضافة مجموعة جديدة:
+              </p>
+              <div className="flex items-center gap-1.5">
+                <input
+                  type="text"
+                  value={customGroupInput}
+                  onChange={(e) => setCustomGroupInput(e.target.value)}
+                  placeholder="اسم المجموعة الجديدة..."
+                  className="flex-1 rounded-xl border border-input bg-background px-3 py-1.5 text-xs outline-none focus:border-beige"
+                />
+                <button
+                  disabled={!customGroupInput.trim()}
+                  onClick={() => handleSetGroup(activeConv.id, customGroupInput.trim())}
+                  className="rounded-xl bg-navy px-3 py-1.5 text-xs font-bold text-ivory hover:bg-navy-soft disabled:opacity-30"
+                >
+                  حفظ
+                </button>
+              </div>
+
+              {activeConv.groupName && (
+                <button
+                  onClick={() => handleSetGroup(activeConv.id, null)}
+                  className="flex w-full items-center justify-center gap-1 text-xs text-red-500 hover:bg-secondary p-1.5 rounded-xl border border-dashed border-red-300 dark:border-red-900/60"
+                >
+                  <X className="h-3 w-3" />
+                  <span>إزالة من المجموعة</span>
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Delete Confirmation Modal */}
       {showDeleteModal && activeConv && (
