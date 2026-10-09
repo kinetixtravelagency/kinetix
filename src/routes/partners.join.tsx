@@ -433,7 +433,7 @@ function JoinPartner() {
               <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 text-xs">
                 <div className="rounded-xl bg-navy/60 p-3 border border-beige/40 flex flex-col justify-between">
                   <div>
-                    <Rocket className="h-4 w-4 text-beige mb-1.5" strokeWidth={1.5} />
+                    <Rocket className="h-4 w-4 text-white mb-1.5" strokeWidth={1.5} />
                     <p className="font-bold text-ivory">{tr("Starter", "مبتدئ")}</p>
                   </div>
                   <div className="mt-2">
@@ -444,7 +444,7 @@ function JoinPartner() {
 
                 <div className="rounded-xl bg-navy/60 p-3 border border-ivory/10 hover:border-ivory/20 transition flex flex-col justify-between">
                   <div>
-                    <Shield className="h-4 w-4 text-amber-400 mb-1.5" strokeWidth={1.5} />
+                    <Shield className="h-4 w-4 text-white mb-1.5" strokeWidth={1.5} />
                     <p className="font-bold text-ivory">{tr("Bronze", "برونزي")}</p>
                   </div>
                   <div className="mt-2">
@@ -455,7 +455,7 @@ function JoinPartner() {
 
                 <div className="rounded-xl bg-navy/60 p-3 border border-ivory/10 hover:border-ivory/20 transition flex flex-col justify-between">
                   <div>
-                    <Star className="h-4 w-4 text-slate-300 mb-1.5" strokeWidth={1.5} />
+                    <Star className="h-4 w-4 text-white mb-1.5" strokeWidth={1.5} />
                     <p className="font-bold text-ivory">{tr("Silver", "فضي")}</p>
                   </div>
                   <div className="mt-2">
@@ -466,7 +466,7 @@ function JoinPartner() {
 
                 <div className="rounded-xl bg-navy/60 p-3 border border-ivory/10 hover:border-ivory/20 transition flex flex-col justify-between">
                   <div>
-                    <Trophy className="h-4 w-4 text-yellow-400 mb-1.5" strokeWidth={1.5} />
+                    <Trophy className="h-4 w-4 text-white mb-1.5" strokeWidth={1.5} />
                     <p className="font-bold text-ivory">{tr("Gold", "ذهبي")}</p>
                   </div>
                   <div className="mt-2">
@@ -477,7 +477,7 @@ function JoinPartner() {
 
                 <div className="rounded-xl bg-navy/60 p-3 border border-ivory/10 hover:border-ivory/20 transition flex flex-col justify-between">
                   <div>
-                    <Crown className="h-4 w-4 text-purple-400 mb-1.5" strokeWidth={1.5} />
+                    <Crown className="h-4 w-4 text-white mb-1.5" strokeWidth={1.5} />
                     <p className="font-bold text-ivory">{tr("Platinum", "بلاتيني")}</p>
                   </div>
                   <div className="mt-2">
