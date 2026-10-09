@@ -1,6 +1,7 @@
-import { Globe, GraduationCap, Briefcase, CreditCard, ExternalLink, ShieldCheck, CheckCircle2, Plane, DollarSign } from "lucide-react";
+import { Globe, GraduationCap, Briefcase, CreditCard, ExternalLink, ShieldCheck, CheckCircle2, Plane } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { useLang } from "@/lib/i18n";
+import { countries } from "@/lib/catalog";
 
 export interface ParsedAppMessage {
   programTitle?: string | undefined;
@@ -19,15 +20,15 @@ export interface ParsedAppMessage {
 }
 
 /**
- * Normalizes Eastern Arabic / Arabic-Indic numerals (٠-٩) and Persian numerals to Western digits (0-9).
- * Also replaces Arabic thousands separators (٬) with standard comma (,).
+ * Normalizes Eastern Arabic / Arabic-Indic numerals (٠-٩) and Persian numerals (۰-۹) to Western digits (0-9).
+ * Also replaces Arabic thousands separators (٬ / \u066C) with standard comma (,).
  */
 function toStandardDigits(str: string): string {
-  const arabicIndic = ["٠", "١", "٢", "٣", "٤", "٥", "٦", "٧", "٨", "٩"];
   return str
-    .replace(/[٠-٩]/g, (w) => String(arabicIndic.indexOf(w)))
-    .replace(/٬/g, ",")
-    .replace(/٫/g, ".");
+    .replace(/[\u0660-\u0669]/g, (c) => String(c.charCodeAt(0) - 0x0660))
+    .replace(/[\u06F0-\u06F9]/g, (c) => String(c.charCodeAt(0) - 0x06F0))
+    .replace(/[\u066C,]/g, ",")
+    .replace(/[\u066B.]/g, ".");
 }
 
 export function parseApplicationMessage(text: string): ParsedAppMessage | null {
@@ -64,49 +65,89 @@ export function parseApplicationMessage(text: string): ParsedAppMessage | null {
 
   if (text.includes("المقدم") || text.includes("الديبوزيت") || text.includes("deposit")) {
     res.paymentOption = "deposit";
-  } else if (text.includes("دفعة واحدة") || text.includes("full")) {
+  } else if (text.includes("دفعة واحدة") || text.includes("سداد كامل") || text.includes("full")) {
     res.paymentOption = "full";
   }
 
-  if (text.includes("مشمولة ضمن البرنامج") || text.includes("تذكرة الطيران مشمولة") || text.includes("flight included")) {
+  if (/(?:مشمولة ضمن البرنامج|تذكرة الطيران مشمولة|flight included)/i.test(text)) {
     res.flightIncluded = true;
-  } else if (text.includes("غير مشمولة")) {
+  } else if (/(?:غير مشمولة|not included)/i.test(text)) {
     res.flightIncluded = false;
   }
 
-  // Total Program Price
-  const totalMatch = norm.match(/(?:إجمالي تكلفة البرنامج|Total Cost):\s*€\s*([0-9,]+)/i);
+  if (/(?:طالب|طلاب|student)/i.test(text)) {
+    res.track = "student";
+  } else if (/(?:خريج|خريجين|graduate)/i.test(text)) {
+    res.track = "graduate";
+  }
+
+  // 1. Total Program Price
+  const totalMatch = norm.match(/(?:إجمالي\s*(?:تكلفة|سعر)?\s*البرنامج|التكلفة\s*الإجمالية|Total\s*(?:Cost|Price))\s*[:：]?\s*€?\s*([0-9,]+)/i);
   if (totalMatch && totalMatch[1]) {
     res.totalPriceEur = parseInt(totalMatch[1].replace(/,/g, ""), 10);
   }
 
-  // Deposit or Amount Due Now
-  const dueEurMatch = norm.match(/(?:المبلغ المطلوب سداده الآن|المبلغ المطلوب|الديبوزيت المطلوب|Due|Deposit):\s*€\s*([0-9,]+)/i);
+  // 2. Deposit or Amount Due Now
+  const dueEurMatch = norm.match(/(?:المبلغ\s*المطلوب(?:\s*سداده)?(?:\s*الآن)?|الديبوزيت\s*المطلوب|مبلغ\s*(?:التأمين|الديبوزيت|المقدم)|المقدم|الديبوزيت|Due\s*(?:Now)?|Deposit)\s*[:：]?\s*€?\s*([0-9,]+)/i);
   if (dueEurMatch && dueEurMatch[1]) {
     res.amountEur = parseInt(dueEurMatch[1].replace(/,/g, ""), 10);
   } else {
-    const eurMatch = norm.match(/€\s*([0-9,]+)/);
-    if (eurMatch && eurMatch[1]) res.amountEur = parseInt(eurMatch[1].replace(/,/g, ""), 10);
+    // Look for € amount that is not the total
+    const eurMatches = [...norm.matchAll(/€\s*([0-9,]+)/g)];
+    if (eurMatches.length > 0) {
+      const nums = eurMatches
+        .map((m) => (m[1] ? parseInt(m[1].replace(/,/g, ""), 10) : NaN))
+        .filter((n) => !isNaN(n));
+      if (nums.length === 1) {
+        res.amountEur = nums[0];
+      } else if (nums.length >= 2) {
+        // usually second € is the deposit if first was total
+        res.amountEur = nums[1];
+        if (res.totalPriceEur == null) res.totalPriceEur = nums[0];
+      }
+    }
   }
 
-  const dueEgpMatch = norm.match(/(?:المبلغ المطلوب سداده الآن|المبلغ المطلوب|الديبوزيت المطلوب)[^\n\r]*?([0-9,]+)\s*(?:ج\.م|EGP)/i);
+  // 3. EGP Match
+  const dueEgpMatch = norm.match(/(?:المبلغ\s*المطلوب(?:\s*سداده)?(?:\s*الآن)?|الديبوزيت\s*المطلوب|مبلغ\s*(?:التأمين|الديبوزيت|المقدم)|المقدم|الديبوزيت|Due|Deposit)[^\n\r]*?([0-9,]+)\s*(?:ج\.م|جنيه(?:\s*مصري)?|EGP)/i);
   if (dueEgpMatch && dueEgpMatch[1]) {
     res.amountEgp = parseInt(dueEgpMatch[1].replace(/,/g, ""), 10);
-  } else {
-    const egpMatch = norm.match(/([0-9,]+)\s*(?:ج\.م|EGP)/i);
-    if (egpMatch && egpMatch[1]) res.amountEgp = parseInt(egpMatch[1].replace(/,/g, ""), 10);
+  } else if (res.amountEur != null) {
+    res.amountEgp = Math.round(res.amountEur * 54);
   }
 
-  // Remaining Installment Balance
-  const remMatch = norm.match(/(?:المتبقي بالتقسيط|Remaining):\s*€\s*([0-9,]+)/i);
+  // 4. Remaining Installment Balance
+  const remMatch = norm.match(/(?:المتبقي\s*(?:بالتقسيط|بالأقساط)?|المبلغ\s*المتبقي|Remaining|Balance)\s*[:：]?\s*€?\s*([0-9,]+)/i);
   if (remMatch && remMatch[1]) {
     res.remainingEur = parseInt(remMatch[1].replace(/,/g, ""), 10);
+  } else if (res.totalPriceEur != null && res.amountEur != null && res.paymentOption === "deposit") {
+    res.remainingEur = Math.max(0, res.totalPriceEur - res.amountEur);
   }
 
-  if (text.includes("طالب") || text.includes("student")) {
-    res.track = "student";
-  } else if (text.includes("خريج") || text.includes("graduate")) {
-    res.track = "graduate";
+  // 5. Intelligent catalog fallback for older or partial messages
+  if (res.programTitle) {
+    const cleanTitle = res.programTitle.toLowerCase();
+    for (const c of countries) {
+      for (const p of c.programs) {
+        if (
+          cleanTitle.includes(p.slug.toLowerCase()) ||
+          cleanTitle.includes(p.title.toLowerCase()) ||
+          (p.titleAr && cleanTitle.includes(p.titleAr.toLowerCase())) ||
+          cleanTitle.includes(c.name.toLowerCase()) ||
+          (c.nameAr && cleanTitle.includes(c.nameAr.toLowerCase()))
+        ) {
+          if (!res.countryName) res.countryName = c.nameAr || c.name;
+          if (!res.track) res.track = p.track;
+          if (res.totalPriceEur == null) res.totalPriceEur = p.price;
+          if (res.amountEur == null) res.amountEur = p.deposit;
+          if (res.amountEgp == null && res.amountEur) res.amountEgp = Math.round(res.amountEur * 54);
+          if (res.remainingEur == null && res.totalPriceEur && res.amountEur && res.paymentOption === "deposit") {
+            res.remainingEur = Math.max(0, res.totalPriceEur - res.amountEur);
+          }
+          break;
+        }
+      }
+    }
   }
 
   return res;
@@ -186,26 +227,27 @@ export function ApplicationChatCard({
       </div>
 
       {/* Prominent Amount Breakdown Box */}
-      <div className="rounded-xl bg-secondary/60 p-3 border border-border/80 space-y-1.5">
-        <div className="flex items-baseline justify-between">
+      <div className="rounded-xl bg-secondary/60 p-3.5 border border-border/80 space-y-2">
+        <div className="flex items-baseline justify-between gap-2">
           <span className="text-xs font-semibold text-foreground">
-            {parsed.paymentOption === "full" ? tr("Full Amount Due", "إجمالي المبلغ المطلوب:") : tr("Deposit Due Now:", "الديبوزيت المطلوب سداده الآن:")}
+            {parsed.paymentOption === "full" ? tr("Full Amount Due:", "إجمالي المبلغ المطلوب:") : tr("Deposit Due Now:", "الديبوزيت المطلوب سداده الآن:")}
           </span>
-          <span className="font-mono text-base font-bold text-navy dark:text-beige">
-            {eurDisplay ?? (ar ? "محدد بالطلب" : "Specified in app")}
-          </span>
+          <div className="text-end">
+            <span className="font-mono text-base sm:text-lg font-bold text-navy dark:text-beige">
+              {eurDisplay ?? (parsed.amountEgp ? `~${Math.round(parsed.amountEgp / 54)} €` : (ar ? "محدد بالطلب" : "Specified in app"))}
+            </span>
+            {egpDisplay && (
+              <p className="text-xs font-semibold text-muted-foreground mt-0.5">
+                ≈ {egpDisplay}
+              </p>
+            )}
+          </div>
         </div>
 
-        {egpDisplay && (
-          <p className="text-end text-xs font-semibold text-muted-foreground">
-            ≈ {egpDisplay}
-          </p>
-        )}
-
         {parsed.totalPriceEur != null && (
-          <div className="pt-1.5 mt-1.5 border-t border-border/60 flex items-center justify-between text-[11px] text-muted-foreground">
+          <div className="pt-2 border-t border-border/60 flex items-center justify-between text-[11px] text-muted-foreground">
             <span>{tr("Total Program Cost:", "إجمالي تكلفة البرنامج:")}</span>
-            <span className="font-mono font-medium">
+            <span className="font-mono font-medium text-foreground">
               €{parsed.totalPriceEur.toLocaleString("en-US")} (≈ {Math.round(parsed.totalPriceEur * 54).toLocaleString("en-US")} {tr("EGP", "ج.م")})
             </span>
           </div>
@@ -214,7 +256,7 @@ export function ApplicationChatCard({
         {parsed.remainingEur != null && parsed.remainingEur > 0 && (
           <div className="flex items-center justify-between text-[11px] text-muted-foreground">
             <span>{tr("Remaining Balance:", "المتبقي بالأقساط:")}</span>
-            <span className="font-mono font-medium">
+            <span className="font-mono font-medium text-foreground">
               €{parsed.remainingEur.toLocaleString("en-US")} (≈ {Math.round(parsed.remainingEur * 54).toLocaleString("en-US")} {tr("EGP", "ج.م")})
             </span>
           </div>
@@ -224,12 +266,12 @@ export function ApplicationChatCard({
       {/* Flight Badge & Payment Method */}
       <div className="space-y-1.5">
         {parsed.flightIncluded !== undefined && (
-          <div className="flex items-center gap-1.5 text-[11px] font-medium px-2 py-1 rounded-lg bg-secondary/50 border border-border/40">
-            <Plane className="h-3 w-3 text-beige" />
+          <div className="flex items-center gap-1.5 text-[11px] font-medium px-2.5 py-1.5 rounded-lg bg-secondary/60 border border-border/50">
+            <Plane className="h-3.5 w-3.5 text-beige" strokeWidth={1.5} />
             <span>
               {parsed.flightIncluded
                 ? tr("Flight ticket included in program ✈️", "تذكرة الطيران مشمولة ضمن البرنامج ✈️")
-                : tr("Flight ticket not included", "تذكرة الطيران غير مشمولة")}
+                : tr("Flight ticket not included", "تذكرة الطيران غير مشمولة (حجز شخصي)")}
             </span>
           </div>
         )}
@@ -238,7 +280,7 @@ export function ApplicationChatCard({
           <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground px-1">
             <CreditCard className="h-3.5 w-3.5 text-beige shrink-0" strokeWidth={1.5} />
             <span>
-              {tr("Payment Method:", "وسيلة الدفع المختارة:")} <strong className="text-foreground font-semibold">{parsed.paymentMethod}</strong>
+              {tr("Payment Method:", "وسيلة الدفع المفضلة:")} <strong className="text-foreground font-semibold">{parsed.paymentMethod}</strong>
             </span>
           </div>
         )}

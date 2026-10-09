@@ -866,10 +866,10 @@ export const requestPaymentSupport = createServerFn({ method: "POST" })
     const { userId } = context;
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-    // Fetch existing application notes to preserve JSON metadata
+    // Fetch existing application notes, name, and phone to preserve JSON metadata and ensure complete details
     const { data: existingApp } = await supabaseAdmin
       .from("applications")
-      .select("notes, payment_plan")
+      .select("notes, payment_plan, full_name, phone")
       .eq("id", data.applicationId)
       .maybeSingle();
 
@@ -898,6 +898,8 @@ export const requestPaymentSupport = createServerFn({ method: "POST" })
     const totalEgp = Math.round(totalEur * 54);
     const trackLabel = data.track === "student" ? "مسار الطلاب 🎓" : "مسار الخريجين 💼";
     const flightLabel = data.flightIncluded ? "مشمولة ضمن البرنامج ✈️" : "غير مشمولة";
+    const resolvedName = data.fullName?.trim() || existingApp?.full_name?.trim() || "عميل كينتيكس";
+    const resolvedPhone = data.phone?.trim() || existingApp?.phone?.trim() || "—";
 
     const msgText = `💳 طلب سداد جديد (${data.paymentOption === "deposit" ? "سداد الديبوزيت / حجز المقعد" : "سداد كامل بالكامل"}):
 • البرنامج: ${data.programTitle}${data.countryName ? ` · ${data.countryName}` : ""}
@@ -906,8 +908,8 @@ export const requestPaymentSupport = createServerFn({ method: "POST" })
 • إجمالي تكلفة البرنامج: €${totalEur.toLocaleString("en-US")} (~${totalEgp.toLocaleString("en-US")} ج.م)
 • المبلغ المطلوب سداده الآن: €${data.amountEur.toLocaleString("en-US")} (~${data.amountEgp.toLocaleString("en-US")} ج.م)
 ${data.paymentOption === "deposit" && data.remainingEur && data.remainingEur > 0 ? `• المتبقي بالتقسيط: €${data.remainingEur.toLocaleString("en-US")} (~${Math.round(data.remainingEur * 54).toLocaleString("en-US")} ج.م) على ${data.installmentsCount || 6} شهور\n` : ""}• وسيلة الدفع المفضلة: ${data.paymentMethod}
-• الاسم: ${data.fullName || "عميل كينتيكس"}
-• الهاتف: ${data.phone || "—"}
+• الاسم: ${resolvedName}
+• الهاتف: ${resolvedPhone}
 • كود الطلب: #${data.applicationId.slice(0, 8)}
 
 أرغب في استكمال الدفع، برجاء تزويدي ببيانات التحويل عبر هذه الوسيلة وتأكيد الحجز.`;
@@ -916,8 +918,8 @@ ${data.paymentOption === "deposit" && data.remainingEur && data.remainingEur > 0
     await sendClientMessage({
       data: {
         userId,
-        clientName: data.fullName || undefined,
-        clientPhone: data.phone || undefined,
+        clientName: resolvedName !== "عميل كينتيكس" ? resolvedName : undefined,
+        clientPhone: resolvedPhone !== "—" ? resolvedPhone : undefined,
         text: msgText,
       },
     });
