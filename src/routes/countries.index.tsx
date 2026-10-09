@@ -257,7 +257,7 @@ export function CountriesPage() {
                       {ar ? p.titleAr : p.title}
                     </h4>
                     <p className="mt-1 text-xs text-muted-foreground line-clamp-2">
-                      {ar ? p.descriptionAr : p.description}
+                      {ar ? p.country.descriptionAr : p.country.description}
                     </p>
                     {p.expectedSalary && (
                       <div className="mt-3 inline-flex items-center rounded-lg bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 text-xs font-semibold text-emerald-700 dark:text-emerald-400">

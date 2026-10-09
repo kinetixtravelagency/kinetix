@@ -10,6 +10,7 @@ import {
   CheckCheck,
   ChevronRight,
   AlertCircle,
+  CreditCard,
 } from "lucide-react";
 import { getClientChat, sendClientMessage, type ChatMessage } from "@/lib/chat.functions";
 import { useSession } from "@/lib/useSession";
@@ -56,7 +57,7 @@ export function ChatWidget() {
   const fetchChat = useServerFn(getClientChat);
   const sendMsg = useServerFn(sendClientMessage);
 
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
   const prevUnreadRef = useRef(0);
 
   const resolvedName = () =>
@@ -147,7 +148,10 @@ export function ChatWidget() {
     if (isOpen) {
       setUnread(0);
       prevUnreadRef.current = 0;
-      setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
+      // Scroll smoothly to bottom of chat only, without triggering window scroll
+      if (messagesContainerRef.current) {
+        messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+      }
 
       // Request notification permission when chat first opens
       if ("Notification" in window && Notification.permission === "default") {
@@ -267,9 +271,18 @@ export function ChatWidget() {
         )}
       </div>
 
-      {/* Chat Window */}
+      {/* Chat Window — fixed at bottom-right, height adapts to viewport */}
       {isOpen && (
-        <div className="fixed bottom-4 end-4 z-50 flex h-[580px] max-h-[90vh] w-[380px] max-w-[calc(100vw-32px)] flex-col overflow-hidden rounded-3xl border border-border bg-card shadow-2xl animate-in slide-in-from-bottom-5 duration-300">
+        <div
+          className="fixed z-50 flex flex-col overflow-hidden rounded-3xl border border-border bg-card shadow-2xl"
+          style={{
+            bottom: "1rem",
+            insetInlineEnd: "1rem",
+            width: "min(380px, calc(100vw - 2rem))",
+            height: "min(580px, calc(100dvh - 5rem))",
+            animation: "chatSlideUp 0.28s cubic-bezier(0.16,1,0.3,1) both",
+          }}
+        >
           {/* Header */}
           <div className="flex items-center justify-between bg-navy px-5 py-4 text-ivory shrink-0">
             <div className="flex items-center gap-3">
@@ -380,7 +393,11 @@ export function ChatWidget() {
           ) : (
             <>
               {/* ── CHAT MESSAGES AREA ── */}
-              <div className="flex-1 overflow-y-auto p-4 space-y-3.5 bg-secondary/30">
+              <div
+                ref={messagesContainerRef}
+                className="flex-1 overflow-y-auto p-4 space-y-3.5 bg-secondary/30"
+                style={{ overscrollBehavior: "contain" }}
+              >
                 {/* Welcome Card */}
                 <div className="flex gap-2.5">
                   <div className="mt-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-navy text-beige text-xs font-bold">K</div>
@@ -400,6 +417,32 @@ export function ChatWidget() {
                 {/* Conversation messages */}
                 {messages.map((m) => {
                   const isMe = m.sender === "client";
+                  const isPayment = m.text.includes("طلب سداد") || m.text.includes("💳");
+
+                  if (isPayment) {
+                    return (
+                      <div key={m.id} className="flex justify-start my-1.5">
+                        <div className="w-full rounded-2xl border-2 border-amber-400 bg-card p-3.5 text-xs shadow-md text-foreground">
+                          <div className="flex items-center gap-1.5 mb-2 font-bold text-amber-800 dark:text-amber-300">
+                            <CreditCard className="h-4 w-4 text-amber-600" />
+                            <span>{ar ? "💳 طلب سداد معتمد" : "💳 Registered Payment Request"}</span>
+                          </div>
+                          <div className="rounded-xl bg-amber-500/10 p-2.5 text-[11px] font-mono leading-relaxed whitespace-pre-wrap border border-amber-300/50">
+                            {m.text}
+                          </div>
+                          <div className="mt-2 flex items-center justify-between text-[10px] text-muted-foreground">
+                            <span className="font-semibold text-amber-700 dark:text-amber-400">
+                              ✓ {ar ? "تم إرسال الطلب لفريق الحسابات" : "Dispatched to accounts team"}
+                            </span>
+                            <span>
+                              {new Date(m.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  }
+
                   return (
                     <div key={m.id} className={`flex gap-2 ${isMe ? "justify-end" : "justify-start"}`}>
                       {!isMe && (
@@ -449,8 +492,6 @@ export function ChatWidget() {
                     </div>
                   </div>
                 )}
-
-                <div ref={messagesEndRef} />
               </div>
 
               {/* Input Footer */}

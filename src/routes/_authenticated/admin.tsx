@@ -18,7 +18,7 @@ import {
   ChevronDown, ChevronUp, CheckCircle2, XCircle, Clock,
   TrendingUp, Plus, Pencil, Save, X, Eye, ShieldCheck, Ban, AlertCircle, MessageSquare,
   Mail, Phone, MapPin, Calendar, Copy, Check, ExternalLink, Link2, Trash2, RefreshCw,
-  Sparkles, Filter, Layers, CheckSquare, Loader2,
+  Sparkles, Filter, Layers, CheckSquare, Loader2, CreditCard,
 } from "lucide-react";
 import { AdminChatTab } from "@/components/admin/AdminChatTab";
 
@@ -218,11 +218,20 @@ function ApplicationsTab({ apps, onChange }: { apps: any[]; onChange: () => void
     "5: جاهز للسفر (Ready to Travel)",
   ];
 
-  const filtered = apps.filter(a =>
-    (filter === "all" || a.status === filter) &&
-    (!search || (a.full_name ?? "").toLowerCase().includes(search.toLowerCase()) ||
-      (a.phone ?? "").includes(search) || (a.promo_code ?? "").toLowerCase().includes(search.toLowerCase()))
-  );
+  const isPaymentApp = (a: any) =>
+    a.notes && (a.notes.includes("طلب دفع") || a.notes.includes("طلب سداد"));
+
+  const paymentsCount = apps.filter(isPaymentApp).length;
+
+  const filtered = apps.filter(a => {
+    if (filter === "payments") {
+      if (!isPaymentApp(a)) return false;
+    } else if (filter !== "all" && a.status !== filter) {
+      return false;
+    }
+    return (!search || (a.full_name ?? "").toLowerCase().includes(search.toLowerCase()) ||
+      (a.phone ?? "").includes(search) || (a.promo_code ?? "").toLowerCase().includes(search.toLowerCase()));
+  });
 
   const openDoc = async (path: string) => {
     const { data } = await supabase.storage.from("documents").createSignedUrl(path, 300);
@@ -234,13 +243,29 @@ function ApplicationsTab({ apps, onChange }: { apps: any[]; onChange: () => void
       {/* Filters */}
       <div className="flex flex-wrap gap-3">
         <input className={`${inp} max-w-64`} placeholder="Search name, phone, promo…" value={search} onChange={e => setSearch(e.target.value)} />
-        <div className="flex gap-1">
+        <div className="flex flex-wrap gap-1">
           {statuses.map(s => (
             <button key={s} onClick={() => setFilter(s)}
               className={`rounded-full border px-3 py-1.5 text-xs ${filter === s ? "border-navy bg-navy text-ivory" : "border-border hover:border-beige"}`}>
               {s}
             </button>
           ))}
+          <button
+            onClick={() => setFilter("payments")}
+            className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition-all ${
+              filter === "payments"
+                ? "bg-amber-500 text-white border-amber-600 shadow-sm"
+                : "border-amber-400/60 bg-amber-500/10 text-amber-800 dark:text-amber-300 hover:bg-amber-500/20"
+            }`}
+          >
+            <CreditCard className="h-3.5 w-3.5 text-amber-600" />
+            طلبات الدفع
+            {paymentsCount > 0 && (
+              <span className="rounded-full bg-amber-600 px-1.5 py-0.2 text-[10px] text-white">
+                {paymentsCount}
+              </span>
+            )}
+          </button>
         </div>
       </div>
       <p className="text-sm text-muted-foreground">{filtered.length} applications</p>
@@ -248,14 +273,23 @@ function ApplicationsTab({ apps, onChange }: { apps: any[]; onChange: () => void
       {filtered.map(a => {
         const expanded = exp === a.id;
         const due = a.payment_plan === "full" ? a.programs?.price : a.programs?.deposit;
+        const hasPaymentNote = isPaymentApp(a);
         return (
-          <div key={a.id} className="rounded-3xl border border-border bg-card overflow-hidden">
+          <div key={a.id} className={`rounded-3xl border bg-card overflow-hidden transition-colors ${
+            hasPaymentNote ? "border-amber-400/80 shadow-xs" : "border-border"
+          }`}>
             {/* Summary row */}
             <button className="flex w-full items-start justify-between gap-4 p-5 text-start" onClick={() => setExp(expanded ? null : a.id)}>
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
                   <p className="font-display text-base font-semibold">{a.full_name ?? a.profiles?.full_name ?? "—"}</p>
                   <span className={`${pill} ${statusColor(a.status)}`}>{a.status}</span>
+                  {hasPaymentNote && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 border border-amber-500/40 px-2.5 py-0.5 text-xs font-bold text-amber-800 dark:text-amber-300">
+                      <CreditCard className="h-3.5 w-3.5 text-amber-600" />
+                      💳 طلب دفع عبر الشات
+                    </span>
+                  )}
                   {a.deposit_paid && <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs text-emerald-800">✓ Deposit paid</span>}
                   <span className="rounded-full bg-secondary px-2.5 py-0.5 text-xs font-medium text-foreground">
                     Stage {a.stage ?? 0}: {stages[a.stage ?? 0]?.split("(")[0]}
@@ -313,6 +347,17 @@ function ApplicationsTab({ apps, onChange }: { apps: any[]; onChange: () => void
                     {a.deposit_paid ? `✓ Deposit paid (${eur(due ?? 0)})` : `Mark deposit paid (${eur(due ?? 0)})`}
                   </button>
                 </div>
+
+                {/* Notes & Payment Request info */}
+                {a.notes && (
+                  <div className="rounded-2xl border border-amber-400/60 bg-amber-500/10 p-3.5 text-xs text-foreground">
+                    <p className="font-bold text-amber-800 dark:text-amber-300 flex items-center gap-1.5 mb-1">
+                      <CreditCard className="h-3.5 w-3.5 text-amber-600" />
+                      ملاحظات طلب السداد / الحسابات:
+                    </p>
+                    <p className="leading-relaxed font-mono text-[11px] whitespace-pre-wrap">{a.notes}</p>
+                  </div>
+                )}
 
                 {/* Personal info */}
                 <div className="grid gap-2 rounded-2xl bg-secondary/40 p-4 text-sm sm:grid-cols-3">

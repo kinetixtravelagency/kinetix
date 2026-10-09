@@ -94,6 +94,13 @@
 @utility animate-route { stroke-dasharray: 1200; stroke-dashoffset: 1200; animation: route-draw 3.2s ease-out 0.4s forwards; }
 @utility animate-ping-dot { animation: pulse-dot 2.4s ease-out infinite; transform-origin: center; transform-box: fill-box; }
 
+/* Chat widget slide-up animation — locked to bottom-right, no drift */
+@keyframes chatSlideUp {
+  from { opacity: 0; transform: translateY(18px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0)   scale(1);    }
+}
+
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
   .animate-route { stroke-dashoffset: 0; }
