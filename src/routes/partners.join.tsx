@@ -149,6 +149,20 @@ const ACADEMIC_STATUSES = [
   { val: "other", labelAr: "غير ذلك", labelEn: "Other" },
 ];
 
+interface FormErrors {
+  full_name?: string;
+  phone?: string;
+  gender?: string;
+  birth_date?: string;
+  governorate?: string;
+  academic_status?: string;
+  university?: string;
+  faculty?: string;
+  experience?: string;
+  email?: string;
+  password?: string;
+}
+
 const inputClass = (hasError: boolean) =>
   `w-full rounded-xl border bg-background px-4 py-3 text-sm outline-none transition-colors ${
     hasError
@@ -180,12 +194,12 @@ function JoinPartner() {
   });
 
   const [showPassword, setShowPassword] = useState(false);
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [fieldErrors, setFieldErrors] = useState<FormErrors>({});
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [msgType, setMsgType] = useState<"error" | "success">("error");
 
-  const clearFieldError = (key: string) => {
+  const clearFieldError = (key: keyof FormErrors) => {
     if (fieldErrors[key]) {
       setFieldErrors((prev) => {
         const copy = { ...prev };
@@ -195,8 +209,8 @@ function JoinPartner() {
     }
   };
 
-  const validate = (): { isValid: boolean; errors: Record<string, string>; firstError: string | null } => {
-    const errs: Record<string, string> = {};
+  const validate = (): { isValid: boolean; errors: FormErrors; firstError: string | null } => {
+    const errs: FormErrors = {};
 
     // 1. Full name (at least 2 words, letters, >= 4 chars)
     const nameTrimmed = f.full_name.trim();
@@ -283,7 +297,7 @@ function JoinPartner() {
         "Email must end with @gmail.com (e.g. name@gmail.com).",
         "البريد الإلكتروني يجب أن ينتهي بـ @gmail.com حصراً (مثال: name@gmail.com)."
       );
-    } else if (!/^[a-zA-Z0-9._%+-]+@gmail\.com$/.test(em) || em.split("@")[0].length < 3) {
+    } else if (!/^[a-zA-Z0-9._%+-]+@gmail\.com$/.test(em) || (em.split("@")[0] ?? "").length < 3) {
       errs.email = tr("Please enter a valid Gmail address.", "يرجى كتابة عنوان بريد Gmail صحيح.");
     }
 
@@ -294,18 +308,18 @@ function JoinPartner() {
       errs.password = tr("Password must be at least 8 characters.", "كلمة السر يجب أن تكون 8 أحرف أو أرقام على الأقل.");
     }
 
-    const firstKey = Object.keys(errs)[0];
+    const errValues = Object.values(errs).filter(Boolean) as string[];
     return {
-      isValid: Object.keys(errs).length === 0,
+      isValid: errValues.length === 0,
       errors: errs,
-      firstError: firstKey ? errs[firstKey] : null,
+      firstError: errValues[0] ?? null,
     };
   };
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     const { isValid, errors, firstError } = validate();
-    setFieldErrors(errors);
+    setFieldErrors(errors as FormErrors);
 
     if (!isValid) {
       setMsg(firstError || tr("Please fix the highlighted errors.", "يرجى مراجعة الحقول المطلوبة والمميزة بالأحمر."));
