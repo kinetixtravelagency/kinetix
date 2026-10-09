@@ -17,21 +17,51 @@ import {
   Copy,
   Check,
   Flame,
+  Flag,
+  Tag,
+  Trash2,
+  Bookmark,
+  Folder,
+  AlertTriangle,
+  Plus,
+  X,
+  ChevronDown,
 } from "lucide-react";
 import {
   getAdminChats,
   getAdminConversationMessages,
   sendAdminReply,
   setAdminChatStatus,
+  adminSetConversationFlag,
+  adminSetConversationGroup,
+  adminDeleteConversation,
   type ChatConversation,
   type ChatMessage,
 } from "@/lib/chat.functions";
+
+const PRESET_GROUPS = [
+  "Important Customers",
+  "Follow-up Needed",
+  "Travel Applications",
+  "Payment-related",
+  "Resolved Cases",
+];
+
+const FLAGS: { id: ChatConversation["flag"]; label: string; color: string; badgeCls: string }[] = [
+  { id: "urgent", label: "Urgent", color: "text-red-500", badgeCls: "bg-red-100 text-red-800 dark:bg-red-950/40 dark:text-red-300 border-red-300" },
+  { id: "important", label: "Important", color: "text-purple-500", badgeCls: "bg-purple-100 text-purple-800 dark:bg-purple-950/40 dark:text-purple-300 border-purple-300" },
+  { id: "follow_up", label: "Follow-up", color: "text-amber-500", badgeCls: "bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300 border-amber-300" },
+  { id: "resolved", label: "Resolved", color: "text-emerald-500", badgeCls: "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300 border-emerald-300" },
+];
 
 export function AdminChatTab() {
   const fetchChats = useServerFn(getAdminChats);
   const fetchMessages = useServerFn(getAdminConversationMessages);
   const sendReply = useServerFn(sendAdminReply);
   const setStatus = useServerFn(setAdminChatStatus);
+  const setFlag = useServerFn(adminSetConversationFlag);
+  const setGroup = useServerFn(adminSetConversationGroup);
+  const deleteConv = useServerFn(adminDeleteConversation);
 
   const [conversations, setConversations] = useState<ChatConversation[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -39,8 +69,16 @@ export function AdminChatTab() {
   const [replyText, setReplyText] = useState("");
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<"all" | "active" | "payments" | "resolved">("all");
+  const [selectedGroupFilter, setSelectedGroupFilter] = useState<string>("all");
+  const [selectedFlagFilter, setSelectedFlagFilter] = useState<string>("all");
   const [busy, setBusy] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  // Group modal & delete modal states
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showGroupPicker, setShowGroupPicker] = useState(false);
+  const [showFlagPicker, setShowFlagPicker] = useState(false);
+  const [customGroupInput, setCustomGroupInput] = useState("");
 
   const messagesContainerRef = useRef<HTMLDivElement>(null);
 
@@ -84,7 +122,7 @@ export function AdminChatTab() {
     return () => clearInterval(iv);
   }, [selectedId]);
 
-  // Scroll inner messages container only (does NOT scroll parent window/dashboard)
+  // Scroll inner messages container only
   useEffect(() => {
     if (messagesContainerRef.current) {
       messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
@@ -109,7 +147,7 @@ export function AdminChatTab() {
       setMessages((prev) => [...prev, newMsg]);
       setReplyText("");
     } catch (err) {
-      console.error("Error sending reply:", err);
+      console.error("Failed to send reply:", err);
     } finally {
       setBusy(false);
     }
@@ -124,6 +162,33 @@ export function AdminChatTab() {
     );
   };
 
+  const handleSetFlag = async (flagId: ChatConversation["flag"]) => {
+    if (!activeConv) return;
+    await setFlag({ data: { conversationId: activeConv.id, flag: flagId ?? null } });
+    setConversations((prev) =>
+      prev.map((c) => (c.id === activeConv.id ? { ...c, flag: flagId } : c))
+    );
+    setShowFlagPicker(false);
+  };
+
+  const handleSetGroup = async (groupName: string | null) => {
+    if (!activeConv) return;
+    await setGroup({ data: { conversationId: activeConv.id, groupName } });
+    setConversations((prev) =>
+      prev.map((c) => (c.id === activeConv.id ? { ...c, groupName } : c))
+    );
+    setShowGroupPicker(false);
+    setCustomGroupInput("");
+  };
+
+  const handleDeleteConversation = async () => {
+    if (!activeConv) return;
+    await deleteConv({ data: { conversationId: activeConv.id } });
+    setConversations((prev) => prev.filter((c) => c.id !== activeConv.id));
+    setSelectedId(null);
+    setShowDeleteModal(false);
+  };
+
   const isPaymentConv = (c: ChatConversation) =>
     c.lastMessage.includes("طلب سداد") ||
     c.lastMessage.includes("💳") ||
@@ -131,10 +196,22 @@ export function AdminChatTab() {
 
   const paymentCount = conversations.filter(isPaymentConv).length;
 
+  const existingGroups = Array.from(
+    new Set([...PRESET_GROUPS, ...conversations.map((c) => c.groupName).filter(Boolean)])
+  ) as string[];
+
   const filtered = conversations.filter((c) => {
     if (filter === "payments") {
       if (!isPaymentConv(c)) return false;
     } else if (filter !== "all" && c.status !== filter) {
+      return false;
+    }
+
+    if (selectedGroupFilter !== "all" && c.groupName !== selectedGroupFilter) {
+      return false;
+    }
+
+    if (selectedFlagFilter !== "all" && c.flag !== selectedFlagFilter) {
       return false;
     }
 
@@ -144,7 +221,8 @@ export function AdminChatTab() {
       c.clientName.toLowerCase().includes(q) ||
       (c.clientEmail && c.clientEmail.toLowerCase().includes(q)) ||
       (c.clientPhone && c.clientPhone.includes(q)) ||
-      c.lastMessage.toLowerCase().includes(q)
+      c.lastMessage.toLowerCase().includes(q) ||
+      (c.groupName && c.groupName.toLowerCase().includes(q))
     );
   });
 
@@ -158,14 +236,8 @@ export function AdminChatTab() {
     "💳 بيانات فودافون كاش: يرجى التحويل على رقم (01000000000) وإرسال سكرين شوت بالعملية.",
   ];
 
-  const copyToClipboard = (text: string, id: string) => {
-    navigator.clipboard.writeText(text);
-    setCopiedId(id);
-    setTimeout(() => setCopiedId(null), 2000);
-  };
-
   return (
-    <div className="grid h-[700px] overflow-hidden rounded-3xl border border-border bg-card shadow-lg md:grid-cols-[340px_1fr]">
+    <div className="grid h-[740px] overflow-hidden rounded-3xl border border-border bg-card shadow-lg md:grid-cols-[360px_1fr]">
       {/* ── Left Column: Conversations List ── */}
       <div className="flex flex-col border-b border-border md:border-b-0 md:border-e md:border-border bg-secondary/20">
         {/* Search & Filters Header */}
@@ -173,7 +245,7 @@ export function AdminChatTab() {
           <div className="flex items-center justify-between">
             <h2 className="font-display font-semibold text-base flex items-center gap-2">
               <MessageSquare className="h-4 w-4 text-beige" />
-              Client Messages ({conversations.length})
+              Live Chat ({conversations.length})
             </h2>
             <span className="text-xs text-muted-foreground">
               {conversations.filter((c) => c.status === "active").length} active
@@ -185,11 +257,12 @@ export function AdminChatTab() {
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search by name, phone, message…"
+              placeholder="Search conversations, groups, phones…"
               className="w-full rounded-full border border-input bg-background ps-9 pe-3 py-1.5 text-xs outline-none focus:border-beige"
             />
           </div>
 
+          {/* Quick status tabs */}
           <div className="flex flex-wrap gap-1.5 text-xs">
             <button
               onClick={() => setFilter("all")}
@@ -232,38 +305,74 @@ export function AdminChatTab() {
               Resolved
             </button>
           </div>
+
+          {/* Group and Flag Filters */}
+          <div className="flex items-center gap-2 pt-1 border-t border-border">
+            {/* Group dropdown filter */}
+            <select
+              value={selectedGroupFilter}
+              onChange={(e) => setSelectedGroupFilter(e.target.value)}
+              className="flex-1 rounded-xl border border-input bg-background px-2.5 py-1 text-[11px] outline-none text-muted-foreground focus:border-beige"
+            >
+              <option value="all">📁 All Groups</option>
+              {existingGroups.map((g) => (
+                <option key={g} value={g}>
+                  📁 {g}
+                </option>
+              ))}
+            </select>
+
+            {/* Flag filter */}
+            <select
+              value={selectedFlagFilter}
+              onChange={(e) => setSelectedFlagFilter(e.target.value)}
+              className="rounded-xl border border-input bg-background px-2.5 py-1 text-[11px] outline-none text-muted-foreground focus:border-beige"
+            >
+              <option value="all">🚩 All Flags</option>
+              <option value="urgent">🔴 Urgent</option>
+              <option value="important">🟣 Important</option>
+              <option value="follow_up">🟡 Follow-up</option>
+              <option value="resolved">🟢 Resolved</option>
+            </select>
+          </div>
         </div>
 
-        {/* Conversations List */}
+        {/* Conversations List Scroll Area */}
         <div className="flex-1 overflow-y-auto divide-y divide-border">
           {filtered.map((c) => {
             const isSelected = c.id === selectedId;
             const hasPayment = isPaymentConv(c);
+            const flagObj = FLAGS.find((f) => f.id === c.flag);
+
             return (
               <button
                 key={c.id}
                 onClick={() => setSelectedId(c.id)}
-                className={`w-full p-4 text-start transition-colors flex items-start gap-3 hover:bg-secondary/40 relative ${
-                  isSelected ? "bg-secondary/60 ring-1 ring-inset ring-border" : ""
-                } ${hasPayment ? "border-s-4 border-s-amber-500 bg-amber-500/[0.04]" : ""}`}
+                className={`w-full p-3.5 text-start transition-colors flex items-start gap-3 ${
+                  isSelected
+                    ? "bg-beige/15 dark:bg-beige/25 border-s-4 border-beige"
+                    : "hover:bg-secondary/40"
+                }`}
               >
-                {/* Initials Avatar */}
-                <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl text-xs font-semibold ${
-                  hasPayment ? "bg-amber-600 text-white shadow-xs" : "bg-navy text-ivory"
-                }`}>
+                <div
+                  className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl font-bold text-xs ${
+                    hasPayment
+                      ? "bg-amber-600 text-white"
+                      : isSelected
+                      ? "bg-navy text-ivory"
+                      : "bg-secondary text-foreground"
+                  }`}
+                >
                   {hasPayment ? <CreditCard className="h-4 w-4" /> : c.clientName.slice(0, 2).toUpperCase()}
                 </div>
 
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center justify-between gap-1">
-                    <p className="font-semibold text-xs truncate text-foreground flex items-center gap-1.5">
-                      <span>{c.clientName}</span>
+                    <p className="truncate font-semibold text-xs text-foreground">
+                      {c.clientName}
                     </p>
                     <span className="text-[10px] text-muted-foreground shrink-0">
-                      {new Date(c.lastMessageAt).toLocaleDateString([], {
-                        month: "short",
-                        day: "numeric",
-                      })}
+                      {new Date(c.lastMessageAt).toLocaleDateString([], { month: "short", day: "numeric" })}
                     </span>
                   </div>
 
@@ -273,25 +382,28 @@ export function AdminChatTab() {
 
                   <div className="mt-2 flex flex-wrap items-center justify-between gap-1">
                     <div className="flex items-center gap-1.5 flex-wrap">
-                      {hasPayment && (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 border border-amber-500/40 px-2 py-0.5 text-[10px] font-bold text-amber-700 dark:text-amber-300">
-                          <CreditCard className="h-3 w-3 text-amber-600" />
-                          طلب سداد 💳
+                      {flagObj && (
+                        <span className={`text-[10px] rounded-full px-2 py-0.2 border font-bold ${flagObj.badgeCls}`}>
+                          {flagObj.label}
                         </span>
                       )}
-                      <span
-                        className={`text-[10px] rounded-full px-2 py-0.5 font-medium ${
-                          c.status === "active"
-                            ? "bg-emerald-100 text-emerald-800"
-                            : "bg-gray-100 text-gray-600"
-                        }`}
-                      >
-                        {c.status}
-                      </span>
+
+                      {c.groupName && (
+                        <span className="text-[10px] rounded-full px-2 py-0.2 bg-secondary text-muted-foreground border border-border">
+                          📁 {c.groupName}
+                        </span>
+                      )}
+
+                      {hasPayment && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 border border-amber-500/40 px-2 py-0.2 text-[10px] font-bold text-amber-700 dark:text-amber-300">
+                          <CreditCard className="h-2.5 w-2.5 text-amber-600" />
+                          طلب سداد
+                        </span>
+                      )}
                     </div>
 
                     {c.unreadCount > 0 && (
-                      <span className="rounded-full bg-red-600 px-2 py-0.5 text-[10px] font-bold text-white">
+                      <span className="rounded-full bg-red-600 px-2 py-0.2 text-[10px] font-bold text-white">
                         {c.unreadCount} new
                       </span>
                     )}
@@ -303,22 +415,24 @@ export function AdminChatTab() {
 
           {filtered.length === 0 && (
             <div className="p-8 text-center text-xs text-muted-foreground">
-              {filter === "payments" ? "لا توجد طلبات سداد حالياً." : "No conversations found."}
+              No conversations found matching filters.
             </div>
           )}
         </div>
       </div>
 
-      {/* ── Right Column: Chat History & Reply ── */}
+      {/* ── Right Column: Chat History & Actions ── */}
       <div className="flex flex-col bg-background">
         {activeConv ? (
           <>
             {/* Conversation Header */}
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-card p-4">
               <div className="flex items-center gap-3">
-                <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl font-semibold text-sm ${
-                  isPaymentConv(activeConv) ? "bg-amber-600 text-white" : "bg-navy text-ivory"
-                }`}>
+                <div
+                  className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl font-semibold text-sm ${
+                    isPaymentConv(activeConv) ? "bg-amber-600 text-white" : "bg-navy text-ivory"
+                  }`}
+                >
                   {isPaymentConv(activeConv) ? <CreditCard className="h-5 w-5" /> : activeConv.clientName.slice(0, 2).toUpperCase()}
                 </div>
                 <div>
@@ -326,13 +440,20 @@ export function AdminChatTab() {
                     <h3 className="font-semibold text-sm text-foreground">
                       {activeConv.clientName}
                     </h3>
-                    {isPaymentConv(activeConv) && (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/20 border border-amber-500/40 px-2 py-0.5 text-[10px] font-bold text-amber-800 dark:text-amber-300">
-                        <CreditCard className="h-3 w-3 text-amber-600" />
-                        طلب سداد معلق
+
+                    {activeConv.groupName && (
+                      <span className="text-[10px] rounded-full px-2 py-0.5 bg-secondary border border-border text-muted-foreground">
+                        📁 {activeConv.groupName}
+                      </span>
+                    )}
+
+                    {FLAGS.find((f) => f.id === activeConv.flag) && (
+                      <span className={`text-[10px] rounded-full px-2 py-0.5 border font-bold ${FLAGS.find((f) => f.id === activeConv.flag)!.badgeCls}`}>
+                        {FLAGS.find((f) => f.id === activeConv.flag)!.label}
                       </span>
                     )}
                   </div>
+
                   <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground mt-0.5">
                     {activeConv.clientPhone && (
                       <span className="flex items-center gap-1 font-mono">
@@ -350,8 +471,100 @@ export function AdminChatTab() {
                 </div>
               </div>
 
-              {/* Action Buttons */}
+              {/* Action Buttons Toolbar */}
               <div className="flex items-center gap-2">
+                {/* Flag Picker Dropdown */}
+                <div className="relative">
+                  <button
+                    onClick={() => setShowFlagPicker(!showFlagPicker)}
+                    className="inline-flex items-center gap-1 rounded-full border border-border bg-secondary px-3 py-1.5 text-xs font-medium hover:border-beige transition-colors"
+                  >
+                    <Flag className="h-3 w-3 text-amber-500" />
+                    <span>Flag</span>
+                  </button>
+
+                  {showFlagPicker && (
+                    <div className="absolute end-0 mt-2 w-44 rounded-2xl border border-border bg-card p-1.5 shadow-xl z-50 space-y-1">
+                      {FLAGS.map((f) => (
+                        <button
+                          key={f.id}
+                          onClick={() => handleSetFlag(f.id)}
+                          className="flex w-full items-center gap-2 rounded-xl px-2.5 py-1.5 text-xs text-start hover:bg-secondary transition-colors"
+                        >
+                          <span className={`h-2 w-2 rounded-full ${f.badgeCls}`} />
+                          <span>{f.label}</span>
+                        </button>
+                      ))}
+                      <button
+                        onClick={() => handleSetFlag(null)}
+                        className="flex w-full items-center gap-2 rounded-xl px-2.5 py-1.5 text-xs text-muted-foreground hover:bg-secondary transition-colors border-t border-border mt-1"
+                      >
+                        <X className="h-3 w-3" />
+                        <span>Clear Flag</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Group Assignment Dropdown */}
+                <div className="relative">
+                  <button
+                    onClick={() => setShowGroupPicker(!showGroupPicker)}
+                    className="inline-flex items-center gap-1 rounded-full border border-border bg-secondary px-3 py-1.5 text-xs font-medium hover:border-beige transition-colors"
+                  >
+                    <Folder className="h-3 w-3 text-blue-500" />
+                    <span>Group</span>
+                  </button>
+
+                  {showGroupPicker && (
+                    <div className="absolute end-0 mt-2 w-56 rounded-2xl border border-border bg-card p-2 shadow-xl z-50 space-y-1">
+                      <p className="px-2 py-1 text-[10px] font-bold uppercase text-muted-foreground tracking-wider">
+                        Assign to Group
+                      </p>
+                      {existingGroups.map((grp) => (
+                        <button
+                          key={grp}
+                          onClick={() => handleSetGroup(grp)}
+                          className="flex w-full items-center gap-2 rounded-xl px-2 py-1.5 text-xs text-start hover:bg-secondary transition-colors"
+                        >
+                          <Folder className="h-3 w-3 text-muted-foreground" />
+                          <span className="truncate">{grp}</span>
+                        </button>
+                      ))}
+
+                      {/* Custom group input */}
+                      <div className="pt-1 border-t border-border mt-1">
+                        <div className="flex items-center gap-1">
+                          <input
+                            type="text"
+                            value={customGroupInput}
+                            onChange={(e) => setCustomGroupInput(e.target.value)}
+                            placeholder="New group name…"
+                            className="w-full rounded-lg border border-input bg-background px-2 py-1 text-[11px] outline-none"
+                          />
+                          <button
+                            disabled={!customGroupInput.trim()}
+                            onClick={() => handleSetGroup(customGroupInput.trim())}
+                            className="p-1 rounded-lg bg-navy text-ivory disabled:opacity-30"
+                          >
+                            <Plus className="h-3 w-3" />
+                          </button>
+                        </div>
+                      </div>
+
+                      {activeConv.groupName && (
+                        <button
+                          onClick={() => handleSetGroup(null)}
+                          className="flex w-full items-center gap-1 text-[11px] text-red-500 hover:bg-secondary p-1 rounded-lg mt-1"
+                        >
+                          <X className="h-3 w-3" /> Remove from Group
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* WhatsApp */}
                 {activeConv.clientPhone && (
                   <a
                     href={`https://wa.me/${activeConv.clientPhone.replace(/[^0-9]/g, "")}`}
@@ -364,16 +577,26 @@ export function AdminChatTab() {
                   </a>
                 )}
 
+                {/* Mark Resolved */}
                 <button
                   onClick={handleToggleStatus}
-                  className="rounded-full border border-border px-3.5 py-1.5 text-xs font-medium text-muted-foreground hover:border-foreground hover:text-foreground transition-colors"
+                  className="rounded-full border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground hover:border-foreground hover:text-foreground transition-colors"
                 >
-                  {activeConv.status === "active" ? "Mark Resolved" : "Reopen Chat"}
+                  {activeConv.status === "active" ? "Mark Resolved" : "Reopen"}
+                </button>
+
+                {/* Delete Conversation */}
+                <button
+                  onClick={() => setShowDeleteModal(true)}
+                  className="p-2 rounded-full text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors"
+                  title="Delete Conversation"
+                >
+                  <Trash2 className="h-4 w-4" />
                 </button>
               </div>
             </div>
 
-            {/* Messages Scroll Area — overscroll-contain prevents window scroll hijacking */}
+            {/* Messages Scroll Area */}
             <div
               ref={messagesContainerRef}
               className="flex-1 overflow-y-auto p-5 space-y-3.5 bg-secondary/15"
@@ -387,7 +610,6 @@ export function AdminChatTab() {
                   return (
                     <div key={m.id} className="flex justify-start my-2">
                       <div className="w-full max-w-[92%] sm:max-w-[80%] rounded-2xl border-2 border-amber-400 bg-card p-4 shadow-md text-foreground">
-                        {/* Payment Card Header */}
                         <div className="flex items-center justify-between border-b border-amber-200 dark:border-amber-800/50 pb-2.5 mb-3">
                           <div className="flex items-center gap-2">
                             <span className="flex h-7 w-7 items-center justify-center rounded-xl bg-amber-500 text-white shadow-xs">
@@ -407,55 +629,10 @@ export function AdminChatTab() {
                               </span>
                             </div>
                           </div>
-
-                          <button
-                            type="button"
-                            onClick={() => copyToClipboard(m.text, m.id)}
-                            className="inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-50 dark:bg-amber-950/60 px-2.5 py-1 text-[10px] font-semibold text-amber-800 dark:text-amber-300 hover:bg-amber-100 transition-colors"
-                          >
-                            {copiedId === m.id ? (
-                              <>
-                                <Check className="h-3 w-3 text-emerald-600" />
-                                تم النسخ ✓
-                              </>
-                            ) : (
-                              <>
-                                <Copy className="h-3 w-3" />
-                                نسخ التفاصيل
-                              </>
-                            )}
-                          </button>
                         </div>
 
-                        {/* Payment Text Content */}
-                        <div className="rounded-xl bg-amber-50/50 dark:bg-amber-950/20 p-3 text-xs leading-relaxed font-mono whitespace-pre-wrap border border-amber-200/60 dark:border-amber-900/40">
+                        <div className="text-xs whitespace-pre-line leading-relaxed text-foreground font-mono bg-secondary/40 p-3 rounded-xl border border-border">
                           {m.text}
-                        </div>
-
-                        {/* Quick Action Buttons for Payment */}
-                        <div className="mt-3 flex flex-wrap items-center gap-2 pt-2 border-t border-amber-200/60 dark:border-amber-900/40">
-                          <span className="text-[10px] font-medium text-muted-foreground">إرسال بيانات التحويل:</span>
-                          <button
-                            type="button"
-                            onClick={() => handleSend("💳 بيانات إنستاباي الخاصة بنا: kinetix@instapay - يرجى إرسال صورة إيصال التحويل فور إتمامه لتأكيد الحجز.")}
-                            className="rounded-full bg-navy px-3 py-1 text-[10px] font-semibold text-ivory hover:opacity-90 transition-opacity"
-                          >
-                            إرسال إنستاباي
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleSend("💳 بيانات فودافون كاش: يرجى التحويل إلى 01000000000 وإرسال صورة رسالة التحويل هنا.")}
-                            className="rounded-full border border-border bg-card px-3 py-1 text-[10px] font-semibold text-foreground hover:border-beige transition-colors"
-                          >
-                            إرسال فودافون كاش
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleSend("💳 الحساب البنكي (CIB): EG0000000000000000000000 - باسم شركة Kinetix للاستشارات.")}
-                            className="rounded-full border border-border bg-card px-3 py-1 text-[10px] font-semibold text-foreground hover:border-beige transition-colors"
-                          >
-                            إرسال حساب بنكي
-                          </button>
                         </div>
                       </div>
                     </div>
@@ -465,94 +642,105 @@ export function AdminChatTab() {
                 return (
                   <div
                     key={m.id}
-                    className={`flex gap-2 ${isAdmin ? "justify-end" : "justify-start"}`}
+                    className={`flex flex-col ${isAdmin ? "items-end" : "items-start"}`}
                   >
                     <div
-                      className={`max-w-[75%] rounded-2xl p-4 text-xs shadow-xs leading-relaxed ${
+                      className={`max-w-[85%] sm:max-w-[70%] rounded-2xl px-4 py-2.5 text-xs leading-relaxed shadow-xs ${
                         isAdmin
-                          ? "rounded-ee-xs bg-navy text-ivory"
-                          : "rounded-ss-xs border border-border bg-card text-foreground"
+                          ? "bg-navy text-ivory rounded-br-xs"
+                          : "bg-card border border-border text-foreground rounded-bl-xs"
                       }`}
                     >
-                      <div className="flex items-center justify-between gap-3 mb-1">
-                        <span className={`font-semibold text-[11px] ${isAdmin ? "text-beige" : "text-foreground"}`}>
-                          {m.senderName}
-                        </span>
-                        <span className={`text-[10px] ${isAdmin ? "text-ivory/50" : "text-muted-foreground"}`}>
-                          {new Date(m.createdAt).toLocaleTimeString([], {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}
-                        </span>
-                      </div>
-                      <p className="whitespace-pre-wrap">{m.text}</p>
+                      <p className="whitespace-pre-line">{m.text}</p>
                     </div>
+                    <span className="mt-1 px-1 text-[10px] text-muted-foreground flex items-center gap-1">
+                      {new Date(m.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                      {isAdmin && <CheckCheck className="h-3 w-3 text-beige inline" />}
+                    </span>
                   </div>
                 );
               })}
-
-              {messages.length === 0 && (
-                <div className="flex h-full items-center justify-center text-xs text-muted-foreground">
-                  No messages in this conversation.
-                </div>
-              )}
             </div>
 
-            {/* Canned responses bar */}
-            <div className="border-t border-border bg-card px-4 py-2 flex items-center gap-2 overflow-x-auto scrollbar-hide text-xs">
-              <span className="text-[10px] text-muted-foreground shrink-0">Quick reply:</span>
-              {cannedTemplates.map((tpl, i) => (
+            {/* Quick Templates Bar */}
+            <div className="border-t border-border bg-card p-2.5 overflow-x-auto flex items-center gap-2 scrollbar-none">
+              <span className="text-[11px] font-semibold text-muted-foreground whitespace-nowrap ps-2">
+                Quick:
+              </span>
+              {cannedTemplates.map((t, idx) => (
                 <button
-                  key={i}
-                  onClick={() => handleSend(tpl)}
-                  className="shrink-0 rounded-full border border-border bg-secondary/50 px-3 py-1 text-[11px] hover:border-beige hover:text-foreground transition-colors truncate max-w-[200px]"
-                  title={tpl}
+                  key={idx}
+                  onClick={() => handleSend(t)}
+                  className="rounded-full bg-secondary hover:bg-beige hover:text-navy px-3 py-1 text-[11px] whitespace-nowrap text-foreground transition-all"
                 >
-                  {tpl}
+                  {t.slice(0, 32)}…
                 </button>
               ))}
             </div>
 
-            {/* Reply Input Form */}
-            <div className="border-t border-border bg-card p-4">
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  handleSend();
+            {/* Reply Input Box */}
+            <div className="p-3 border-t border-border bg-card flex items-center gap-2">
+              <textarea
+                rows={1}
+                value={replyText}
+                onChange={(e) => setReplyText(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSend();
+                  }
                 }}
-                className="flex items-center gap-2"
+                placeholder="Type your response to client… (Press Enter to send)"
+                className="flex-1 rounded-2xl border border-input bg-background px-4 py-2 text-xs outline-none focus:border-beige resize-none leading-relaxed"
+              />
+              <button
+                disabled={!replyText.trim() || busy}
+                onClick={() => handleSend()}
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-navy text-ivory hover:bg-navy/90 disabled:opacity-40 transition-all"
               >
-                <input
-                  value={replyText}
-                  onChange={(e) => setReplyText(e.target.value)}
-                  placeholder="Type reply to client… (Press Enter to send)"
-                  disabled={busy}
-                  className="flex-1 rounded-full border border-input bg-background px-4 py-3 text-xs outline-none focus:border-beige disabled:opacity-50"
-                />
-                <button
-                  type="submit"
-                  disabled={busy || !replyText.trim()}
-                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-navy text-ivory hover:opacity-90 active:scale-95 disabled:opacity-40 transition-all"
-                >
-                  <Send className="h-4 w-4 rtl:rotate-180" strokeWidth={1.5} />
-                </button>
-              </form>
+                <Send className="h-4 w-4" />
+              </button>
             </div>
           </>
         ) : (
-          <div className="flex flex-1 flex-col items-center justify-center p-8 text-center">
-            <div className="flex h-16 w-16 items-center justify-center rounded-3xl bg-secondary text-muted-foreground">
-              <MessageSquare className="h-8 w-8" strokeWidth={1.5} />
-            </div>
-            <h3 className="mt-4 font-display text-lg font-semibold text-foreground">
-              Select a client conversation
-            </h3>
-            <p className="mt-1 text-xs text-muted-foreground max-w-sm">
-              Choose a message thread from the left sidebar to read questions and chat directly with clients in real-time.
+          <div className="flex h-full flex-col items-center justify-center p-8 text-center text-muted-foreground">
+            <MessageSquare className="h-12 w-12 mb-3 opacity-20" />
+            <p className="font-semibold text-sm text-foreground">Select a conversation to reply</p>
+            <p className="text-xs opacity-70 mt-1 max-w-sm">
+              Manage client inquiries, tag VIP clients, assign to groups, or review verified payment receipts.
             </p>
           </div>
         )}
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && activeConv && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
+          <div className="w-full max-w-md rounded-3xl border border-border bg-card p-6 shadow-2xl space-y-4">
+            <div className="flex items-center gap-2 text-red-600">
+              <AlertTriangle className="h-5 w-5" />
+              <h3 className="font-display text-lg font-bold">Delete Conversation</h3>
+            </div>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Are you sure you want to delete the chat history with <strong>{activeConv.clientName}</strong>? The conversation will be safely removed from the active support dashboard.
+            </p>
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                onClick={() => setShowDeleteModal(false)}
+                className="rounded-full px-4 py-2 text-xs font-medium hover:bg-secondary"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteConversation}
+                className="rounded-full bg-red-600 px-5 py-2 text-xs font-bold text-white hover:bg-red-700"
+              >
+                Confirm Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

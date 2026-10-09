@@ -441,11 +441,14 @@ export const getAdminFull = createServerFn({ method: "GET" })
       s.from("commissions").select("*, partners(promo_code, profiles(full_name))").order("created_at", { ascending: false }),
     ]);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    let userEmailMap = new Map<string, string>();
+    const { getWithdrawalsStore } = await import("./withdrawals.server");
+    const withdrawalsStore = await getWithdrawalsStore();
+
+    let authUserMap = new Map<string, any>();
     try {
       const { data: authUsers } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 });
       authUsers?.users?.forEach((u: any) => {
-        if (u.id && u.email) userEmailMap.set(u.id, u.email);
+        if (u.id) authUserMap.set(u.id, u);
       });
     } catch (e) {
       console.error("Could not fetch auth users for admin:", e);
@@ -480,20 +483,63 @@ export const getAdminFull = createServerFn({ method: "GET" })
       }
     }
 
-    // enrich partners with email/lead/app/commission counts
+    // enrich partners with full details from profiles + auth metadata + withdrawals
     const enrichedPartners = (partners.data ?? []).map((p: any) => {
-      const email = userEmailMap.get(p.user_id) || null;
+      const authUser = authUserMap.get(p.user_id);
+      const meta = authUser?.user_metadata || {};
+      const resolvedName = p.profiles?.full_name || meta.full_name || meta.name || null;
+      const resolvedPhone = p.profiles?.phone || meta.phone || authUser?.phone || null;
+      const email = authUser?.email || null;
+
       const myLeads = (leads.data ?? []).filter((l: any) => l.partner_id === p.id);
       const myApps = (apps.data ?? []).filter((a: any) => a.partner_id === p.id);
       const myComms = (commissions.data ?? []).filter((c: any) => c.partner_id === p.id);
+      const myWithdrawals = withdrawalsStore.requests.filter((r) => r.partnerId === p.id);
+
+      // parse experience if string has segments
+      let parsedBio = p.experience || meta.bio || "";
+      let parsedGender = meta.gender || null;
+      let parsedBirth = meta.birth_date || null;
+      let parsedUniv = meta.university || null;
+      let parsedFac = meta.faculty || null;
+      let parsedAcademic = meta.academic_status || null;
+      let parsedExpField = meta.experience_field || null;
+
+      if (typeof p.experience === "string" && p.experience.includes("|")) {
+        const parts = p.experience.split("|").map((s: string) => s.trim());
+        for (const pt of parts) {
+          if (pt.startsWith("الجنس:")) parsedGender = pt.replace("الجنس:", "").trim();
+          else if (pt.startsWith("الميلاد:")) parsedBirth = pt.replace("الميلاد:", "").trim();
+          else if (pt.startsWith("الجامعة:")) parsedUniv = pt.replace("الجامعة:", "").trim();
+          else if (pt.startsWith("الكلية:")) parsedFac = pt.replace("الكلية:", "").trim();
+          else if (pt.startsWith("المرحلة:")) parsedAcademic = pt.replace("المرحلة:", "").trim();
+          else if (pt.startsWith("مجال الخبرة:")) parsedExpField = pt.replace("مجال الخبرة:", "").trim();
+          else if (pt.startsWith("نبذة:")) parsedBio = pt.replace("نبذة:", "").trim();
+        }
+      }
+
       return {
         ...p,
         email,
+        profiles: {
+          full_name: resolvedName,
+          phone: resolvedPhone,
+        },
+        gender: parsedGender,
+        birth_date: parsedBirth,
+        national_id: meta.national_id || null,
+        governorate: meta.governorate || null,
+        university: parsedUniv,
+        faculty: parsedFac,
+        academic_status: parsedAcademic,
+        experience_field: parsedExpField,
+        bio: parsedBio,
         leads: myLeads,
         apps: myApps,
         commissions: myComms,
+        withdrawals: myWithdrawals,
         total_paid: myComms.filter((c: any) => c.status === "paid").reduce((a: number, c: any) => a + c.amount, 0),
-        total_pending: myComms.filter((c: any) => c.status === "pending").reduce((a: number, c: any) => a + c.amount, 0),
+        total_pending: myComms.filter((c: any) => c.status === "pending" || c.status === "approved").reduce((a: number, c: any) => a + c.amount, 0),
       };
     });
 
@@ -533,10 +579,11 @@ export const getAdminFull = createServerFn({ method: "GET" })
         deposit: catProg.deposit,
         price: catProg.price || a.programs.price,
       } : a.programs;
+      const authUser = authUserMap.get(a.user_id);
       return {
         ...a,
         programs: resolvedProg,
-        user_email: userEmailMap.get(a.user_id) || null,
+        user_email: authUser?.email || null,
       };
     });
 
@@ -547,6 +594,7 @@ export const getAdminFull = createServerFn({ method: "GET" })
       programs: progList,
       levels: enrichLevelsWithServerConfig(levels.data ?? []),
       commissions: commissions.data ?? [],
+      withdrawals: withdrawalsStore.requests,
     };
   });
 

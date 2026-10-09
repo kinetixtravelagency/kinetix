@@ -20,6 +20,9 @@ export type ChatConversation = {
   clientEmail?: string | null | undefined;
   clientPhone?: string | null | undefined;
   status: "active" | "resolved";
+  flag?: "important" | "urgent" | "follow_up" | "resolved" | null | undefined;
+  groupName?: string | null | undefined;
+  isDeleted?: boolean | undefined;
   lastMessage: string;
   lastMessageAt: string;
   unreadCount: number; // unread by admin
@@ -250,9 +253,9 @@ export const sendClientMessage = createServerFn({ method: "POST" })
 export const getAdminChats = createServerFn({ method: "GET" })
   .handler(async () => {
     const store = await getStore();
-    const list = Object.values(store.conversations).sort(
-      (a, b) => new Date(b.lastMessageAt).getTime() - new Date(a.lastMessageAt).getTime()
-    );
+    const list = Object.values(store.conversations)
+      .filter((c) => !c.isDeleted)
+      .sort((a, b) => new Date(b.lastMessageAt).getTime() - new Date(a.lastMessageAt).getTime());
     return {
       conversations: list,
       totalUnread: list.reduce((acc, c) => acc + (c.unreadCount || 0), 0),
@@ -330,3 +333,40 @@ export const setAdminChatStatus = createServerFn({ method: "POST" })
     await saveStore(store);
     return { ok: true, status: conv.status };
   });
+
+export const adminSetConversationFlag = createServerFn({ method: "POST" })
+  .inputValidator((d: { conversationId: string; flag: "important" | "urgent" | "follow_up" | "resolved" | null }) => d)
+  .handler(async ({ data }) => {
+    const store = await getStore();
+    const conv = store.conversations[data.conversationId];
+    if (!conv) throw new Error("Conversation not found");
+    conv.flag = data.flag;
+    conv.updatedAt = new Date().toISOString();
+    await saveStore(store);
+    return { ok: true, flag: conv.flag };
+  });
+
+export const adminSetConversationGroup = createServerFn({ method: "POST" })
+  .inputValidator((d: { conversationId: string; groupName: string | null }) => d)
+  .handler(async ({ data }) => {
+    const store = await getStore();
+    const conv = store.conversations[data.conversationId];
+    if (!conv) throw new Error("Conversation not found");
+    conv.groupName = data.groupName?.trim() || null;
+    conv.updatedAt = new Date().toISOString();
+    await saveStore(store);
+    return { ok: true, groupName: conv.groupName };
+  });
+
+export const adminDeleteConversation = createServerFn({ method: "POST" })
+  .inputValidator((d: { conversationId: string }) => d)
+  .handler(async ({ data }) => {
+    const store = await getStore();
+    const conv = store.conversations[data.conversationId];
+    if (!conv) throw new Error("Conversation not found");
+    conv.isDeleted = true;
+    conv.updatedAt = new Date().toISOString();
+    await saveStore(store);
+    return { ok: true, conversationId: data.conversationId };
+  });
+

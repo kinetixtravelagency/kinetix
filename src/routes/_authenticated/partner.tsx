@@ -6,7 +6,8 @@ import {
   Award, Copy, Check, LogOut, Target, Users, TrendingUp, Wallet, Clock, Plus,
   FileText, DollarSign, UserCheck, Video, FileBadge, Plane, Phone, Calendar,
   BarChart3, PieChart, Settings, CreditCard, ChevronDown, Trash2, ArrowUpRight,
-  CheckCircle2, ShieldCheck, Building2, Sparkles, AlertCircle, ChevronUp
+  CheckCircle2, ShieldCheck, Building2, Sparkles, AlertCircle, ChevronUp,
+  LayoutDashboard, BookOpen, GraduationCap, History, ArrowDownLeft
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { getPartnerPortal, registerPartner, addLead, setLeadStatus, updatePartnerProfile, requestPartnerPayout } from "@/lib/partner.functions";
@@ -15,6 +16,8 @@ import { levelFor, egp, type Level } from "@/lib/levels";
 import { countries } from "@/lib/catalog";
 import { useLang } from "@/lib/i18n";
 import { Nav, Footer } from "@/components/site/SiteChrome";
+import { NotificationsDropdown } from "@/components/partner/NotificationsDropdown";
+import { MaterialsTab } from "@/components/partner/MaterialsTab";
 import {
   VodafoneLogo,
   InstaPayLogo,
@@ -344,15 +347,24 @@ function PartnerPortal() {
 
   const { data, isLoading, refetch } = useQuery({ queryKey: ["partner"], queryFn: fetchPortal });
   const tried = useRef(false);
+  const [activeTab, setActiveTab] = useState<"overview" | "leads" | "finances" | "materials" | "profile">("overview");
   const [copied, setCopied] = useState<string | null>(null);
   const [lead, setLead] = useState({ full_name: "", phone: "", email: "", country_interest: "", track: "", notes: "" });
   const [leadErr, setLeadErr] = useState<string | null>(null);
 
-  // Profile and Payout state
+  // Profile and Payout state with all individual registration fields
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [profileName, setProfileName] = useState("");
   const [profilePhone, setProfilePhone] = useState("");
+  const [profileGender, setProfileGender] = useState("");
+  const [profileBirthDate, setProfileBirthDate] = useState("");
+  const [profileNationalId, setProfileNationalId] = useState("");
+  const [profileGovernorate, setProfileGovernorate] = useState("");
   const [profileCity, setProfileCity] = useState("");
+  const [profileAcademicStatus, setProfileAcademicStatus] = useState("");
+  const [profileUniversity, setProfileUniversity] = useState("");
+  const [profileFaculty, setProfileFaculty] = useState("");
+  const [profileExperienceField, setProfileExperienceField] = useState("");
   const [profileBio, setProfileBio] = useState("");
   const [payoutItems, setPayoutItems] = useState<PayoutItem[]>([]);
   const [payoutDropdownOpen, setPayoutDropdownOpen] = useState(false);
@@ -375,10 +387,20 @@ function PartnerPortal() {
     if (!data?.partner) return;
     const p = data.partner;
     const prof = data.profile;
-    setProfileName(prof?.full_name || "");
-    setProfilePhone(prof?.phone || "");
-    setProfileCity(p.city || "");
-    setProfileBio(p.experience || "");
+    const meta: any = (data as any).metadata || {};
+
+    setProfileName(prof?.full_name || meta.full_name || "");
+    setProfilePhone(prof?.phone || meta.phone || "");
+    setProfileGender(meta.gender || "");
+    setProfileBirthDate(meta.birth_date || "");
+    setProfileNationalId(meta.national_id || "");
+    setProfileGovernorate(meta.governorate || p.city || "");
+    setProfileCity(p.city || meta.city || "");
+    setProfileAcademicStatus(meta.academic_status || "");
+    setProfileUniversity(meta.university || "");
+    setProfileFaculty(meta.faculty || "");
+    setProfileExperienceField(meta.experience_field || "");
+    setProfileBio(meta.bio || p.experience || "");
 
     const parsed = parsePayoutConfig(p.payout_method, p.payout_details);
     if (parsed.length > 0) {
@@ -427,9 +449,14 @@ function PartnerPortal() {
             {tr("Sales Partner Portal", "بوابة شركاء المبيعات")}
           </span>
           <div className="flex items-center gap-3">
+            <NotificationsDropdown />
             <button
-              onClick={() => setShowProfileModal(true)}
-              className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3.5 py-1 text-xs text-ivory hover:bg-beige hover:text-navy transition-all"
+              onClick={() => setActiveTab("profile")}
+              className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1 text-xs transition-all ${
+                activeTab === "profile"
+                  ? "bg-beige text-navy font-bold"
+                  : "bg-white/10 text-ivory hover:bg-beige hover:text-navy"
+              }`}
             >
               <Settings className="h-3.5 w-3.5" />
               {tr("Profile & Payouts", "إعدادات الحساب وطرق الدفع")}
@@ -466,6 +493,7 @@ function PartnerPortal() {
   const leads = d.leads as any[];
   const apps = d.applications as any[];
   const comms = d.commissions as any[];
+  const withdrawals = (d.withdrawals || []) as any[];
   const score = leads.length + apps.length;
   const { current, next } = levelFor(levels, score);
   const qualified = leads.filter((l) => l.status === "qualified" || l.status === "converted").length;
@@ -508,19 +536,53 @@ function PartnerPortal() {
   const studentPct = Math.round((trackStudentCount / totalTrackIdentified) * 100);
   const gradPct = 100 - studentPct;
 
-  // Monthly activity trend (simulated aggregation from real created_at dates or fallback)
-  const monthlyData = [
-    { month: ar ? "مايو" : "May", leads: Math.max(1, Math.round(score * 0.1)), apps: Math.max(0, Math.round(apps.length * 0.1)), earned: Math.round(totalBalance * 0.1) },
-    { month: ar ? "يونيو" : "Jun", leads: Math.max(2, Math.round(score * 0.18)), apps: Math.max(1, Math.round(apps.length * 0.15)), earned: Math.round(totalBalance * 0.15) },
-    { month: ar ? "يوليو" : "Jul", leads: Math.max(2, Math.round(score * 0.22)), apps: Math.max(1, Math.round(apps.length * 0.2)), earned: Math.round(totalBalance * 0.2) },
-    { month: ar ? "أغسطس" : "Aug", leads: Math.max(3, Math.round(score * 0.25)), apps: Math.max(2, Math.round(apps.length * 0.25)), earned: Math.round(totalBalance * 0.25) },
-    { month: ar ? "سبتمبر" : "Sep", leads: Math.max(4, Math.round(score * 0.35)), apps: Math.max(2, Math.round(apps.length * 0.3)), earned: Math.round(totalBalance * 0.3) },
-    { month: ar ? "أكتوبر (الحالي)" : "Oct (Current)", leads: score, apps: apps.length, earned: totalBalance },
-  ];
+  // Monthly activity trend: 100% genuine database created_at aggregation (ZERO fake data)
+  const monthlyData = useMemo(() => {
+    const months: { month: string; leads: number; apps: number; earned: number }[] = [];
+    const now = new Date();
+    const monthNamesAr = ["يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو", "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"];
+    const monthNamesEn = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-  const maxMonthVal = Math.max(...monthlyData.map((m) => Math.max(m.leads, m.apps, 1)));
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const mIdx = d.getMonth();
+      const yVal = d.getFullYear();
+      const label = (ar ? monthNamesAr[mIdx] : monthNamesEn[mIdx]) ?? "";
 
-  // Save profile & payout handlers
+      // Exact count of leads created in this month
+      const mLeads = leads.filter((l) => {
+        if (!l.created_at) return false;
+        const cd = new Date(l.created_at);
+        return cd.getMonth() === mIdx && cd.getFullYear() === yVal;
+      }).length;
+
+      // Exact count of applications created in this month
+      const mApps = apps.filter((a) => {
+        if (!a.created_at) return false;
+        const cd = new Date(a.created_at);
+        return cd.getMonth() === mIdx && cd.getFullYear() === yVal;
+      }).length;
+
+      // Exact sum of commissions earned in this month
+      const mEarned = comms.filter((c) => {
+        if (!c.created_at) return false;
+        const cd = new Date(c.created_at);
+        return (c.status === "paid" || c.status === "approved") && cd.getMonth() === mIdx && cd.getFullYear() === yVal;
+      }).reduce((acc, c) => acc + (c.amount || 0), 0);
+
+      months.push({
+        month: i === 0 ? `${label} (${ar ? "الحالي" : "Now"})` : label,
+        leads: mLeads,
+        apps: mApps,
+        earned: mEarned,
+      });
+    }
+    return months;
+  }, [leads, apps, comms, ar]);
+
+  const maxMonthVal = Math.max(...monthlyData.map((m) => Math.max(m.leads, m.apps)), 1);
+
+  // Save profile & payout handlers with full registration fields
   const handleSaveProfile = async () => {
     setSavingProfile(true);
     setProfileErr(null);
@@ -534,7 +596,16 @@ function PartnerPortal() {
         data: {
           full_name: profileName,
           phone: profilePhone,
+          gender: profileGender || undefined,
+          birth_date: profileBirthDate || undefined,
+          national_id: profileNationalId || undefined,
+          governorate: profileGovernorate || undefined,
           city: profileCity,
+          academic_status: profileAcademicStatus || undefined,
+          university: profileUniversity || undefined,
+          faculty: profileFaculty || undefined,
+          experience_field: profileExperienceField || undefined,
+          bio: profileBio,
           experience: profileBio,
           payout_method: serializedMethods || undefined,
           payout_details: serializedDetails,
@@ -573,21 +644,35 @@ function PartnerPortal() {
     setPayoutItems(next);
   };
 
-  // Withdraw handlers
+  // Withdraw handlers with strict validation: require valid payout method & positive balance
   const handleOpenWithdraw = () => {
+    const validPayouts = payoutItems.filter((p) => p.method && p.detail.trim());
+    if (validPayouts.length === 0) {
+      setWithdrawErr(
+        tr(
+          "Please configure and save at least one valid withdrawal method in Profile Settings before requesting a payout.",
+          "يجب إضافة وحفظ وسيلة استلام أرباح واحدة على الأقل في إعدادات الحساب قبل تقديم طلب سحب."
+        )
+      );
+      setActiveTab("profile");
+      setTimeout(() => setWithdrawErr(null), 6000);
+      return;
+    }
+
     if (pending <= 0) {
-      setWithdrawErr(tr("No available balance to withdraw (Available is 0 EGP)", "عفواً، لا يوجد رصيد متاح للسحب حالياً (رصيدك القابل للصرف 0 ج.م)"));
+      setWithdrawErr(
+        tr(
+          "No available balance to withdraw (Available is 0 EGP)",
+          "عفواً، لا يوجد رصيد متاح للسحب حالياً (رصيدك القابل للصرف 0 ج.م)"
+        )
+      );
       setTimeout(() => setWithdrawErr(null), 5000);
       return;
     }
-    const saved = payoutItems.find((p) => p.method && p.detail);
-    if (saved) {
-      setWithdrawMethod(saved.method);
-      setWithdrawDetail(saved.detail);
-    } else {
-      setWithdrawMethod("InstaPay");
-      setWithdrawDetail("");
-    }
+
+    const firstValid = validPayouts[0]!;
+    setWithdrawMethod(firstValid.method);
+    setWithdrawDetail(firstValid.detail);
     setWithdrawAmount(String(pending));
     setWithdrawErr(null);
     setWithdrawSuccessMsg(null);
@@ -744,6 +829,45 @@ function PartnerPortal() {
           </div>
         </section>
 
+        {/* Navigation Tabs Bar */}
+        <div className="border-b border-border bg-card sticky top-0 z-10 shadow-xs">
+          <div className="mx-auto flex max-w-6xl items-center gap-1.5 overflow-x-auto px-5 py-2.5 scrollbar-hide">
+            {[
+              { id: "overview", label: tr("Overview & Activity", "نظرة عامة والنشاط"), icon: LayoutDashboard },
+              { id: "leads", label: tr("My Leads & Clients", "العملاء والإحالات"), icon: Users, badge: score },
+              { id: "finances", label: tr("Balance & Withdrawals", "المالية وسجل السحب"), icon: Wallet, badge: pending > 0 ? egp(pending) : undefined },
+              { id: "materials", label: tr("Materials & Training", "مركز المواد التدريبية"), icon: BookOpen },
+              { id: "profile", label: tr("Profile Settings", "إعدادات البروفايل"), icon: Settings },
+            ].map((tabItem) => {
+              const TabIcon = tabItem.icon;
+              const isActive = activeTab === tabItem.id;
+              return (
+                <button
+                  key={tabItem.id}
+                  onClick={() => setActiveTab(tabItem.id as any)}
+                  className={`flex shrink-0 items-center gap-2 rounded-full px-4 py-2 text-xs font-semibold transition-all ${
+                    isActive
+                      ? "bg-navy text-ivory dark:bg-beige dark:text-navy shadow-sm"
+                      : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+                  }`}
+                >
+                  <TabIcon className="h-3.5 w-3.5" />
+                  {tabItem.label}
+                  {tabItem.badge !== undefined && (
+                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                      isActive
+                        ? "bg-white/20 text-white dark:bg-black/20 dark:text-navy"
+                        : "bg-secondary text-foreground"
+                    }`}>
+                      {tabItem.badge}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
         <div className="mx-auto max-w-6xl space-y-6 px-5 py-8">
           {/* Global error banner when withdraw attempted with 0 balance */}
           {withdrawErr && !showWithdrawModal && (
@@ -756,124 +880,9 @@ function PartnerPortal() {
             </div>
           )}
 
-          {/* ========================================================= */}
-          {/* 1. FINANCIAL BALANCE SECTION (بلانس شريك المبيعات) */}
-          {/* ========================================================= */}
-          <section className="relative overflow-hidden rounded-3xl border border-border bg-gradient-to-br from-card via-card to-secondary/30 p-6 shadow-sm">
-            <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border/60 pb-5">
-              <div className="flex items-center gap-3">
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-navy text-beige dark:bg-beige dark:text-navy shadow-sm">
-                  <Wallet className="h-6 w-6" strokeWidth={2} />
-                </div>
-                <div>
-                  <h2 className="font-display text-xl font-bold text-foreground">
-                    {tr("Sales Balance & Financial Overview", "الرصيد المالي والمحفظة")}
-                  </h2>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    {tr("Track your total accrued earnings, available payouts, and completed transfers", "متابعة أرباحك، رصيدك المتاح للصرف، والمبالغ المستلمة")}
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-2">
-                {/* Withdraw Payout Request Button */}
-                <button
-                  type="button"
-                  onClick={handleOpenWithdraw}
-                  className="inline-flex items-center gap-2 rounded-full bg-emerald-600 hover:bg-emerald-700 px-5 py-2.5 text-xs font-bold text-white transition-all shadow-md active:scale-95"
-                >
-                  <ArrowUpRight className="h-4 w-4" />
-                  {tr("Request Payout / Withdraw", "طلب سحب الأرباح")}
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setShowProfileModal(true)}
-                  className="inline-flex items-center gap-1.5 rounded-full bg-navy px-4 py-2.5 text-xs font-semibold text-ivory hover:opacity-90 transition-all shadow-sm"
-                >
-                  <CreditCard className="h-3.5 w-3.5" />
-                  {tr("Manage Payout Methods", "إدارة طرق استلام الأرباح")}
-                </button>
-              </div>
-            </div>
-
-            <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              {/* Total Balance */}
-              <div className="rounded-2xl border border-border bg-background p-4 relative overflow-hidden">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold text-muted-foreground">{tr("Total Accrued Earnings", "إجمالي الأرباح الكلية")}</span>
-                  <Sparkles className="h-4 w-4 text-beige" />
-                </div>
-                <p className="mt-2 font-display text-2xl font-bold text-navy dark:text-beige">{egp(totalBalance)}</p>
-                <p className="mt-1 text-[11px] text-muted-foreground">
-                  {tr("Total value of all approved & paid client commissions", "قيمة كافة العمولات المعتمدة والمدفوعة")}
-                </p>
-              </div>
-
-              {/* Available / Pending Balance */}
-              <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-4 relative overflow-hidden">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold text-amber-700 dark:text-amber-400">{tr("Available for Payout", "الرصيد المتاح للصرف")}</span>
-                  <Clock className="h-4 w-4 text-amber-500" />
-                </div>
-                <p className="mt-2 font-display text-2xl font-bold text-amber-600 dark:text-amber-400">{egp(pending)}</p>
-                <p className="mt-1 text-[11px] text-muted-foreground">
-                  {tr("Transferred automatically according to your preferred payout method", "يتم تحويله تلقائياً لوسيلتك المفضلة")}
-                </p>
-              </div>
-
-              {/* Paid Out Balance */}
-              <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/5 p-4 relative overflow-hidden">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-400">{tr("Already Paid Out", "الرصيد المحوّل والمستلم")}</span>
-                  <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-                </div>
-                <p className="mt-2 font-display text-2xl font-bold text-emerald-600 dark:text-emerald-400">{egp(paid)}</p>
-                <p className="mt-1 text-[11px] text-muted-foreground">
-                  {tr("Successfully received into your account/wallet", "تم استلامها بنجاح في حسابك أو محفظتك")}
-                </p>
-              </div>
-
-              {/* Guaranteed Rate */}
-              <div className="rounded-2xl border border-border bg-background p-4 relative overflow-hidden">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold text-muted-foreground">{tr("Current Rate per Deal", "عمولتك الثابتة للعميل")}</span>
-                  <Award className="h-4 w-4 text-indigo-500" />
-                </div>
-                <p className="mt-2 font-display text-2xl font-bold text-foreground">{egp(current?.commission_amount ?? 9350)}</p>
-                <p className="mt-1 text-[11px] text-muted-foreground">
-                  {tr(`Guaranteed fixed commission in ${lvName(current)} level`, `مضمونة لكل عميل يدفع في مستوى ${lvName(current)}`)}
-                </p>
-              </div>
-            </div>
-
-            {/* Configured Payout Methods Quick Badges */}
-            <div className="mt-5 rounded-2xl bg-secondary/50 p-3.5 border border-border/80 flex flex-wrap items-center justify-between gap-3 text-xs">
-              <div className="flex items-center gap-2">
-                <CreditCard className="h-4 w-4 text-muted-foreground" />
-                <span className="font-medium text-foreground">{tr("Configured Payout Methods:", "وسائل استلام الأرباح المسجلة:")}</span>
-                <div className="flex flex-wrap gap-1.5">
-                  {payoutItems.filter((i) => i.method && i.detail).map((item, idx) => (
-                    <span key={idx} className="inline-flex items-center gap-1 rounded-full bg-background border border-border px-2.5 py-0.5 font-semibold text-foreground">
-                      <Check className="h-3 w-3 text-emerald-500" />
-                      {item.method}
-                    </span>
-                  ))}
-                  {payoutItems.filter((i) => i.method && i.detail).length === 0 && (
-                    <span className="text-muted-foreground italic">
-                      {tr("No payout details saved yet. Please add your methods.", "لم تحدد وسيلة استلام بعد. يرجى إضافتها من الإعدادات.")}
-                    </span>
-                  )}
-                </div>
-              </div>
-              <button
-                onClick={() => setShowProfileModal(true)}
-                className="text-navy dark:text-beige hover:underline font-semibold"
-              >
-                {tr("Edit details →", "تعديل أو إضافة بيانات ←")}
-              </button>
-            </div>
-          </section>
+          {/* TAB 1: OVERVIEW */}
+          {activeTab === "overview" && (
+            <div className="space-y-6 animate-in fade-in">
 
           {/* Quick Metrics Bar */}
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7">
@@ -1085,13 +1094,22 @@ function PartnerPortal() {
               })}
             </div>
           </section>
+        </div>
+      )}
 
-          {/* Leads & Referred Clients Grid */}
+      {/* ========================================================= */}
+      {/* TAB 2: MY LEADS & CLIENTS */}
+      {/* ========================================================= */}
+      {activeTab === "leads" && (
+        <div className="space-y-6 animate-in fade-in">
           <div className="grid gap-6 lg:grid-cols-2">
-            <section className="rounded-3xl border border-border bg-card p-5">
-              <h2 className="font-display text-lg font-semibold">{tr("My Leads", "العملاء المحتملين")}</h2>
+            <section className="rounded-3xl border border-border bg-card p-5 shadow-xs">
+              <h2 className="font-display text-lg font-semibold">{tr("Register a New Lead", "تسجيل عميل محتمل جديد")}</h2>
+              <p className="text-xs text-muted-foreground mt-0.5 mb-4">
+                {tr("Directly register a student or graduate interested in traveling", "سجّل بيانات العميل مباشرة لمتابعة موقفه والتواصل معه")}
+              </p>
               {p.status === "active" && (
-                <form className="mt-4 grid grid-cols-2 gap-2" onSubmit={async (e) => {
+                <form className="grid grid-cols-2 gap-2" onSubmit={async (e) => {
                   e.preventDefault(); setLeadErr(null);
                   try { await add({ data: lead }); setLead({ full_name: "", phone: "", email: "", country_interest: "", track: "", notes: "" }); refetch(); }
                   catch (er) { setLeadErr((er as Error).message); }
@@ -1111,96 +1129,444 @@ function PartnerPortal() {
                   <button className="col-span-2 inline-flex items-center justify-center gap-1.5 rounded-full bg-navy py-2.5 text-sm text-ivory"><Plus className="h-4 w-4" />{tr("Add lead", "إضافة عميل")}</button>
                 </form>
               )}
-              <div className="mt-4 divide-y divide-border text-sm">
-                {leads.map((l) => (
-                  <div key={l.id} className="flex items-center justify-between gap-2 py-2.5">
-                    <div className="min-w-0"><p className="truncate font-medium">{l.full_name}</p><p className="text-xs text-muted-foreground">{l.phone ?? ""} {l.country_interest ? `· ${l.country_interest}` : ""}</p></div>
-                    <select value={l.status} onChange={async (e) => { await setStatus({ data: { id: l.id, status: e.target.value } }); refetch(); }} className="rounded-full border border-input bg-background px-2 py-1 text-xs">
-                      {leadStatuses.map((s) => <option key={s} value={s}>{({ new: tr("New", "جديد"), qualified: tr("Qualified", "مؤهل"), converted: tr("Converted", "قدّم"), lost: tr("Lost", "مش مهتم") })[s]}</option>)}
-                    </select>
-                  </div>
-                ))}
-                {leads.length === 0 && <p className="py-3 text-muted-foreground">—</p>}
+              <div className="mt-5 border-t border-border pt-4">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3">{tr("Registered Leads List", "سجل العملاء")} ({leads.length})</h3>
+                <div className="divide-y divide-border text-sm">
+                  {leads.map((l) => (
+                    <div key={l.id} className="flex items-center justify-between gap-2 py-2.5">
+                      <div className="min-w-0"><p className="truncate font-medium">{l.full_name}</p><p className="text-xs text-muted-foreground">{l.phone ?? ""} {l.country_interest ? `· ${l.country_interest}` : ""}</p></div>
+                      <select value={l.status} onChange={async (e) => { await setStatus({ data: { id: l.id, status: e.target.value } }); refetch(); }} className="rounded-full border border-input bg-background px-2 py-1 text-xs">
+                        {leadStatuses.map((s) => <option key={s} value={s}>{({ new: tr("New", "جديد"), qualified: tr("Qualified", "مؤهل"), converted: tr("Converted", "قدّم"), lost: tr("Lost", "مش مهتم") })[s]}</option>)}
+                      </select>
+                    </div>
+                  ))}
+                  {leads.length === 0 && <p className="py-6 text-center text-xs text-muted-foreground">— {tr("No leads registered yet", "لا يوجد عملاء مسجلين بعد")} —</p>}
+                </div>
               </div>
             </section>
 
             <ReferredClientsSection apps={apps} comms={comms} ar={ar} tr={tr} egp={egp} />
           </div>
+        </div>
+      )}
 
-          {/* ========================================================= */}
-          {/* 3. PROFILE SETTINGS & MULTI-PAYOUT METHODS SECTION */}
-          {/* ========================================================= */}
-          <section id="payout-settings" className="rounded-3xl border border-border bg-card p-6 shadow-sm">
-            <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border/60 pb-4">
-              <div>
-                <h2 className="font-display text-lg font-semibold flex items-center gap-2">
-                  <Settings className="h-5 w-5 text-navy dark:text-beige" />
-                  {tr("Profile Settings & Payout Methods", "إعدادات البروفايل ووسائل استلام الأرباح")}
-                </h2>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  {tr("Update your partner contact info and choose multiple payout methods (InstaPay, Vodafone Cash, Bank Transfer, etc.)", "عدّل بياناتك وحدد وسائل استلام أرباحك وعمولاتك (انستاباي، فودافون كاش، تحويل بنكي...)")}
+      {/* ========================================================= */}
+      {/* TAB 3: FINANCES & WITHDRAWALS */}
+      {/* ========================================================= */}
+      {activeTab === "finances" && (
+        <div className="space-y-6 animate-in fade-in">
+          {/* Financial Balance Section */}
+          <section className="relative overflow-hidden rounded-3xl border border-border bg-gradient-to-br from-card via-card to-secondary/30 p-6 shadow-sm">
+            <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border/60 pb-5">
+              <div className="flex items-center gap-3">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-navy text-beige dark:bg-beige dark:text-navy shadow-sm">
+                  <Wallet className="h-6 w-6" strokeWidth={2} />
+                </div>
+                <div>
+                  <h2 className="font-display text-xl font-bold text-foreground">
+                    {tr("Sales Balance & Financial Overview", "الرصيد المالي والمحفظة")}
+                  </h2>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {tr("Track your total accrued earnings, available payouts, and completed transfers", "متابعة أرباحك، رصيدك المتاح للصرف، والمبالغ المستلمة")}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleOpenWithdraw}
+                  className="inline-flex items-center gap-2 rounded-full bg-emerald-600 hover:bg-emerald-700 px-5 py-2.5 text-xs font-bold text-white transition-all shadow-md active:scale-95"
+                >
+                  <ArrowUpRight className="h-4 w-4" />
+                  {tr("Request Payout / Withdraw", "طلب سحب الأرباح")}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("profile")}
+                  className="inline-flex items-center gap-1.5 rounded-full bg-navy px-4 py-2.5 text-xs font-semibold text-ivory hover:opacity-90 transition-all shadow-sm"
+                >
+                  <CreditCard className="h-3.5 w-3.5" />
+                  {tr("Manage Payout Methods", "إدارة طرق استلام الأرباح")}
+                </button>
+              </div>
+            </div>
+
+            <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              {/* Total Balance */}
+              <div className="rounded-2xl border border-border bg-background p-4 relative overflow-hidden">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-muted-foreground">{tr("Total Accrued Earnings", "إجمالي الأرباح الكلية")}</span>
+                  <Sparkles className="h-4 w-4 text-beige" />
+                </div>
+                <p className="mt-2 font-display text-2xl font-bold text-navy dark:text-beige">{egp(totalBalance)}</p>
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  {tr("Total value of all approved & paid client commissions", "قيمة كافة العمولات المعتمدة والمدفوعة")}
                 </p>
               </div>
 
-              {saveSuccess && (
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-800 animate-in fade-in">
-                  <CheckCircle2 className="h-4 w-4" />
-                  {tr("Settings saved successfully!", "تم حفظ الإعدادات بنجاح!")}
-                </span>
-              )}
+              {/* Available / Pending Balance */}
+              <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-4 relative overflow-hidden">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-amber-700 dark:text-amber-400">{tr("Available for Payout", "الرصيد المتاح للصرف")}</span>
+                  <Clock className="h-4 w-4 text-amber-500" />
+                </div>
+                <p className="mt-2 font-display text-2xl font-bold text-amber-600 dark:text-amber-400">{egp(pending)}</p>
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  {tr("Requires at least 1 saved payout method to request withdrawal", "يتطلب وسيلة سحب واحدة على الأقل لتقديم طلب")}
+                </p>
+              </div>
+
+              {/* Paid Out Balance */}
+              <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/5 p-4 relative overflow-hidden">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-400">{tr("Already Paid Out", "الرصيد المحوّل والمستلم")}</span>
+                  <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                </div>
+                <p className="mt-2 font-display text-2xl font-bold text-emerald-600 dark:text-emerald-400">{egp(paid)}</p>
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  {tr("Successfully received into your account/wallet", "تم استلامها بنجاح في حسابك أو محفظتك")}
+                </p>
+              </div>
+
+              {/* Guaranteed Rate */}
+              <div className="rounded-2xl border border-border bg-background p-4 relative overflow-hidden">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-muted-foreground">{tr("Current Rate per Deal", "عمولتك الثابتة للعميل")}</span>
+                  <Award className="h-4 w-4 text-indigo-500" />
+                </div>
+                <p className="mt-2 font-display text-2xl font-bold text-foreground">{egp(current?.commission_amount ?? 9350)}</p>
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  {tr(`Guaranteed fixed commission in ${lvName(current)} level`, `مضمونة لكل عميل يدفع في مستوى ${lvName(current)}`)}
+                </p>
+              </div>
             </div>
 
-            <div className="mt-6 grid gap-6 lg:grid-cols-2">
-              {/* Profile Details */}
-              <div className="space-y-4">
-                <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                  <UserCheck className="h-4 w-4 text-muted-foreground" />
-                  {tr("Personal & Contact Information", "البيانات الشخصية وبيانات التواصل")}
-                </h3>
+            {/* Configured Payout Methods Quick Badges */}
+            <div className="mt-5 rounded-2xl bg-secondary/50 p-3.5 border border-border/80 flex flex-wrap items-center justify-between gap-3 text-xs">
+              <div className="flex items-center gap-2">
+                <CreditCard className="h-4 w-4 text-muted-foreground" />
+                <span className="font-medium text-foreground">{tr("Configured Payout Methods:", "وسائل استلام الأرباح المسجلة:")}</span>
+                <div className="flex flex-wrap gap-1.5">
+                  {payoutItems.filter((i) => i.method && i.detail).map((item, idx) => (
+                    <span key={idx} className="inline-flex items-center gap-1 rounded-full bg-background border border-border px-2.5 py-0.5 font-semibold text-foreground">
+                      <Check className="h-3 w-3 text-emerald-500" />
+                      {item.method}
+                    </span>
+                  ))}
+                  {payoutItems.filter((i) => i.method && i.detail).length === 0 && (
+                    <span className="text-muted-foreground italic">
+                      {tr("No payout details saved yet. Please configure your methods in Profile Settings.", "لم تحدد وسيلة استلام بعد. يرجى إضافتها من إعدادات البروفايل.")}
+                    </span>
+                  )}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setActiveTab("profile")}
+                className="text-xs font-semibold text-navy dark:text-beige underline hover:opacity-80"
+              >
+                {tr("Configure Methods →", "تعديل وسائل السحب ←")}
+              </button>
+            </div>
+          </section>
 
-                <div className="space-y-3">
+          {/* Previous Withdrawal Requests History Table */}
+          <section className="rounded-3xl border border-border bg-card p-6 shadow-sm space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-navy text-ivory">
+                  <History className="h-4 w-4" />
+                </div>
+                <div>
+                  <h3 className="font-display text-base font-bold text-foreground">
+                    {tr("Withdrawal Requests History", "سجل طلبات السحب")}
+                  </h3>
+                  <p className="text-xs text-muted-foreground">
+                    {tr("Track your payout requests and administrative settlement status", "متابعة حالة طلبات سحب الأرباح واعتماد التحويلات")}
+                  </p>
+                </div>
+              </div>
+              <span className="rounded-full bg-secondary px-3 py-1 text-xs font-semibold text-muted-foreground">
+                {withdrawals.length} {tr("Requests", "طلبات")}
+              </span>
+            </div>
+
+            {withdrawals.length === 0 ? (
+              <div className="py-10 text-center text-muted-foreground rounded-2xl border border-dashed border-border p-4">
+                <Clock className="mx-auto h-8 w-8 mb-2 opacity-30" />
+                <p className="text-sm font-medium">{tr("No withdrawal requests yet", "لا يوجد طلبات سحب مسجلة حتى الآن")}</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {tr("When you request a payout, your submission and transfer progress will appear here.", "عند تقديمك لطلب سحب الأرباح، ستظهر تفاصيل التحويل وحالته هنا فوراً.")}
+                </p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto rounded-2xl border border-border">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="border-b border-border bg-secondary/40 text-muted-foreground">
+                      <th className="px-4 py-3 text-start">{tr("Date", "التاريخ")}</th>
+                      <th className="px-4 py-3 text-start">{tr("Amount", "المبلغ")}</th>
+                      <th className="px-4 py-3 text-start">{tr("Method", "طريقة السحب")}</th>
+                      <th className="px-4 py-3 text-start">{tr("Account / Wallet", "بيانات الحساب / المحفظة")}</th>
+                      <th className="px-4 py-3 text-start">{tr("Status", "الحالة")}</th>
+                      <th className="px-4 py-3 text-start">{tr("Notes", "ملاحظات")}</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {withdrawals.map((w: any) => {
+                      const dateStr = w.created_at ? new Date(w.created_at).toLocaleDateString(ar ? "ar-EG" : "en-GB") : "—";
+                      const statusBadge =
+                        w.status === "completed" ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300" :
+                        w.status === "approved" ? "bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300" :
+                        w.status === "processing" ? "bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300" :
+                        w.status === "rejected" ? "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300" :
+                        "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300";
+                      const statusLabel =
+                        w.status === "completed" ? tr("Completed", "تم التحويل") :
+                        w.status === "approved" ? tr("Approved", "معتمد") :
+                        w.status === "processing" ? tr("Processing", "قيد التنفيذ") :
+                        w.status === "rejected" ? tr("Rejected", "مرفوض") :
+                        tr("Pending", "قيد المراجعة");
+                      return (
+                        <tr key={w.id} className="hover:bg-secondary/20">
+                          <td className="px-4 py-3 font-medium text-foreground">{dateStr}</td>
+                          <td className="px-4 py-3 font-bold font-mono text-sm text-foreground">{egp(w.amount)}</td>
+                          <td className="px-4 py-3 font-semibold text-foreground">{w.payout_method}</td>
+                          <td className="px-4 py-3 font-mono text-[11px] text-muted-foreground">{w.payout_details}</td>
+                          <td className="px-4 py-3">
+                            <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold ${statusBadge}`}>
+                              {statusLabel}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-muted-foreground">{w.notes || w.admin_note || "—"}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
+
+          {/* Commissions Log */}
+          <section className="rounded-3xl border border-border bg-card p-6 shadow-sm">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-display text-base font-bold text-foreground">{tr("Commissions Log", "سجل استحقاقات العمولات")}</h3>
+              <span className="rounded-full bg-secondary px-3 py-1 text-xs font-semibold text-muted-foreground">
+                {comms.length} {tr("Entries", "سجلات")}
+              </span>
+            </div>
+            <div className="divide-y divide-border text-sm">
+              {comms.map((c) => (
+                <div key={c.id} className="flex items-center justify-between py-3">
                   <div>
-                    <label className="text-xs font-medium text-muted-foreground">{tr("Full Name", "الاسم بالكامل")}</label>
+                    <span className="font-bold text-base">{egp(c.amount)}</span>
+                    {c.note && <span className="ms-2 text-xs text-muted-foreground">{c.note}</span>}
+                    {c.created_at && (
+                      <p className="text-[11px] text-muted-foreground mt-0.5">
+                        {new Date(c.created_at).toLocaleDateString(ar ? "ar-EG" : "en-GB")}
+                      </p>
+                    )}
+                  </div>
+                  <span className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                    c.status === "paid" ? "bg-emerald-100 text-emerald-700" :
+                    c.status === "approved" ? "bg-blue-100 text-blue-700" :
+                    "bg-secondary text-muted-foreground"
+                  }`}>{c.status}</span>
+                </div>
+              ))}
+              {comms.length === 0 && <p className="py-6 text-center text-xs text-muted-foreground">— {tr("No commissions earned yet", "لا يوجد عمولات مسجلة بعد")} —</p>}
+            </div>
+          </section>
+        </div>
+      )}
+
+      {/* ========================================================= */}
+      {/* TAB 4: MATERIALS CENTER */}
+      {/* ========================================================= */}
+      {activeTab === "materials" && (
+        <div className="animate-in fade-in">
+          <MaterialsTab />
+        </div>
+      )}
+
+      {/* ========================================================= */}
+      {/* TAB 5: PROFILE SETTINGS & MULTI-PAYOUT METHODS */}
+      {/* ========================================================= */}
+      {activeTab === "profile" && (
+        <section id="payout-settings" className="rounded-3xl border border-border bg-card p-6 shadow-sm animate-in fade-in">
+          <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border/60 pb-4">
+            <div>
+              <h2 className="font-display text-lg font-semibold flex items-center gap-2">
+                <Settings className="h-5 w-5 text-navy dark:text-beige" />
+                {tr("Profile Settings & Payout Methods", "إعدادات البروفايل ووسائل استلام الأرباح")}
+              </h2>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {tr("Complete all registration fields and choose multiple payout methods (InstaPay, Vodafone Cash, Bank Transfer, etc.)", "جميع بيانات التسجيل مفصلة مع إمكانية اختيار وإدارة وسائل استلام أرباحك")}
+              </p>
+            </div>
+
+            {saveSuccess && (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-800 animate-in fade-in">
+                <CheckCircle2 className="h-4 w-4" />
+                {tr("Settings saved successfully!", "تم حفظ الإعدادات بنجاح!")}
+              </span>
+            )}
+          </div>
+
+          <div className="mt-6 grid gap-6 lg:grid-cols-2">
+            {/* Profile Details with individual registration fields */}
+            <div className="space-y-4">
+              <h3 className="text-sm font-semibold text-foreground flex items-center gap-2 border-b border-border/60 pb-2">
+                <UserCheck className="h-4 w-4 text-muted-foreground" />
+                {tr("1. Personal & Contact Information", "١. البيانات الشخصية والتواصل")}
+              </h3>
+
+              <div className="space-y-3">
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground">{tr("Full Name *", "الاسم بالكامل *")}</label>
+                  <input
+                    className={`${input} mt-1`}
+                    value={profileName}
+                    onChange={(e) => setProfileName(e.target.value)}
+                    placeholder={tr("Your full name", "اسمك بالكامل")}
+                    required
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground">{tr("Phone Number *", "رقم الهاتف / واتساب *")}</label>
                     <input
                       className={`${input} mt-1`}
-                      value={profileName}
-                      onChange={(e) => setProfileName(e.target.value)}
-                      placeholder={tr("Your full name", "اسمك بالكامل")}
+                      value={profilePhone}
+                      onChange={(e) => setProfilePhone(e.target.value)}
+                      placeholder="010xxxxxxxx"
+                      required
                     />
                   </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="text-xs font-medium text-muted-foreground">{tr("Phone Number", "رقم الهاتف / واتساب")}</label>
-                      <input
-                        className={`${input} mt-1`}
-                        value={profilePhone}
-                        onChange={(e) => setProfilePhone(e.target.value)}
-                        placeholder="010xxxxxxxx"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-xs font-medium text-muted-foreground">{tr("City / Governorate", "المحافظة / المدينة")}</label>
-                      <input
-                        className={`${input} mt-1`}
-                        value={profileCity}
-                        onChange={(e) => setProfileCity(e.target.value)}
-                        placeholder={tr("Cairo, Alexandria...", "القاهرة، الإسكندرية...")}
-                      />
-                    </div>
-                  </div>
-
                   <div>
-                    <label className="text-xs font-medium text-muted-foreground">{tr("Bio / Field of Experience", "مجال الخبرة / نبذة")}</label>
+                    <label className="text-xs font-medium text-muted-foreground">{tr("National ID", "الرقم القومي")}</label>
                     <input
-                      className={`${input} mt-1`}
-                      value={profileBio}
-                      onChange={(e) => setProfileBio(e.target.value)}
-                      placeholder={tr("Student union, recruiter, sales...", "اتحاد طلاب، تسويق، مبيعات...")}
+                      className={`${input} mt-1 font-mono`}
+                      value={profileNationalId}
+                      maxLength={14}
+                      onChange={(e) => setProfileNationalId(e.target.value)}
+                      placeholder="14-digit National ID"
                     />
                   </div>
                 </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground">{tr("Birth Date", "تاريخ الميلاد")}</label>
+                    <input
+                      type="date"
+                      className={`${input} mt-1`}
+                      value={profileBirthDate}
+                      onChange={(e) => setProfileBirthDate(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground">{tr("Gender", "النوع")}</label>
+                    <select
+                      className={`${input} mt-1`}
+                      value={profileGender}
+                      onChange={(e) => setProfileGender(e.target.value)}
+                    >
+                      <option value="">{tr("Select gender", "اختر النوع")}</option>
+                      <option value="male">{tr("Male", "ذكر")}</option>
+                      <option value="female">{tr("Female", "أنثى")}</option>
+                    </select>
+                  </div>
+                </div>
               </div>
+
+              <h3 className="text-sm font-semibold text-foreground flex items-center gap-2 border-b border-border/60 pb-2 pt-2">
+                <GraduationCap className="h-4 w-4 text-muted-foreground" />
+                {tr("2. Academic Status & Location", "٢. البيانات الأكاديمية والموقع")}
+              </h3>
+
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground">{tr("Governorate", "المحافظة")}</label>
+                    <input
+                      className={`${input} mt-1`}
+                      value={profileGovernorate}
+                      onChange={(e) => setProfileGovernorate(e.target.value)}
+                      placeholder={tr("e.g. Cairo", "مثال: القاهرة")}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground">{tr("City", "المدينة")}</label>
+                    <input
+                      className={`${input} mt-1`}
+                      value={profileCity}
+                      onChange={(e) => setProfileCity(e.target.value)}
+                      placeholder={tr("e.g. Nasr City", "مثال: مدينة نصر")}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground">{tr("Academic Status", "الموقف الدراسي")}</label>
+                    <select
+                      className={`${input} mt-1`}
+                      value={profileAcademicStatus}
+                      onChange={(e) => setProfileAcademicStatus(e.target.value)}
+                    >
+                      <option value="">{tr("Select status", "اختر الحالة")}</option>
+                      <option value="student">{tr("Student", "طالب")}</option>
+                      <option value="graduate">{tr("Graduate", "خريج")}</option>
+                      <option value="postgraduate">{tr("Postgraduate", "دراسات عليا")}</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground">{tr("University", "الجامعة")}</label>
+                    <input
+                      className={`${input} mt-1`}
+                      value={profileUniversity}
+                      onChange={(e) => setProfileUniversity(e.target.value)}
+                      placeholder={tr("University", "الجامعة")}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground">{tr("Faculty", "الكلية")}</label>
+                    <input
+                      className={`${input} mt-1`}
+                      value={profileFaculty}
+                      onChange={(e) => setProfileFaculty(e.target.value)}
+                      placeholder={tr("Faculty", "الكلية")}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground">{tr("Field of Experience", "مجال الخبرة")}</label>
+                  <input
+                    className={`${input} mt-1`}
+                    value={profileExperienceField}
+                    onChange={(e) => setProfileExperienceField(e.target.value)}
+                    placeholder={tr("e.g. Student activities, digital marketing, sales", "مثال: أنشطة طلابية، تسويق، مبيعات...")}
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground">{tr("Bio / Personal Summary", "نبذة تعريفية")}</label>
+                  <textarea
+                    rows={3}
+                    className={`${input} mt-1`}
+                    value={profileBio}
+                    onChange={(e) => setProfileBio(e.target.value)}
+                    placeholder={tr("Tell us briefly about your background and network...", "نبذة عن خلفيتك وشبكة علاقاتك...")}
+                  />
+                </div>
+              </div>
+            </div>
 
               {/* Multi-Payout Methods Section */}
               <div className="space-y-4">
@@ -1367,8 +1733,9 @@ function PartnerPortal() {
               </button>
             </div>
           </section>
+          )}
 
-          <Link to="/dashboard" className="block text-center text-sm text-muted-foreground underline">{tr("Customer dashboard", "لوحة العميل")}</Link>
+          <Link to="/dashboard" className="block text-center text-sm text-muted-foreground underline pt-4">{tr("Customer dashboard", "لوحة العميل")}</Link>
         </div>
       </main>
 
@@ -1397,34 +1764,112 @@ function PartnerPortal() {
 
             <div className="mt-5 space-y-5">
               {/* Profile fields */}
-              <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-3">
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground">{tr("Full Name *", "الاسم بالكامل *")}</label>
+                    <input
+                      className={`${input} mt-1`}
+                      value={profileName}
+                      onChange={(e) => setProfileName(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground">{tr("Phone / WhatsApp *", "رقم الهاتف / واتساب *")}</label>
+                    <input
+                      className={`${input} mt-1`}
+                      value={profilePhone}
+                      onChange={(e) => setProfilePhone(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground">{tr("National ID", "الرقم القومي")}</label>
+                    <input
+                      className={`${input} mt-1 font-mono`}
+                      value={profileNationalId}
+                      maxLength={14}
+                      onChange={(e) => setProfileNationalId(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground">{tr("Birth Date", "تاريخ الميلاد")}</label>
+                    <input
+                      type="date"
+                      className={`${input} mt-1`}
+                      value={profileBirthDate}
+                      onChange={(e) => setProfileBirthDate(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground">{tr("Gender", "النوع")}</label>
+                    <select
+                      className={`${input} mt-1`}
+                      value={profileGender}
+                      onChange={(e) => setProfileGender(e.target.value)}
+                    >
+                      <option value="">{tr("Select gender", "اختر النوع")}</option>
+                      <option value="male">{tr("Male", "ذكر")}</option>
+                      <option value="female">{tr("Female", "أنثى")}</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground">{tr("Governorate", "المحافظة")}</label>
+                    <input
+                      className={`${input} mt-1`}
+                      value={profileGovernorate}
+                      onChange={(e) => setProfileGovernorate(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground">{tr("City", "المدينة")}</label>
+                    <input
+                      className={`${input} mt-1`}
+                      value={profileCity}
+                      onChange={(e) => setProfileCity(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground">{tr("Academic Status", "الموقف الدراسي")}</label>
+                    <select
+                      className={`${input} mt-1`}
+                      value={profileAcademicStatus}
+                      onChange={(e) => setProfileAcademicStatus(e.target.value)}
+                    >
+                      <option value="">{tr("Select status", "اختر الحالة")}</option>
+                      <option value="student">{tr("Student", "طالب")}</option>
+                      <option value="graduate">{tr("Graduate", "خريج")}</option>
+                      <option value="postgraduate">{tr("Postgraduate", "دراسات عليا")}</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground">{tr("University", "الجامعة")}</label>
+                    <input
+                      className={`${input} mt-1`}
+                      value={profileUniversity}
+                      onChange={(e) => setProfileUniversity(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground">{tr("Faculty", "الكلية")}</label>
+                    <input
+                      className={`${input} mt-1`}
+                      value={profileFaculty}
+                      onChange={(e) => setProfileFaculty(e.target.value)}
+                    />
+                  </div>
+                </div>
                 <div>
-                  <label className="text-xs font-medium text-muted-foreground">{tr("Full Name", "الاسم بالكامل")}</label>
+                  <label className="text-xs font-medium text-muted-foreground">{tr("Field of Experience", "مجال الخبرة")}</label>
                   <input
                     className={`${input} mt-1`}
-                    value={profileName}
-                    onChange={(e) => setProfileName(e.target.value)}
+                    value={profileExperienceField}
+                    onChange={(e) => setProfileExperienceField(e.target.value)}
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-muted-foreground">{tr("Phone / WhatsApp", "رقم الهاتف / واتساب")}</label>
-                  <input
-                    className={`${input} mt-1`}
-                    value={profilePhone}
-                    onChange={(e) => setProfilePhone(e.target.value)}
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-medium text-muted-foreground">{tr("City / Governorate", "المحافظة")}</label>
-                  <input
-                    className={`${input} mt-1`}
-                    value={profileCity}
-                    onChange={(e) => setProfileCity(e.target.value)}
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-medium text-muted-foreground">{tr("Experience / Bio", "الخبرة / الوصف")}</label>
-                  <input
+                  <label className="text-xs font-medium text-muted-foreground">{tr("Bio / Personal Summary", "نبذة تعريفية")}</label>
+                  <textarea
+                    rows={2}
                     className={`${input} mt-1`}
                     value={profileBio}
                     onChange={(e) => setProfileBio(e.target.value)}

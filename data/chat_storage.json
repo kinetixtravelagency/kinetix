@@ -10,7 +10,7 @@
       "status": "active",
       "lastMessage": "💳 طلب سداد جديد (دفعة واحدة بالكامل):\n• البرنامج: Seasonal Hospitality & Hotel Services · Bulgaria\n• المبلغ المطلوب: €١٬٤٥٠ (~٧٨٬٣٠٠ ج.م)\n• وسيلة الدفع المفضلة: Vodafone Cash\n• الاسم: يسيسي يسبيسبيس\n• الهاتف: 24242342342342342342\n• كود الطلب: #e5411ace\n\nأرغب في استكمال الدفع، برجاء تزويدي ببيانات التحويل عبر هذه الوسيلة وتأكيد الحجز.",
       "lastMessageAt": "2026-10-09T11:40:51.897Z",
-      "unreadCount": 1,
+      "unreadCount": 0,
       "unreadClientCount": 0,
       "createdAt": "2026-10-07T20:15:58.848Z",
       "updatedAt": "2026-10-09T11:40:51.897Z"
@@ -29,6 +29,36 @@
       "unreadClientCount": 0,
       "createdAt": "2026-10-08T06:44:57.429Z",
       "updatedAt": "2026-10-08T07:05:32.283Z"
+    },
+    "conv_kvjiyyx2g_1791549305871": {
+      "id": "conv_kvjiyyx2g_1791549305871",
+      "userId": "c4591309-790a-48c6-87c9-5cd008d84c01",
+      "visitorId": null,
+      "clientName": "youssef Mohamed",
+      "clientEmail": "yoseif.mohamed@gmail.com",
+      "clientPhone": "+201032944753",
+      "status": "active",
+      "lastMessage": "hello",
+      "lastMessageAt": "2026-10-09T12:35:35.107Z",
+      "unreadCount": 0,
+      "unreadClientCount": 0,
+      "createdAt": "2026-10-09T12:35:05.871Z",
+      "updatedAt": "2026-10-09T12:35:35.107Z"
+    },
+    "conv_78sufobdl_1791555314078": {
+      "id": "conv_78sufobdl_1791555314078",
+      "userId": "d5e64f9e-99bb-42ca-9f23-b806ff63a134",
+      "visitorId": null,
+      "clientName": "Ahmed Hassan Soliman Abdallah",
+      "clientEmail": "ah01066912117@gmail.com",
+      "clientPhone": "+201097454870",
+      "status": "active",
+      "lastMessage": "hey , with you kinetix admin \nhow can i help you today?",
+      "lastMessageAt": "2026-10-09T14:19:25.873Z",
+      "unreadCount": 0,
+      "unreadClientCount": 1,
+      "createdAt": "2026-10-09T14:15:14.078Z",
+      "updatedAt": "2026-10-09T14:19:25.873Z"
     }
   },
   "messages": {
@@ -93,7 +123,7 @@
         "sender": "client",
         "senderName": "admin",
         "text": "💳 طلب سداد جديد (دفعة واحدة بالكامل):\n• البرنامج: Seasonal Hospitality & Hotel Services · Bulgaria\n• المبلغ المطلوب: €١٬٤٥٠ (~٧٨٬٣٠٠ ج.م)\n• وسيلة الدفع المفضلة: Vodafone Cash\n• الاسم: يسيسي يسبيسبيس\n• الهاتف: 24242342342342342342\n• كود الطلب: #e5411ace\n\nأرغب في استكمال الدفع، برجاء تزويدي ببيانات التحويل عبر هذه الوسيلة وتأكيد الحجز.",
-        "isRead": false,
+        "isRead": true,
         "createdAt": "2026-10-09T11:40:51.897Z"
       }
     ],
@@ -115,6 +145,55 @@
         "text": "💳 طلب سداد جديد (المقدم):\n• البرنامج: Program\n• المبلغ المطلوب: €٥٠٠ (~٢٧٬٠٠٠ ج.م)\n• وسيلة الدفع المفضلة: Etisalat Cash\n• الاسم: youssef\n• الهاتف: 01032944753\n• كود الطلب: #36b1124b\n\nأرغب في استكمال الدفع، برجاء تزويدي ببيانات التحويل عبر هذه الوسيلة وتأكيد الحجز.",
         "isRead": true,
         "createdAt": "2026-10-08T07:05:32.283Z"
+      }
+    ],
+    "conv_kvjiyyx2g_1791549305871": [
+      {
+        "id": "msg_hny502jw7_1791549305871",
+        "conversationId": "conv_kvjiyyx2g_1791549305871",
+        "sender": "client",
+        "senderName": "youssef Mohamed",
+        "text": "Inquire about European work programs",
+        "isRead": true,
+        "createdAt": "2026-10-09T12:35:05.871Z"
+      },
+      {
+        "id": "msg_txhw208em_1791549335107",
+        "conversationId": "conv_kvjiyyx2g_1791549305871",
+        "sender": "admin",
+        "senderName": "Kinetix Admin",
+        "text": "hello",
+        "isRead": true,
+        "createdAt": "2026-10-09T12:35:35.107Z"
+      }
+    ],
+    "conv_78sufobdl_1791555314078": [
+      {
+        "id": "msg_a931ztz0i_1791555314078",
+        "conversationId": "conv_78sufobdl_1791555314078",
+        "sender": "client",
+        "senderName": "Ahmed Hassan Soliman Abdallah",
+        "text": "Is there a duration of work",
+        "isRead": true,
+        "createdAt": "2026-10-09T14:15:14.078Z"
+      },
+      {
+        "id": "msg_cui2qjdc2_1791555413926",
+        "conversationId": "conv_78sufobdl_1791555314078",
+        "sender": "client",
+        "senderName": "Ahmed Hassan Soliman Abdallah",
+        "text": "?",
+        "isRead": true,
+        "createdAt": "2026-10-09T14:16:53.926Z"
+      },
+      {
+        "id": "msg_99sk6s7zy_1791555565873",
+        "conversationId": "conv_78sufobdl_1791555314078",
+        "sender": "admin",
+        "senderName": "Kinetix Admin",
+        "text": "hey , with you kinetix admin \nhow can i help you today?",
+        "isRead": false,
+        "createdAt": "2026-10-09T14:19:25.873Z"
       }
     ]
   }

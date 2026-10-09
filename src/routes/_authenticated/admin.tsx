@@ -9,6 +9,7 @@ import {
   adminManagePartner, adminAddCommission, adminSetCommission,
   adminUpdateLevel, adminUpdateCountry,
 } from "@/lib/account.functions";
+import { adminDeletePartner, adminSetWithdrawalStatus } from "@/lib/partner.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { useLang } from "@/lib/i18n";
 import { Logo } from "@/components/site/SiteChrome";
@@ -18,9 +19,11 @@ import {
   ChevronDown, ChevronUp, CheckCircle2, XCircle, Clock,
   TrendingUp, Plus, Pencil, Save, X, Eye, ShieldCheck, Ban, AlertCircle, MessageSquare,
   Mail, Phone, MapPin, Calendar, Copy, Check, ExternalLink, Link2, Trash2, RefreshCw,
-  Sparkles, Filter, Layers, CheckSquare, Loader2, CreditCard,
+  Sparkles, Filter, Layers, CheckSquare, Loader2, CreditCard, BookOpen, Send,
 } from "lucide-react";
 import { AdminChatTab } from "@/components/admin/AdminChatTab";
+import { AdminMaterialsTab } from "@/components/admin/AdminMaterialsTab";
+import { AdminBroadcastTab } from "@/components/admin/AdminBroadcastTab";
 
 export const Route = createFileRoute("/_authenticated/admin")({
   head: () => ({ meta: [{ title: "Admin Dashboard — Kinetix" }] }),
@@ -34,7 +37,7 @@ export const Route = createFileRoute("/_authenticated/admin")({
   ),
 });
 
-type Tab = "overview" | "chat" | "applications" | "programs" | "countries" | "partners" | "levels" | "commissions";
+type Tab = "overview" | "chat" | "applications" | "programs" | "countries" | "partners" | "partner_settings" | "materials" | "broadcast";
 
 const inp = "w-full rounded-xl border border-input bg-background px-3 py-2 text-sm outline-none focus:border-beige";
 const pill = "rounded-full px-3 py-1 text-xs font-medium";
@@ -76,8 +79,9 @@ function Admin() {
     ["programs", "Programs", TrendingUp],
     ["countries", "Countries", Globe],
     ["partners", "Partners", Users],
-    ["levels", "Levels", Award],
-    ["commissions", "Commissions", Wallet],
+    ["partner_settings", "Partner Settings", Award],
+    ["materials", "Materials", BookOpen],
+    ["broadcast", "Broadcast", Send],
   ];
 
   if (isLoading) return <div className="flex min-h-screen items-center justify-center text-muted-foreground animate-pulse">Loading…</div>;
@@ -168,7 +172,7 @@ function Admin() {
                         </p>
                       </div>
                     </div>
-                    <button onClick={() => setTab("commissions")} className="text-xs font-semibold text-amber-800 dark:text-amber-300 underline">
+                    <button onClick={() => setTab("partner_settings")} className="text-xs font-semibold text-amber-800 dark:text-amber-300 underline">
                       عرض جدول العمولات ←
                     </button>
                   </div>
@@ -239,18 +243,19 @@ function Admin() {
 
         {/* ── PARTNERS ── */}
         {tab === "partners" && (
-          <PartnersTab partners={d.partners} levels={d.levels} onChange={refetch} />
+          <PartnersTab partners={d.partners} levels={d.levels} withdrawals={d.withdrawals || []} onChange={refetch} />
         )}
 
-        {/* ── LEVELS ── */}
-        {tab === "levels" && (
-          <LevelsTab levels={d.levels} onChange={refetch} />
+        {/* ── PARTNER SETTINGS (UNIFIED) ── */}
+        {tab === "partner_settings" && (
+          <PartnerSettingsTab levels={d.levels} commissions={d.commissions} onChange={refetch} />
         )}
 
-        {/* ── COMMISSIONS ── */}
-        {tab === "commissions" && (
-          <CommissionsTab commissions={d.commissions} onChange={refetch} />
-        )}
+        {/* ── MATERIALS ── */}
+        {tab === "materials" && <AdminMaterialsTab />}
+
+        {/* ── BROADCAST ── */}
+        {tab === "broadcast" && <AdminBroadcastTab partners={d.partners || []} />}
       </div>
     </main>
   );
@@ -365,45 +370,73 @@ function ApplicationsTab({ apps, onChange }: { apps: any[]; onChange: () => void
 
             {expanded && (
               <div className="border-t border-border px-5 pb-5 space-y-4">
-                {/* Visual Timeline Controls for Admin */}
-                <div className="pt-4">
-                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Stage Timeline (Click circle to update stage)</p>
-                  <div className="flex flex-wrap gap-2">
-                    {stages.map((st, i) => {
-                      const isCurrent = (a.stage ?? 0) === i;
-                      const isPassed = (a.stage ?? 0) > i || (i === 1 && a.deposit_paid);
-                      return (
-                        <button
-                          key={i}
-                          onClick={async () => { await upd({ data: { id: a.id, stage: i } }); onChange(); }}
-                          className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-xs transition ${
-                            isCurrent
-                              ? "bg-beige text-navy font-bold ring-2 ring-navy/30"
-                              : isPassed
-                              ? "bg-navy text-ivory font-medium"
-                              : "border border-border bg-background text-muted-foreground hover:border-beige"
-                          }`}
-                        >
-                          <span className="flex h-4 w-4 items-center justify-center rounded-full bg-white/20 text-[10px]">
-                            {isPassed && !isCurrent ? "✓" : i}
-                          </span>
-                          {st.split("(")[0]?.trim() ?? ""}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
+                {/* ── Cohesive Application Status & Workflow Box ── */}
+                <div className="mt-4 rounded-2xl border border-border bg-card p-4 space-y-3 shadow-xs">
+                  <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 pb-3">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Application Status:</span>
+                      <select
+                        value={a.status}
+                        onChange={async e => {
+                          await setStatus({ data: { id: a.id, status: e.target.value } });
+                          onChange();
+                        }}
+                        className="rounded-full border border-input bg-background px-3 py-1 text-xs font-semibold"
+                      >
+                        {["submitted", "in_review", "documents", "approved", "rejected"].map(s => (
+                          <option key={s} value={s}>{s}</option>
+                        ))}
+                      </select>
+                      <span className={`${pill} ${statusColor(a.status)}`}>{a.status}</span>
+                    </div>
 
-                {/* Controls */}
-                <div className="flex flex-wrap gap-2 pt-2">
-                  <select value={a.status} onChange={async e => { await setStatus({ data: { id: a.id, status: e.target.value } }); onChange(); }}
-                    className="rounded-full border border-input bg-background px-3 py-1.5 text-xs">
-                    {["submitted", "in_review", "documents", "approved", "rejected"].map(s => <option key={s} value={s}>{s}</option>)}
-                  </select>
-                  <button onClick={async () => { await upd({ data: { id: a.id, deposit_paid: !a.deposit_paid } }); onChange(); }}
-                    className={`${pill} ${a.deposit_paid ? "bg-emerald-100 text-emerald-800" : "border border-beige text-foreground"}`}>
-                    {a.deposit_paid ? `✓ Deposit paid (${eur(due ?? 0)})` : `Mark deposit paid (${eur(due ?? 0)})`}
-                  </button>
+                    <button
+                      onClick={async () => {
+                        await upd({ data: { id: a.id, deposit_paid: !a.deposit_paid } });
+                        onChange();
+                      }}
+                      className={`${pill} border transition-all ${
+                        a.deposit_paid
+                          ? "bg-emerald-100 text-emerald-800 border-transparent font-bold"
+                          : "border-beige text-foreground hover:bg-beige/10"
+                      }`}
+                    >
+                      {a.deposit_paid ? `✓ Deposit Paid (${eur(due ?? 0)})` : `Mark Deposit Paid (${eur(due ?? 0)})`}
+                    </button>
+                  </div>
+
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+                      Application Stage Progression (Click to update):
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {stages.map((st, i) => {
+                        const isCurrent = (a.stage ?? 0) === i;
+                        const isPassed = (a.stage ?? 0) > i || (i === 1 && a.deposit_paid);
+                        return (
+                          <button
+                            key={i}
+                            onClick={async () => {
+                              await upd({ data: { id: a.id, stage: i } });
+                              onChange();
+                            }}
+                            className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-xs transition ${
+                              isCurrent
+                                ? "bg-beige text-navy font-bold ring-2 ring-navy/30"
+                                : isPassed
+                                ? "bg-navy text-ivory font-medium"
+                                : "border border-border bg-background text-muted-foreground hover:border-beige"
+                            }`}
+                          >
+                            <span className="flex h-4 w-4 items-center justify-center rounded-full bg-white/20 text-[10px]">
+                              {isPassed && !isCurrent ? "✓" : i}
+                            </span>
+                            {st.split("(")[0]?.trim() ?? ""}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
                 </div>
 
                 {/* Notes & Payment Request info */}
@@ -1431,15 +1464,29 @@ function CountriesTab({ countries, programs, onChange }: { countries: any[]; pro
 /* ═══════════════════════════════════════
    PARTNERS TAB
 ═══════════════════════════════════════ */
-function PartnersTab({ partners, levels, onChange }: { partners: any[]; levels: any[]; onChange: () => void }) {
+function PartnersTab({
+  partners,
+  levels,
+  withdrawals = [],
+  onChange,
+}: {
+  partners: any[];
+  levels: any[];
+  withdrawals?: any[];
+  onChange: () => void;
+}) {
   const manage = useServerFn(adminManagePartner);
   const addComm = useServerFn(adminAddCommission);
   const setComm = useServerFn(adminSetCommission);
+  const setWithdrawal = useServerFn(adminSetWithdrawalStatus);
+  const delPartner = useServerFn(adminDeletePartner);
   const [exp, setExp] = useState<string | null>(null);
   const [commForm, setCommForm] = useState<{ amount: string; note: string }>({ amount: "", note: "" });
   const [filter, setFilter] = useState("all");
   const [search, setSearch] = useState("");
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  const [partnerToDelete, setPartnerToDelete] = useState<any | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const copyText = (txt: string, key: string) => {
     navigator.clipboard.writeText(txt);
@@ -1930,12 +1977,199 @@ function PartnersTab({ partners, levels, onChange }: { partners: any[]; levels: 
                     </div>
                   </div>
                 </div>
+
+                {/* 6. Withdrawal Requests History */}
+                {(() => {
+                  const pWithdrawals = withdrawals.filter(
+                    (w: any) => w.partner_id === p.id || w.partnerId === p.id
+                  );
+                  return (
+                    <div>
+                      <p className="mb-2 text-sm font-semibold flex items-center gap-2">
+                        <CreditCard className="h-4 w-4 text-beige" />
+                        طلبات سحب الأرباح ({pWithdrawals.length})
+                      </p>
+                      {pWithdrawals.length > 0 ? (
+                        <div className="overflow-x-auto rounded-2xl border border-border bg-card">
+                          <table className="w-full text-xs">
+                            <thead>
+                              <tr className="border-b border-border bg-secondary/30 text-muted-foreground">
+                                <th className="px-3 py-2 text-start">المبلغ</th>
+                                <th className="px-3 py-2 text-start">الوسيلة</th>
+                                <th className="px-3 py-2 text-start">بيانات الحساب / المحفظة</th>
+                                <th className="px-3 py-2 text-start">الحالة</th>
+                                <th className="px-3 py-2 text-start">التاريخ</th>
+                                <th className="px-3 py-2 text-end">تغيير الحالة</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {pWithdrawals.map((w: any) => (
+                                <tr key={w.id} className="border-b border-border last:border-0 hover:bg-secondary/20">
+                                  <td className="px-3 py-2 font-bold text-beige text-sm">{egp(w.amount)}</td>
+                                  <td className="px-3 py-2 font-medium">{w.payoutMethod || w.payout_method || "—"}</td>
+                                  <td className="px-3 py-2 font-mono text-[11px] text-muted-foreground">{w.payoutDetails || w.payout_details || "—"}</td>
+                                  <td className="px-3 py-2">
+                                    <span className={`${pill} ${statusColor(w.status)}`}>{w.status}</span>
+                                  </td>
+                                  <td className="px-3 py-2 text-muted-foreground">
+                                    {new Date(w.createdAt || w.created_at || Date.now()).toLocaleDateString()}
+                                  </td>
+                                  <td className="px-3 py-2 text-end">
+                                    <select
+                                      value={w.status}
+                                      onChange={async (e) => {
+                                        await setWithdrawal({
+                                          data: {
+                                            id: w.id,
+                                            status: e.target.value as any,
+                                          },
+                                        });
+                                        onChange();
+                                      }}
+                                      className="rounded-full border border-input bg-background px-2.5 py-1 text-xs outline-none"
+                                    >
+                                      {["pending", "approved", "processing", "completed", "rejected"].map((s) => (
+                                        <option key={s} value={s}>{s}</option>
+                                      ))}
+                                    </select>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      ) : (
+                        <div className="rounded-2xl border border-dashed border-border p-3 text-center text-xs text-muted-foreground">
+                          لا توجد طلبات سحب مقدمة من هذا الشريك حتى الآن.
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+
+                {/* 7. Partner Administration & Safe Delete */}
+                <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-red-500/20 bg-red-500/5 p-4">
+                  <div>
+                    <p className="text-xs font-bold text-red-700 dark:text-red-400">إدارة حساب الشريك / الحذف والتعطيل الآمن</p>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                      يتم فحص المعاملات المالية أولاً، وإذا وجدت سجلات يتم الأرشفة والتعطيل التلقائي لحماية السجلات المالية والمحاسبية.
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setPartnerToDelete(p)}
+                    className="flex items-center gap-1.5 rounded-full border border-red-300 bg-red-100 px-3.5 py-1.5 text-xs font-bold text-red-800 hover:bg-red-200 dark:border-red-800 dark:bg-red-950/60 dark:text-red-300 transition-colors"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                    حذف / أرشفة الشريك
+                  </button>
+                </div>
               </div>
             )}
           </div>
         );
       })}
       {filtered.length === 0 && <p className="py-12 text-center text-muted-foreground">No partners found</p>}
+
+      {/* Delete Confirmation Modal */}
+      {partnerToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs">
+          <div className="w-full max-w-md rounded-3xl border border-border bg-card p-6 shadow-xl space-y-4">
+            <div className="flex items-center justify-between border-b border-border pb-3">
+              <h3 className="font-display text-lg font-bold text-red-600 flex items-center gap-2">
+                <AlertCircle className="h-5 w-5" />
+                تأكيد حذف أو أرشفة الشريك
+              </h3>
+              <button onClick={() => setPartnerToDelete(null)} className="text-muted-foreground hover:text-foreground">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <p className="text-sm text-foreground">
+              هل أنت متأكد من رغبتك في حذف الشريك{" "}
+              <strong>{partnerToDelete.profiles?.full_name || partnerToDelete.promo_code}</strong>؟
+            </p>
+            <div className="rounded-xl bg-secondary/50 p-3 text-xs text-muted-foreground space-y-1">
+              <p>• الكود: <span className="font-mono font-bold text-foreground">{partnerToDelete.promo_code}</span></p>
+              <p>• العملاء المسجلين: <strong className="text-foreground">{partnerToDelete.leads?.length ?? 0}</strong></p>
+              <p>• العمولات: <strong className="text-foreground">{partnerToDelete.commissions?.length ?? 0}</strong></p>
+              <p className="text-amber-600 dark:text-amber-400 font-medium">
+                * في حال وجود عمولات أو تقديمات مرتبطة بالشريك، سيتم أرشفته وتعطيل كوده تلقائياً دون فقد البيانات المالية.
+              </p>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setPartnerToDelete(null)}
+                className="rounded-full border border-border px-4 py-2 text-xs font-medium hover:bg-secondary"
+              >
+                إلغاء
+              </button>
+              <button
+                type="button"
+                disabled={deleting}
+                onClick={async () => {
+                  setDeleting(true);
+                  try {
+                    await delPartner({ data: { id: partnerToDelete.id, action: "delete" } });
+                    setPartnerToDelete(null);
+                    onChange();
+                  } catch (err: any) {
+                    alert(err.message || "حدث خطأ أثناء الحذف");
+                  } finally {
+                    setDeleting(false);
+                  }
+                }}
+                className="flex items-center gap-1.5 rounded-full bg-red-600 px-4 py-2 text-xs font-bold text-white hover:bg-red-700 disabled:opacity-50"
+              >
+                {deleting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                تأكيد الإجراء
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════
+   PARTNER SETTINGS TAB (Unified Levels & Commissions)
+═══════════════════════════════════════ */
+function PartnerSettingsTab({ levels, commissions, onChange }: { levels: any[]; commissions: any[]; onChange: () => void }) {
+  const [subTab, setSubTab] = useState<"levels" | "commissions">("levels");
+  return (
+    <div className="space-y-6">
+      <div className="flex border-b border-border pb-3 gap-2">
+        <button
+          onClick={() => setSubTab("levels")}
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all ${
+            subTab === "levels"
+              ? "bg-navy text-ivory shadow-xs font-bold"
+              : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+          }`}
+        >
+          <Award className="h-4 w-4 text-beige" />
+          <span>Levels & Progression Thresholds</span>
+        </button>
+        <button
+          onClick={() => setSubTab("commissions")}
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all ${
+            subTab === "commissions"
+              ? "bg-navy text-ivory shadow-xs font-bold"
+              : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+          }`}
+        >
+          <Wallet className="h-4 w-4 text-beige" />
+          <span>Commissions Rules & Global Payout Log</span>
+        </button>
+      </div>
+
+      {subTab === "levels" ? (
+        <LevelsTab levels={levels} onChange={onChange} />
+      ) : (
+        <CommissionsTab commissions={commissions} onChange={onChange} />
+      )}
     </div>
   );
 }
