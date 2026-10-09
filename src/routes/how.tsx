@@ -218,7 +218,7 @@ export function HowPage() {
                         </div>
 
                         <h2 className="text-2xl md:text-3xl font-bold text-foreground">
-                          {ar ? s.titleAr : s.title}
+                          {ar ? s.titleAr : s.titleEn}
                         </h2>
 
                         <p className="text-sm md:text-base leading-relaxed text-muted-foreground">
@@ -276,11 +276,11 @@ export function HowPage() {
                   <div className="space-y-2 text-xs">
                     <div className="flex justify-between py-1.5 border-b border-border">
                       <span className="text-muted-foreground">{tr("Work Permit Issuance", "إصدار تصريح العمل")}</span>
-                      <span className="font-semibold">{c.timeline.split("·")[0]?.trim() || "3-6 weeks"}</span>
+                      <span className="font-semibold">{c.timeline.find((t) => t.step.toLowerCase().includes("permit"))?.time ?? "4–8 weeks"}</span>
                     </div>
                     <div className="flex justify-between py-1.5 border-b border-border">
                       <span className="text-muted-foreground">{tr("Visa Appointment & Stamp", "موعد وتأشيرة السفارة")}</span>
-                      <span className="font-semibold">{c.timeline.split("·")[1]?.trim() || "2-4 weeks"}</span>
+                      <span className="font-semibold">{c.timeline.find((t) => t.step.toLowerCase().includes("visa"))?.time ?? "2–4 weeks"}</span>
                     </div>
                     <div className="flex justify-between py-1.5 pt-2">
                       <span className="text-muted-foreground">{tr("Total Estimated Time", "إجمالي الوقت المقدر")}</span>
