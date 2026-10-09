@@ -37,11 +37,12 @@ export function CountriesPage() {
 
   const categories = [
     { id: "all", labelEn: "All Fields", labelAr: "جميع المجالات" },
-    { id: "Hospitality & Tourism", labelEn: "Hospitality & Tourism", labelAr: "السياحة والضيافة" },
-    { id: "Logistics & Supply Chain", labelEn: "Logistics & Transport", labelAr: "اللوجستيات والنقل" },
-    { id: "Technology & Software", labelEn: "IT & Tech", labelAr: "تكنولوجيا المعلومات" },
-    { id: "Healthcare & Caregiving", labelEn: "Healthcare", labelAr: "الرعاية الصحية" },
-    { id: "Business & Management", labelEn: "Business & Sales", labelAr: "إدارة ومبيعات" },
+    { id: "Healthcare", labelEn: "Doctors, Nurses & Healthcare", labelAr: "الأطباء والتمريض ومساعد طبيب" },
+    { id: "Engineering", labelEn: "Engineering & Technical", labelAr: "الهندسة والتقنية" },
+    { id: "Hospitality", labelEn: "Hospitality & Tourism", labelAr: "السياحة والضيافة" },
+    { id: "Logistics", labelEn: "Logistics & Transport", labelAr: "اللوجستيات والنقل" },
+    { id: "Technology", labelEn: "IT & Software", labelAr: "تكنولوجيا المعلومات" },
+    { id: "Manufacturing", labelEn: "Industry & Production", labelAr: "الصناعة والتصنيع" },
   ];
 
   // Flatten all programs
@@ -50,10 +51,23 @@ export function CountriesPage() {
   );
 
   const filteredPrograms = allPrograms.filter((p) => {
+    const catLower = selectedCategory.toLowerCase();
     const matchesCat =
       selectedCategory === "all" ||
-      p.category.toLowerCase().includes(selectedCategory.toLowerCase()) ||
-      (p.categoryAr && p.categoryAr.includes(selectedCategory));
+      p.category.toLowerCase().includes(catLower) ||
+      (p.categoryAr && p.categoryAr.toLowerCase().includes(catLower)) ||
+      (selectedCategory === "Healthcare" && (
+        p.category.includes("Healthcare") ||
+        p.category.includes("Nursing") ||
+        p.category.includes("Medicine") ||
+        p.categoryAr.includes("طب") ||
+        p.categoryAr.includes("تمريض") ||
+        p.categoryAr.includes("مساعد طبيب")
+      )) ||
+      (selectedCategory === "Engineering" && (
+        p.category.includes("Engineering") ||
+        p.categoryAr.includes("هندسة")
+      ));
 
     const q = searchQuery.trim().toLowerCase();
     const matchesSearch =

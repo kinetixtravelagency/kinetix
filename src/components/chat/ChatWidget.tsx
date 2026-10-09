@@ -225,6 +225,7 @@ export function ChatWidget() {
 
   const quickReplies = ar
     ? [
+        { icon: "🩺", text: "فرص الأطباء والمهندسين والتمريض ومساعد طبيب" },
         { icon: "🌍", text: "استفسار عن وظائف بلغاريا وأوروبا" },
         { icon: "💳", text: "تفاصيل نظام الدفع والتقسيط" },
         { icon: "📄", text: "الأوراق المطلوبة لتجهيز السيرة الذاتية" },
@@ -232,6 +233,7 @@ export function ChatWidget() {
         { icon: "📞", text: "أريد التحدث مع مستشار مباشرةً" },
       ]
     : [
+        { icon: "🩺", text: "Doctors, Nurses & Engineering jobs in Europe" },
         { icon: "🌍", text: "Inquire about European work programs" },
         { icon: "💳", text: "Payment & installment plans details" },
         { icon: "📄", text: "Documents required to apply" },
