@@ -266,47 +266,104 @@ function Dashboard() {
                     const progTitle = ar ? pr?.title_ar || catProg?.titleAr || pr?.title_en : pr?.title_en || catProg?.title;
                     const countryTitle = ar ? pr?.countries?.name_ar || c?.nameAr : pr?.countries?.name_en || c?.name;
 
+                    // Formatted application date
+                    const appDate = new Date(a.created_at);
+                    const formattedDate = appDate.toLocaleDateString(ar ? "ar-EG" : "en-GB", {
+                      day: "2-digit", month: "long", year: "numeric",
+                    });
+                    const paymentLabel = a.payment_plan === "full"
+                      ? (ar ? "دفع كامل" : "Full Payment")
+                      : (ar ? `${a.installments ?? ""} أقساط` : `${a.installments ?? ""} Instalments`);
+
                     return (
-                      <div key={a.id} className="rounded-3xl border border-border bg-card p-6 shadow-sm space-y-6">
-                        {/* Header */}
-                        <div className="flex flex-wrap items-start justify-between gap-4 border-b border-border/80 pb-5">
-                          <div>
-                            <div className="flex flex-wrap items-center gap-2">
-                              <span className="text-xl">{c?.flag ?? "🌍"}</span>
-                              <h3 className="font-display text-xl font-bold">
-                                {countryTitle} · {progTitle}
+                      <div key={a.id} className="rounded-3xl border border-border bg-card shadow-sm overflow-hidden">
+                        {/* ── Application Card Header ── */}
+                        <div className="flex flex-wrap items-start justify-between gap-4 p-5 pb-4 border-b border-border/60 bg-secondary/20">
+                          {/* Left: image + text */}
+                          <div className="flex items-center gap-4">
+                            {/* Country image avatar */}
+                            {c?.image ? (
+                              <div className="relative h-14 w-14 shrink-0 rounded-2xl overflow-hidden ring-2 ring-border shadow-sm">
+                                <img
+                                  src={c.image}
+                                  alt={countryTitle ?? ""}
+                                  className="h-full w-full object-cover"
+                                />
+                                {/* flag badge */}
+                                <span className="absolute bottom-0.5 right-0.5 text-base leading-none drop-shadow">{c?.flag}</span>
+                              </div>
+                            ) : (
+                              <div className="h-14 w-14 shrink-0 rounded-2xl bg-secondary flex items-center justify-center text-2xl ring-2 ring-border">
+                                🌍
+                              </div>
+                            )}
+
+                            <div>
+                              {/* Program title — prominent */}
+                              <h3 className="font-display text-lg font-bold text-foreground leading-tight">
+                                {progTitle || (ar ? "برنامج عمل" : "Work Programme")}
                               </h3>
+                              {/* Country name as subtitle */}
+                              <p className="mt-0.5 text-sm font-semibold text-muted-foreground">
+                                {c?.flag} {countryTitle}
+                              </p>
+                              {/* Meta row */}
+                              <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted-foreground">
+                                <span className="inline-flex items-center gap-1">
+                                  <Calendar className="h-3 w-3" />
+                                  {formattedDate}
+                                </span>
+                                <span className="opacity-40">·</span>
+                                <span className="inline-flex items-center gap-1">
+                                  <CreditCard className="h-3 w-3" />
+                                  {paymentLabel}
+                                </span>
+                                {a.promo_code && (
+                                  <>
+                                    <span className="opacity-40">·</span>
+                                    <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-medium">
+                                      🏷 {a.promo_code}
+                                    </span>
+                                  </>
+                                )}
+                              </div>
                             </div>
-                            <p className="mt-1 text-xs text-muted-foreground">
-                              {new Date(a.created_at).toLocaleDateString()} · {a.payment_plan === "full" ? t("payFull") : `${t("payInst")} ${a.installments} ${t("months")}`}
-                              {a.promo_code ? ` · 🏷 ${a.promo_code}` : ""}
-                            </p>
                           </div>
 
-                          <div className="flex flex-wrap items-center gap-2">
+                          {/* Right: status badge + cancel */}
+                          <div className="flex flex-wrap items-center gap-2 self-start pt-1">
                             {a.deposit_paid ? (
-                              <span className="rounded-full bg-emerald-100 px-3.5 py-1 text-xs font-semibold text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-400">
-                                ✓ {t("depositPaid")}
+                              <span className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-100 dark:bg-emerald-950/50 px-3.5 py-1.5 text-xs font-bold text-emerald-800 dark:text-emerald-300 ring-1 ring-emerald-200 dark:ring-emerald-800/40">
+                                <CheckCircle2 className="h-3.5 w-3.5" />
+                                {ar ? "الديبوزت مدفوع" : "Deposit Paid"}
                               </span>
                             ) : (
                               <>
-                                <span className="rounded-full bg-amber-100 px-3.5 py-1 text-xs font-semibold text-amber-800 dark:bg-amber-950/60 dark:text-amber-300">
-                                  ⏳ {t("depositAwait")} ({eur(due ?? 0)})
-                                </span>
+                                <div className="flex flex-col items-end gap-1.5">
+                                  <span className="inline-flex items-center gap-1.5 rounded-xl bg-amber-100 dark:bg-amber-950/50 px-3.5 py-1.5 text-xs font-bold text-amber-900 dark:text-amber-300 ring-1 ring-amber-300 dark:ring-amber-700/40">
+                                    <Clock className="h-3.5 w-3.5" />
+                                    {ar ? "في انتظار الديبوزت" : "Awaiting Deposit"}
+                                  </span>
+                                  <span className="text-[11px] font-semibold text-amber-700 dark:text-amber-400 text-right">
+                                    {eur(due ?? 0)}{" "}
+                                    <span className="font-normal opacity-70">({ar ? "المبلغ المطلوب" : "required"})</span>
+                                  </span>
+                                </div>
                                 <button
                                   type="button"
                                   onClick={() => handleCancelApp(a.id)}
-                                  className="inline-flex items-center gap-1 rounded-full border border-red-200 bg-red-50 px-3 py-1 text-xs font-semibold text-red-600 hover:bg-red-100 dark:bg-red-950/30 dark:border-red-900/40 transition-colors"
+                                  className="inline-flex items-center gap-1 rounded-xl border border-red-200 dark:border-red-900/40 bg-red-50 dark:bg-red-950/30 px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-100 dark:hover:bg-red-950/50 transition-colors"
                                   title={ar ? "إلغاء الطلب وحذفه" : "Cancel Application"}
                                 >
                                   <Trash2 className="h-3 w-3" />
-                                  <span>{ar ? "إلغاء وحذف" : "Cancel"}</span>
+                                  <span>{ar ? "إلغاء" : "Cancel"}</span>
                                 </button>
                               </>
                             )}
                           </div>
                         </div>
 
+                        <div className="p-6 space-y-6">
                         {/* Circular Step Timeline + Active Stage Card + CV & Docs */}
                         <ApplicationProgressTracker
                           application={{
@@ -316,6 +373,7 @@ function Dashboard() {
                           }}
                           onDocChange={() => queryClient.invalidateQueries({ queryKey: ["account"] })}
                         />
+                        </div>
                       </div>
                     );
                   })}
