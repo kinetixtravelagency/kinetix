@@ -1,0 +1,851 @@
+import { useState, useEffect, useRef } from "react";
+import { useServerFn } from "@tanstack/react-start";
+import {
+  MessageSquare,
+  Send,
+  Search,
+  CheckCheck,
+  CheckCircle2,
+  Clock,
+  Phone,
+  Mail,
+  User,
+  Sparkles,
+  ExternalLink,
+  RotateCcw,
+  CreditCard,
+  Copy,
+  Check,
+  Flag,
+  Tag,
+  Trash2,
+  Bookmark,
+  Folder,
+  AlertTriangle,
+  Plus,
+  X,
+  ChevronDown,
+  ArrowLeft,
+  Filter,
+} from "lucide-react";
+import {
+  getAdminChats,
+  getAdminConversationMessages,
+  sendAdminReply,
+  setAdminChatStatus,
+  adminSetConversationFlag,
+  adminSetConversationGroup,
+  adminDeleteConversation,
+  type ChatConversation,
+  type ChatMessage,
+} from "@/lib/chat.functions";
+import { ApplicationChatCard } from "@/components/chat/ApplicationChatCard";
+
+const PRESET_GROUPS = [
+  "Important Customers",
+  "Follow-up Needed",
+  "Travel Applications",
+  "Payment-related",
+  "Resolved Cases",
+];
+
+const FLAGS: { id: "urgent" | "important" | "follow_up" | "resolved"; label: string; color: string; badgeCls: string }[] = [
+  { id: "urgent", label: "Urgent", color: "text-red-500", badgeCls: "bg-red-100 text-red-800 dark:bg-red-950/40 dark:text-red-300 border-red-300" },
+  { id: "important", label: "Important", color: "text-purple-500", badgeCls: "bg-purple-100 text-purple-800 dark:bg-purple-950/40 dark:text-purple-300 border-purple-300" },
+  { id: "follow_up", label: "Follow-up", color: "text-amber-500", badgeCls: "bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300 border-amber-300" },
+  { id: "resolved", label: "Resolved", color: "text-emerald-500", badgeCls: "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300 border-emerald-300" },
+];
+
+export function AdminChatTab() {
+  const fetchChats = useServerFn(getAdminChats);
+  const fetchMessages = useServerFn(getAdminConversationMessages);
+  const sendReply = useServerFn(sendAdminReply);
+  const setStatus = useServerFn(setAdminChatStatus);
+  const setFlag = useServerFn(adminSetConversationFlag);
+  const setGroup = useServerFn(adminSetConversationGroup);
+  const deleteConv = useServerFn(adminDeleteConversation);
+
+  const [conversations, setConversations] = useState<ChatConversation[]>([]);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [replyText, setReplyText] = useState("");
+  const [search, setSearch] = useState("");
+  const [filter, setFilter] = useState<"all" | "active" | "payments" | "resolved">("all");
+  const [selectedGroupFilter, setSelectedGroupFilter] = useState<string>("all");
+  const [selectedFlagFilter, setSelectedFlagFilter] = useState<string>("all");
+  const [busy, setBusy] = useState(false);
+
+  // Modal states
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showGroupPicker, setShowGroupPicker] = useState(false);
+  const [showFlagPicker, setShowFlagPicker] = useState(false);
+  const [customGroupInput, setCustomGroupInput] = useState("");
+
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
+
+  // Poll conversations list
+  useEffect(() => {
+    let mounted = true;
+    const load = async () => {
+      try {
+        const res = await fetchChats();
+        if (mounted && res && Array.isArray(res.conversations)) {
+          setConversations(res.conversations);
+        }
+      } catch (err) {
+        console.error("Error fetching admin chats:", err);
+      }
+    };
+    load();
+    const iv = setInterval(load, 3000);
+    return () => {
+      mounted = false;
+      clearInterval(iv);
+    };
+  }, []);
+
+  // Poll messages for selected conversation
+  useEffect(() => {
+    if (!selectedId) {
+      setMessages([]);
+      return;
+    }
+
+    let mounted = true;
+    const loadMsgs = async () => {
+      try {
+        const res = await fetchMessages({ data: { conversationId: selectedId } });
+        if (mounted && res && Array.isArray(res.messages)) {
+          // Merge with any pending messages to avoid flicker
+          setMessages((prev) => {
+            const serverMsgs = res.messages;
+            const tempMsgs = prev.filter((m) => m.id.startsWith("temp_"));
+            const map = new Map<string, ChatMessage>();
+            for (const m of serverMsgs) map.set(m.id, m);
+            for (const m of tempMsgs) map.set(m.id, m);
+            return Array.from(map.values()).sort(
+              (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+            );
+          });
+        }
+      } catch (err) {
+        console.error("Error fetching conversation messages:", err);
+      }
+    };
+
+    loadMsgs();
+    const iv = setInterval(loadMsgs, 2500);
+    return () => {
+      mounted = false;
+      clearInterval(iv);
+    };
+  }, [selectedId]);
+
+  // Scroll inner messages container to bottom
+  useEffect(() => {
+    if (messagesContainerRef.current) {
+      messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+    }
+  }, [messages]);
+
+  const activeConv = conversations.find((c) => c.id === selectedId);
+
+  // Instant optimistic message sending
+  const handleSend = async (customText?: string) => {
+    const text = (customText ?? replyText).trim();
+    if (!selectedId || !text || busy) return;
+
+    const tempId = "temp_" + Date.now();
+    const nowIso = new Date().toISOString();
+    const tempMsg: ChatMessage = {
+      id: tempId,
+      conversationId: selectedId,
+      sender: "admin",
+      senderName: "Kinetix Admin",
+      text,
+      isRead: false,
+      createdAt: nowIso,
+    };
+
+    // 1. Immediately show message in conversation window
+    setMessages((prev) => [...prev, tempMsg]);
+    setReplyText("");
+
+    // 2. Immediately update left sidebar conversation snippet
+    setConversations((prev) =>
+      prev.map((c) =>
+        c.id === selectedId
+          ? { ...c, lastMessage: text, lastMessageAt: nowIso }
+          : c
+      )
+    );
+
+    setBusy(true);
+    try {
+      const savedMsg = await sendReply({
+        data: {
+          conversationId: selectedId,
+          text,
+          senderName: "Kinetix Admin",
+        },
+      });
+
+      if (savedMsg && savedMsg.id) {
+        setMessages((prev) =>
+          prev.map((m) => (m.id === tempId ? savedMsg : m))
+        );
+      }
+    } catch (err: any) {
+      console.error("Failed to send reply:", err);
+      alert(err?.message || "فشل إرسال الرد، يرجى المحاولة مرة أخرى.");
+      setMessages((prev) => prev.filter((m) => m.id !== tempId));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleToggleStatus = async () => {
+    if (!activeConv) return;
+    const newStatus = activeConv.status === "active" ? "resolved" : "active";
+    setConversations((prev) =>
+      prev.map((c) => (c.id === activeConv.id ? { ...c, status: newStatus } : c))
+    );
+    try {
+      await setStatus({ data: { conversationId: activeConv.id, status: newStatus } });
+    } catch (err) {
+      console.error("Failed to set status:", err);
+    }
+  };
+
+  // Immediate optimistic flag update
+  const handleSetFlag = async (convId: string, flagId: ChatConversation["flag"]) => {
+    setConversations((prev) =>
+      prev.map((c) => (c.id === convId ? { ...c, flag: flagId } : c))
+    );
+    setShowFlagPicker(false);
+    try {
+      await setFlag({ data: { conversationId: convId, flag: flagId ?? null } });
+    } catch (err) {
+      console.error("Failed to set flag:", err);
+    }
+  };
+
+  // Immediate optimistic group update
+  const handleSetGroup = async (convId: string, groupName: string | null) => {
+    setConversations((prev) =>
+      prev.map((c) => (c.id === convId ? { ...c, groupName: groupName?.trim() || null } : c))
+    );
+    setShowGroupPicker(false);
+    setCustomGroupInput("");
+    try {
+      await setGroup({ data: { conversationId: convId, groupName: groupName?.trim() || null } });
+    } catch (err) {
+      console.error("Failed to set group:", err);
+    }
+  };
+
+  const handleDeleteConversation = async () => {
+    if (!activeConv) return;
+    const targetId = activeConv.id;
+    setConversations((prev) => prev.filter((c) => c.id !== targetId));
+    setSelectedId(null);
+    setShowDeleteModal(false);
+    try {
+      await deleteConv({ data: { conversationId: targetId } });
+    } catch (err) {
+      console.error("Failed to delete conversation:", err);
+    }
+  };
+
+  const isPaymentConv = (c: ChatConversation) =>
+    Boolean(
+      c.hasPaymentRequest ||
+      (c.lastMessage &&
+        (c.lastMessage.includes("طلب سداد") ||
+          c.lastMessage.includes("💳") ||
+          c.lastMessage.includes("طلب دفع") ||
+          c.lastMessage.includes("ديبوزيت") ||
+          c.lastMessage.includes("سداد الديبوزيت") ||
+          c.lastMessage.toLowerCase().includes("deposit")))
+    );
+
+  const paymentCount = conversations.filter(isPaymentConv).length;
+
+  const existingGroups = Array.from(
+    new Set([...PRESET_GROUPS, ...conversations.map((c) => c.groupName).filter(Boolean)])
+  ) as string[];
+
+  const filtered = conversations.filter((c) => {
+    if (filter === "payments") {
+      if (!isPaymentConv(c)) return false;
+    } else if (filter !== "all" && c.status !== filter) {
+      return false;
+    }
+
+    if (selectedGroupFilter !== "all" && c.groupName !== selectedGroupFilter) {
+      return false;
+    }
+
+    if (selectedFlagFilter !== "all" && c.flag !== selectedFlagFilter) {
+      return false;
+    }
+
+    if (!search.trim()) return true;
+    const q = search.toLowerCase();
+    return (
+      c.clientName.toLowerCase().includes(q) ||
+      (c.clientEmail && c.clientEmail.toLowerCase().includes(q)) ||
+      (c.clientPhone && c.clientPhone.includes(q)) ||
+      c.lastMessage.toLowerCase().includes(q) ||
+      (c.groupName && c.groupName.toLowerCase().includes(q))
+    );
+  });
+
+  const cannedTemplates = [
+    "أهلاً بك! معك فريق كينتيكس للاستشارات، كيف يمكننا مساعدتك اليوم؟",
+    "🩺 نوفر برامج توظيف معتمدة للأطباء والممرضين ومساعدي الأطباء والمهندسين في أيرلندا وإيطاليا مع تسهيلات وتقسيط.",
+    "تمت مراجعة استفسارك، يسعدنا تزويدك بكافة تفاصيل البرنامج وإجراءات التقديم.",
+    "يمكنك سداد الدفعة الأولى الآن وتقسيط الباقي حتى 6 أشهر بكل سهولة.",
+    "يرجى تزويدنا برقم الهاتف / الواتساب للتواصل معك وتنسيق موعد المقابلة.",
+    "💳 بيانات إنستاباي: يرجى التحويل على معرف (kinetix@instapay) وإرسال إيصال التحويل هنا.",
+    "💳 بيانات فودافون كاش: يرجى التحويل على رقم (01000000000) وإرسال سكرين شوت بالعملية.",
+  ];
+
+  return (
+    <div className="flex flex-col md:flex-row h-[calc(100vh-140px)] min-h-[620px] max-h-[960px] w-full rounded-3xl border border-border bg-card shadow-lg overflow-hidden">
+      {/* ── Left Column: Conversations List ── */}
+      <div
+        className={`w-full md:w-[360px] md:shrink-0 flex flex-col border-b md:border-b-0 md:border-e border-border bg-secondary/15 h-full ${
+          selectedId ? "hidden md:flex" : "flex"
+        }`}
+      >
+        {/* Search & Filters Header */}
+        <div className="p-4 border-b border-border space-y-3 bg-card shrink-0">
+          <div className="flex items-center justify-between">
+            <h2 className="font-display font-semibold text-base flex items-center gap-2">
+              <MessageSquare className="h-4 w-4 text-beige" />
+              Live Chat ({conversations.length})
+            </h2>
+            <span className="text-xs text-muted-foreground">
+              {conversations.filter((c) => c.status === "active").length} active
+            </span>
+          </div>
+
+          <div className="relative">
+            <Search className="absolute start-3 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search conversations, groups, phones…"
+              className="w-full rounded-full border border-input bg-background ps-9 pe-3 py-1.5 text-xs outline-none focus:border-beige"
+            />
+          </div>
+
+          {/* Quick status tabs */}
+          <div className="flex flex-wrap gap-1.5 text-xs">
+            <button
+              onClick={() => setFilter("all")}
+              className={`rounded-full px-3 py-1 font-medium capitalize transition-colors ${
+                filter === "all" ? "bg-navy text-ivory" : "bg-secondary text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              All
+            </button>
+            <button
+              onClick={() => setFilter("active")}
+              className={`rounded-full px-3 py-1 font-medium capitalize transition-colors ${
+                filter === "active" ? "bg-navy text-ivory" : "bg-secondary text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Active
+            </button>
+            <button
+              onClick={() => setFilter("payments")}
+              className={`flex items-center gap-1.5 rounded-full px-3 py-1 font-bold transition-all ${
+                filter === "payments"
+                  ? "bg-amber-500 text-white shadow-sm"
+                  : "bg-amber-500/10 text-amber-800 dark:text-amber-300 border border-amber-500/30 hover:bg-amber-500/20"
+              }`}
+            >
+              <CreditCard className="h-3.5 w-3.5" />
+              طلبات الدفع
+              {paymentCount > 0 && (
+                <span className="rounded-full bg-amber-600 px-1.5 py-0.2 text-[10px] text-white">
+                  {paymentCount}
+                </span>
+              )}
+            </button>
+            <button
+              onClick={() => setFilter("resolved")}
+              className={`rounded-full px-3 py-1 font-medium capitalize transition-colors ${
+                filter === "resolved" ? "bg-navy text-ivory" : "bg-secondary text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Resolved
+            </button>
+          </div>
+
+          {/* Group and Flag Filters */}
+          <div className="flex items-center gap-2 pt-1 border-t border-border">
+            {/* Group dropdown filter */}
+            <select
+              value={selectedGroupFilter}
+              onChange={(e) => setSelectedGroupFilter(e.target.value)}
+              className="flex-1 rounded-xl border border-input bg-background px-2.5 py-1 text-[11px] outline-none text-muted-foreground focus:border-beige"
+            >
+              <option value="all">📁 All Groups</option>
+              {existingGroups.map((g) => (
+                <option key={g} value={g}>
+                  📁 {g}
+                </option>
+              ))}
+            </select>
+
+            {/* Flag filter */}
+            <select
+              value={selectedFlagFilter}
+              onChange={(e) => setSelectedFlagFilter(e.target.value)}
+              className="rounded-xl border border-input bg-background px-2.5 py-1 text-[11px] outline-none text-muted-foreground focus:border-beige"
+            >
+              <option value="all">🚩 All Flags</option>
+              <option value="urgent">🔴 Urgent</option>
+              <option value="important">🟣 Important</option>
+              <option value="follow_up">🟡 Follow-up</option>
+              <option value="resolved">🟢 Resolved</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Conversations List Scroll Area */}
+        <div className="flex-1 min-h-0 overflow-y-auto divide-y divide-border">
+          {filtered.map((c) => {
+            const isSelected = c.id === selectedId;
+            const hasPayment = isPaymentConv(c);
+            const flagObj = FLAGS.find((f) => f.id === c.flag);
+
+            return (
+              <button
+                key={c.id}
+                onClick={() => setSelectedId(c.id)}
+                className={`w-full p-3.5 text-start transition-colors flex items-start gap-3 ${
+                  isSelected
+                    ? "bg-beige/15 dark:bg-beige/25 border-s-4 border-beige"
+                    : "hover:bg-secondary/40"
+                }`}
+              >
+                <div
+                  className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl font-bold text-xs ${
+                    hasPayment
+                      ? "bg-amber-600 text-white"
+                      : isSelected
+                      ? "bg-navy text-ivory"
+                      : "bg-secondary text-foreground"
+                  }`}
+                >
+                  {hasPayment ? <CreditCard className="h-4 w-4" /> : c.clientName.slice(0, 2).toUpperCase()}
+                </div>
+
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center justify-between gap-1">
+                    <p className="truncate font-semibold text-xs text-foreground">
+                      {c.clientName}
+                    </p>
+                    <span className="text-[10px] text-muted-foreground shrink-0">
+                      {new Date(c.lastMessageAt).toLocaleDateString([], { month: "short", day: "numeric" })}
+                    </span>
+                  </div>
+
+                  <p className="mt-1 text-xs text-muted-foreground line-clamp-1">
+                    {c.lastMessage}
+                  </p>
+
+                  <div className="mt-2 flex flex-wrap items-center justify-between gap-1">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      {flagObj && (
+                        <span className={`text-[10px] rounded-full px-2 py-0.2 border font-bold ${flagObj.badgeCls}`}>
+                          {flagObj.label}
+                        </span>
+                      )}
+
+                      {c.groupName && (
+                        <span className="text-[10px] rounded-full px-2 py-0.2 bg-secondary text-muted-foreground border border-border">
+                          📁 {c.groupName}
+                        </span>
+                      )}
+
+                      {hasPayment && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 border border-amber-500/40 px-2 py-0.2 text-[10px] font-bold text-amber-700 dark:text-amber-300">
+                          <CreditCard className="h-2.5 w-2.5 text-amber-600" />
+                          طلب سداد
+                        </span>
+                      )}
+                    </div>
+
+                    {c.unreadCount > 0 && (
+                      <span className="rounded-full bg-red-600 px-2 py-0.2 text-[10px] font-bold text-white">
+                        {c.unreadCount} new
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </button>
+            );
+          })}
+
+          {filtered.length === 0 && (
+            <div className="p-8 text-center text-xs text-muted-foreground">
+              No conversations found matching filters.
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ── Right Column: Chat History & Actions ── */}
+      <div
+        className={`flex-1 flex flex-col bg-background min-w-0 h-full ${
+          !selectedId ? "hidden md:flex" : "flex"
+        }`}
+      >
+        {activeConv ? (
+          <>
+            {/* Conversation Header */}
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-card p-3 sm:p-4 shrink-0">
+              <div className="flex items-center gap-3 min-w-0">
+                {/* Mobile Back Button */}
+                <button
+                  onClick={() => setSelectedId(null)}
+                  className="md:hidden flex items-center gap-1 rounded-xl bg-secondary px-2.5 py-1.5 text-xs font-semibold text-foreground hover:bg-secondary/80 shrink-0"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                  <span>المحادثات</span>
+                </button>
+
+                <div
+                  className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl font-semibold text-sm ${
+                    isPaymentConv(activeConv) ? "bg-amber-600 text-white" : "bg-navy text-ivory"
+                  }`}
+                >
+                  {isPaymentConv(activeConv) ? <CreditCard className="h-5 w-5" /> : activeConv.clientName.slice(0, 2).toUpperCase()}
+                </div>
+
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="font-semibold text-sm text-foreground truncate">
+                      {activeConv.clientName}
+                    </h3>
+
+                    {activeConv.groupName && (
+                      <span className="text-[10px] rounded-full px-2 py-0.5 bg-secondary border border-border text-muted-foreground truncate">
+                        📁 {activeConv.groupName}
+                      </span>
+                    )}
+
+                    {FLAGS.find((f) => f.id === activeConv.flag) && (
+                      <span className={`text-[10px] rounded-full px-2 py-0.5 border font-bold ${FLAGS.find((f) => f.id === activeConv.flag)!.badgeCls}`}>
+                        {FLAGS.find((f) => f.id === activeConv.flag)!.label}
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted-foreground mt-0.5">
+                    {activeConv.clientPhone && (
+                      <span className="flex items-center gap-1 font-mono">
+                        <Phone className="h-3 w-3 text-beige" />
+                        {activeConv.clientPhone}
+                      </span>
+                    )}
+                    {activeConv.clientEmail && (
+                      <span className="flex items-center gap-1 truncate">
+                        <Mail className="h-3 w-3 text-beige" />
+                        {activeConv.clientEmail}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Buttons Toolbar */}
+              <div className="flex items-center gap-1.5 sm:gap-2">
+                {/* Flag Picker Button */}
+                <button
+                  onClick={() => setShowFlagPicker(true)}
+                  className="inline-flex items-center gap-1 rounded-full border border-border bg-secondary px-3 py-1.5 text-xs font-semibold hover:border-beige transition-colors"
+                >
+                  <Flag className="h-3.5 w-3.5 text-amber-500" />
+                  <span>Flag</span>
+                </button>
+
+                {/* Group Picker Button */}
+                <button
+                  onClick={() => setShowGroupPicker(true)}
+                  className="inline-flex items-center gap-1 rounded-full border border-border bg-secondary px-3 py-1.5 text-xs font-semibold hover:border-beige transition-colors"
+                >
+                  <Folder className="h-3.5 w-3.5 text-blue-500" />
+                  <span>Group</span>
+                </button>
+
+                {/* WhatsApp */}
+                {activeConv.clientPhone && (
+                  <a
+                    href={`https://wa.me/${activeConv.clientPhone.replace(/[^0-9]/g, "")}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="hidden sm:inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-xs font-medium text-emerald-700 hover:bg-emerald-500/20 transition-colors"
+                  >
+                    WhatsApp
+                    <ExternalLink className="h-3 w-3" />
+                  </a>
+                )}
+
+                {/* Mark Resolved */}
+                <button
+                  onClick={handleToggleStatus}
+                  className="rounded-full border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground hover:border-foreground hover:text-foreground transition-colors"
+                >
+                  {activeConv.status === "active" ? "Mark Resolved" : "Reopen"}
+                </button>
+
+                {/* Delete Conversation */}
+                <button
+                  onClick={() => setShowDeleteModal(true)}
+                  className="p-2 rounded-full text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors"
+                  title="Delete Conversation"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* Messages Scroll Area */}
+            <div
+              ref={messagesContainerRef}
+              className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-5 space-y-3.5 bg-secondary/10"
+              style={{ overscrollBehavior: "contain" }}
+            >
+              {messages.map((m) => {
+                const isAdmin = m.sender === "admin";
+                const isPayment = m.text.includes("طلب سداد") || m.text.includes("💳 طلب سداد");
+
+                if (isPayment) {
+                  return (
+                    <div key={m.id} className="flex justify-start my-2">
+                      <ApplicationChatCard isAdmin text={m.text} createdAt={m.createdAt} />
+                    </div>
+                  );
+                }
+
+                return (
+                  <div
+                    key={m.id}
+                    className={`flex flex-col ${isAdmin ? "items-end" : "items-start"}`}
+                  >
+                    <div
+                      className={`max-w-[85%] sm:max-w-[70%] rounded-2xl px-4 py-2.5 text-xs leading-relaxed shadow-xs ${
+                        isAdmin
+                          ? "bg-navy text-ivory rounded-br-xs"
+                          : "bg-card border border-border text-foreground rounded-bl-xs"
+                      }`}
+                    >
+                      <p className="whitespace-pre-line">{m.text}</p>
+                    </div>
+                    <span className="mt-1 px-1 text-[10px] text-muted-foreground flex items-center gap-1">
+                      {new Date(m.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                      {isAdmin && <CheckCheck className="h-3 w-3 text-beige inline" />}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Quick Templates Bar */}
+            <div className="border-t border-border bg-card p-2.5 overflow-x-auto flex items-center gap-2 scrollbar-none shrink-0">
+              <span className="text-[11px] font-semibold text-muted-foreground whitespace-nowrap ps-2">
+                Quick:
+              </span>
+              {cannedTemplates.map((t, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => handleSend(t)}
+                  className="rounded-full bg-secondary hover:bg-beige hover:text-navy px-3 py-1 text-[11px] whitespace-nowrap text-foreground transition-all"
+                >
+                  {t.slice(0, 32)}…
+                </button>
+              ))}
+            </div>
+
+            {/* Reply Input Box */}
+            <div className="p-3 border-t border-border bg-card flex items-center gap-2 shrink-0">
+              <textarea
+                rows={1}
+                value={replyText}
+                onChange={(e) => setReplyText(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSend();
+                  }
+                }}
+                placeholder="Type your response to client… (Press Enter to send)"
+                className="flex-1 rounded-2xl border border-input bg-background px-4 py-2 text-xs outline-none focus:border-beige resize-none leading-relaxed"
+              />
+              <button
+                disabled={!replyText.trim() || busy}
+                onClick={() => handleSend()}
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-navy text-ivory hover:bg-navy/90 disabled:opacity-40 transition-all shadow-xs"
+              >
+                <Send className="h-4 w-4" />
+              </button>
+            </div>
+          </>
+        ) : (
+          <div className="flex h-full flex-col items-center justify-center p-8 text-center text-muted-foreground">
+            <MessageSquare className="h-12 w-12 mb-3 opacity-20" />
+            <p className="font-semibold text-sm text-foreground">Select a conversation to reply</p>
+            <p className="text-xs opacity-70 mt-1 max-w-sm">
+              Manage client inquiries, tag VIP clients, assign to groups, or review verified payment receipts.
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* Flag Picker Modal */}
+      {showFlagPicker && activeConv && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
+          <div className="w-full max-w-xs rounded-3xl border border-border bg-card p-4 shadow-2xl space-y-3 animate-in zoom-in-95">
+            <div className="flex items-center justify-between border-b border-border pb-2">
+              <p className="font-semibold text-sm flex items-center gap-1.5">
+                <Flag className="h-4 w-4 text-amber-500" />
+                <span>علامات المحادثة (Flags)</span>
+              </p>
+              <button onClick={() => setShowFlagPicker(false)} className="text-muted-foreground hover:text-foreground">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="space-y-1.5">
+              {FLAGS.map((f) => (
+                <button
+                  key={f.id}
+                  onClick={() => handleSetFlag(activeConv.id, f.id)}
+                  className={`flex w-full items-center justify-between rounded-xl p-2.5 text-xs font-semibold transition-colors border ${
+                    activeConv.flag === f.id ? f.badgeCls : "border-border hover:bg-secondary"
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <span className={`h-2.5 w-2.5 rounded-full ${f.badgeCls}`} />
+                    <span>{f.label}</span>
+                  </div>
+                  {activeConv.flag === f.id && <Check className="h-3.5 w-3.5" />}
+                </button>
+              ))}
+              <button
+                onClick={() => handleSetFlag(activeConv.id, null)}
+                className="flex w-full items-center justify-center gap-1 rounded-xl p-2 text-xs text-muted-foreground hover:bg-secondary border border-dashed border-border mt-2"
+              >
+                <X className="h-3 w-3" />
+                <span>إزالة العلامة (Clear Flag)</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Group Picker Modal */}
+      {showGroupPicker && activeConv && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
+          <div className="w-full max-w-sm rounded-3xl border border-border bg-card p-4 shadow-2xl space-y-3 animate-in zoom-in-95">
+            <div className="flex items-center justify-between border-b border-border pb-2">
+              <p className="font-semibold text-sm flex items-center gap-1.5">
+                <Folder className="h-4 w-4 text-blue-500" />
+                <span>تخصيص مجموعة (Group Assignment)</span>
+              </p>
+              <button onClick={() => setShowGroupPicker(false)} className="text-muted-foreground hover:text-foreground">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="space-y-1 max-h-56 overflow-y-auto">
+              {existingGroups.map((grp) => (
+                <button
+                  key={grp}
+                  onClick={() => handleSetGroup(activeConv.id, grp)}
+                  className={`flex w-full items-center justify-between rounded-xl p-2.5 text-xs font-medium transition-colors ${
+                    activeConv.groupName === grp
+                      ? "bg-navy text-ivory font-bold"
+                      : "hover:bg-secondary text-foreground"
+                  }`}
+                >
+                  <span className="flex items-center gap-2">
+                    <Folder className="h-3.5 w-3.5 opacity-60" />
+                    <span>{grp}</span>
+                  </span>
+                  {activeConv.groupName === grp && <Check className="h-3.5 w-3.5 text-beige" />}
+                </button>
+              ))}
+            </div>
+
+            <div className="border-t border-border pt-2 space-y-2">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                إضافة مجموعة جديدة:
+              </p>
+              <div className="flex items-center gap-1.5">
+                <input
+                  type="text"
+                  value={customGroupInput}
+                  onChange={(e) => setCustomGroupInput(e.target.value)}
+                  placeholder="اسم المجموعة الجديدة..."
+                  className="flex-1 rounded-xl border border-input bg-background px-3 py-1.5 text-xs outline-none focus:border-beige"
+                />
+                <button
+                  disabled={!customGroupInput.trim()}
+                  onClick={() => handleSetGroup(activeConv.id, customGroupInput.trim())}
+                  className="rounded-xl bg-navy px-3 py-1.5 text-xs font-bold text-ivory hover:bg-navy-soft disabled:opacity-30"
+                >
+                  حفظ
+                </button>
+              </div>
+
+              {activeConv.groupName && (
+                <button
+                  onClick={() => handleSetGroup(activeConv.id, null)}
+                  className="flex w-full items-center justify-center gap-1 text-xs text-red-500 hover:bg-secondary p-1.5 rounded-xl border border-dashed border-red-300 dark:border-red-900/60"
+                >
+                  <X className="h-3 w-3" />
+                  <span>إزالة من المجموعة</span>
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && activeConv && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
+          <div className="w-full max-w-md rounded-3xl border border-border bg-card p-6 shadow-2xl space-y-4">
+            <div className="flex items-center gap-2 text-red-600">
+              <AlertTriangle className="h-5 w-5" />
+              <h3 className="font-display text-lg font-bold">Delete Conversation</h3>
+            </div>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Are you sure you want to delete the chat history with <strong>{activeConv.clientName}</strong>? The conversation will be safely removed from the active support dashboard.
+            </p>
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                onClick={() => setShowDeleteModal(false)}
+                className="rounded-full px-4 py-2 text-xs font-medium hover:bg-secondary"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteConversation}
+                className="rounded-full bg-red-600 px-5 py-2 text-xs font-bold text-white hover:bg-red-700"
+              >
+                Confirm Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
