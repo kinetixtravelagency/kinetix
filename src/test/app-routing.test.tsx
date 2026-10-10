@@ -1,7 +1,6 @@
 import { QueryClient } from "@tanstack/react-query";
 import { createMemoryHistory, createRouter, RouterProvider } from "@tanstack/react-router";
-import { cleanup, render } from "@testing-library/react";
-import { waitFor } from "@testing-library/dom";
+import { cleanup, render, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { routeTree } from "@/routeTree.gen";
@@ -27,7 +26,7 @@ describe("App routing", () => {
   it("renders the index route", async () => {
     const { container } = renderAt("/");
 
-    await waitFor(() => expect(document.body).toBeTruthy());
+    await waitFor(() => expect(container.firstChild).not.toBeNull());
   });
 
   it("renders the not-found route", async () => {
@@ -35,6 +34,6 @@ describe("App routing", () => {
 
     const { container } = renderAt("/this-route-does-not-exist");
 
-    await waitFor(() => expect(document.body).toBeTruthy());
+    await waitFor(() => expect(container.firstChild).not.toBeNull());
   });
 });
