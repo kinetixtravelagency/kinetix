@@ -12,12 +12,18 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthRouteImport } from './routes/auth'
+import { Route as FaqRouteImport } from './routes/faq'
+import { Route as HowRouteImport } from './routes/how'
+import { Route as PricingRouteImport } from './routes/pricing'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as AuthenticatedApplyRouteImport } from './routes/_authenticated/apply'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedPartnerRouteImport } from './routes/_authenticated/partner'
+import { Route as CountriesIndexRouteImport } from './routes/countries.index'
 import { Route as CountriesSlugRouteImport } from './routes/countries.$slug'
+import { Route as PartnersIndexRouteImport } from './routes/partners.index'
 import { Route as PartnersJoinRouteImport } from './routes/partners.join'
+import { Route as PartnersLoginRouteImport } from './routes/partners.login'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -31,6 +37,21 @@ const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FaqRoute = FaqRouteImport.update({
+  id: '/faq',
+  path: '/faq',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HowRoute = HowRouteImport.update({
+  id: '/how',
+  path: '/how',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PricingRoute = PricingRouteImport.update({
+  id: '/pricing',
+  path: '/pricing',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
@@ -53,9 +74,19 @@ const AuthenticatedPartnerRoute = AuthenticatedPartnerRouteImport.update({
   path: '/partner',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const CountriesIndexRoute = CountriesIndexRouteImport.update({
+  id: '/countries/',
+  path: '/countries/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CountriesSlugRoute = CountriesSlugRouteImport.update({
   id: '/countries/$slug',
   path: '/countries/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PartnersIndexRoute = PartnersIndexRouteImport.update({
+  id: '/partners/',
+  path: '/partners/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PartnersJoinRoute = PartnersJoinRouteImport.update({
@@ -63,79 +94,126 @@ const PartnersJoinRoute = PartnersJoinRouteImport.update({
   path: '/partners/join',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PartnersLoginRoute = PartnersLoginRouteImport.update({
+  id: '/partners/login',
+  path: '/partners/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/faq': typeof FaqRoute
+  '/how': typeof HowRoute
+  '/pricing': typeof PricingRoute
   '/admin': typeof AuthenticatedAdminRoute
   '/apply': typeof AuthenticatedApplyRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/partner': typeof AuthenticatedPartnerRoute
   '/countries/$slug': typeof CountriesSlugRoute
   '/partners/join': typeof PartnersJoinRoute
+  '/partners/login': typeof PartnersLoginRoute
+  '/countries/': typeof CountriesIndexRoute
+  '/partners/': typeof PartnersIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/faq': typeof FaqRoute
+  '/how': typeof HowRoute
+  '/pricing': typeof PricingRoute
   '/admin': typeof AuthenticatedAdminRoute
   '/apply': typeof AuthenticatedApplyRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/partner': typeof AuthenticatedPartnerRoute
   '/countries/$slug': typeof CountriesSlugRoute
   '/partners/join': typeof PartnersJoinRoute
+  '/partners/login': typeof PartnersLoginRoute
+  '/countries': typeof CountriesIndexRoute
+  '/partners': typeof PartnersIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
+  '/faq': typeof FaqRoute
+  '/how': typeof HowRoute
+  '/pricing': typeof PricingRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRoute
   '/_authenticated/apply': typeof AuthenticatedApplyRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/partner': typeof AuthenticatedPartnerRoute
   '/countries/$slug': typeof CountriesSlugRoute
   '/partners/join': typeof PartnersJoinRoute
+  '/partners/login': typeof PartnersLoginRoute
+  '/countries/': typeof CountriesIndexRoute
+  '/partners/': typeof PartnersIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
     | '/auth'
+    | '/faq'
+    | '/how'
+    | '/pricing'
     | '/admin'
     | '/apply'
     | '/dashboard'
     | '/partner'
     | '/countries/$slug'
     | '/partners/join'
+    | '/partners/login'
+    | '/countries/'
+    | '/partners/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/auth'
+    | '/faq'
+    | '/how'
+    | '/pricing'
     | '/admin'
     | '/apply'
     | '/dashboard'
     | '/partner'
     | '/countries/$slug'
     | '/partners/join'
+    | '/partners/login'
+    | '/countries'
+    | '/partners'
   id:
     | '__root__'
     | '/'
     | '/_authenticated'
     | '/auth'
+    | '/faq'
+    | '/how'
+    | '/pricing'
     | '/_authenticated/admin'
     | '/_authenticated/apply'
     | '/_authenticated/dashboard'
     | '/_authenticated/partner'
     | '/countries/$slug'
     | '/partners/join'
+    | '/partners/login'
+    | '/countries/'
+    | '/partners/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
+  FaqRoute: typeof FaqRoute
+  HowRoute: typeof HowRoute
+  PricingRoute: typeof PricingRoute
   CountriesSlugRoute: typeof CountriesSlugRoute
   PartnersJoinRoute: typeof PartnersJoinRoute
+  PartnersLoginRoute: typeof PartnersLoginRoute
+  CountriesIndexRoute: typeof CountriesIndexRoute
+  PartnersIndexRoute: typeof PartnersIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -159,6 +237,27 @@ declare module '@tanstack/react-router' {
       path: '/auth'
       fullPath: '/auth'
       preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/faq': {
+      id: '/faq'
+      path: '/faq'
+      fullPath: '/faq'
+      preLoaderRoute: typeof FaqRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/how': {
+      id: '/how'
+      path: '/how'
+      fullPath: '/how'
+      preLoaderRoute: typeof HowRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/pricing': {
+      id: '/pricing'
+      path: '/pricing'
+      fullPath: '/pricing'
+      preLoaderRoute: typeof PricingRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/admin': {
@@ -189,6 +288,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedPartnerRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/countries/': {
+      id: '/countries/'
+      path: '/countries'
+      fullPath: '/countries/'
+      preLoaderRoute: typeof CountriesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/countries/$slug': {
       id: '/countries/$slug'
       path: '/countries/$slug'
@@ -196,11 +302,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CountriesSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/partners/': {
+      id: '/partners/'
+      path: '/partners'
+      fullPath: '/partners/'
+      preLoaderRoute: typeof PartnersIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/partners/join': {
       id: '/partners/join'
       path: '/partners/join'
       fullPath: '/partners/join'
       preLoaderRoute: typeof PartnersJoinRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/partners/login': {
+      id: '/partners/login'
+      path: '/partners/login'
+      fullPath: '/partners/login'
+      preLoaderRoute: typeof PartnersLoginRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -227,8 +347,14 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
+  FaqRoute: FaqRoute,
+  HowRoute: HowRoute,
+  PricingRoute: PricingRoute,
   CountriesSlugRoute: CountriesSlugRoute,
   PartnersJoinRoute: PartnersJoinRoute,
+  PartnersLoginRoute: PartnersLoginRoute,
+  CountriesIndexRoute: CountriesIndexRoute,
+  PartnersIndexRoute: PartnersIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
